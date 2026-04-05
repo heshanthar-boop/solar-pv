@@ -27,6 +27,7 @@ const App = (() => {
     diagnostics: { title: 'PV Diagnostics',             render: (c) => PVDiagnostics.render(c) },
     inverter:    { title: 'Inverter Performance',       render: (c) => InverterPerf.render(c) },
     shading:     { title: 'Shading & Loss',             render: (c) => ShadingLoss.render(c) },
+    yield:       { title: 'Yield Estimator',            render: (c) => YieldEstimator.render(c) },
     faultai:     { title: 'Fault Detection',            render: (c) => FaultAI.render(c) },
     settings:    { title: 'Settings',                   render: (c) => _renderSettings(c) },
   };
