@@ -16,7 +16,7 @@
 <header id="app-header">
   <button id="menu-btn" class="icon-btn" aria-label="Menu">&#9776;</button>
   <span id="page-title">Solar PV Field Tool</span>
-  <div style="width:40px"></div>
+  <div id="header-right"></div>
 </header>
 
 <!-- SIDEBAR OVERLAY -->
@@ -94,6 +94,11 @@
   </div>
 </div>
 
+<!-- Firebase compat SDK -->
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+
 <!-- CDN Scripts -->
 <script src="https://unpkg.com/jspdf@2.5.2/dist/jspdf.umd.min.js"></script>
 <script src="https://unpkg.com/jspdf-autotable@3.8.4/dist/jspdf.plugin.autotable.min.js"></script>
@@ -115,6 +120,7 @@
 <script src="js/inverter-perf.js"></script>
 <script src="js/shading.js"></script>
 <script src="js/fault-ai.js"></script>
+<script src="js/firebase-sync.js"></script>
 <script src="js/app.js"></script>
 
 </body>

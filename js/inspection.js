@@ -59,6 +59,8 @@ const Inspection = (() => {
     if (idx >= 0) sessions[idx] = _session;
     else sessions.unshift(_session);
     localStorage.setItem(STORAGE_KEY, JSON.stringify(sessions));
+    // Cloud sync — silently push to Firestore if signed in
+    if (typeof FirebaseSync !== 'undefined') FirebaseSync.onSessionSaved(_session);
   }
 
   function _debounceSave() {

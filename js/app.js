@@ -208,6 +208,7 @@ const App = (() => {
         phone: container.querySelector('#set-phone').value.trim(),
       };
       localStorage.setItem('solarpv_settings', JSON.stringify(s));
+      FirebaseSync.saveSettings(s);
       toast('Settings saved', 'success');
     });
 
@@ -256,6 +257,16 @@ const App = (() => {
     _initBottomNav();
     _initModalClose();
     _initSW();
+
+    // Firebase sync — render sign-in button in header, then init
+    FirebaseSync.renderSignInButton(document.getElementById('header-right'));
+    FirebaseSync.init(user => {
+      if (user) {
+        // Auto-sync on sign-in
+        FirebaseSync.syncAll();
+      }
+    });
+
     navigate('database');
   }
 
