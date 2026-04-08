@@ -7,15 +7,21 @@ const App = (() => {
   // Global state shared across modules
   const state = {
     currentPage: null,
+    projectType: 'all',
     sizingInputs: null,
     sizingResult: null,   // used by FaultChecker + FieldTest
+    hybridInputs: null,
+    hybridResult: null,
     fieldTestResults: null,
+    faultCheckResults: null,
+    yieldResults: null,
     lastSessionId: null
   };
 
   const PAGES = {
     database:   { title: 'Panel Database',      render: (c) => DB.renderPage(c) },
     sizing:     { title: 'String Sizing',       render: (c) => Sizing.render(c) },
+    hybrid:     { title: 'Hybrid Setup',        render: (c) => HybridSetup.render(c) },
     temp:       { title: 'Temp Correction',     render: (c) => TempCalc.render(c) },
     fieldtest:  { title: 'Field Test vs STC',   render: (c) => FieldTest.render(c) },
     fault:      { title: 'Fault Checker',       render: (c) => FaultChecker.render(c) },
@@ -32,34 +38,247 @@ const App = (() => {
     settings:    { title: 'Settings',                   render: (c) => _renderSettings(c) },
   };
 
+  const PROJECT_TYPES = {
+    all: {
+      label: 'All Modules',
+      pages: Object.keys(PAGES),
+    },
+    gridTie: {
+      label: 'Grid-Tie System',
+      pages: ['database', 'sizing', 'temp', 'fieldtest', 'fault', 'inspection', 'pr', 'inverter', 'shading', 'yield', 'standards', 'settings'],
+    },
+    gridTieHybrid: {
+      label: 'Grid-Tie Hybrid System',
+      pages: ['database', 'sizing', 'hybrid', 'temp', 'fieldtest', 'fault', 'inspection', 'pr', 'inverter', 'shading', 'yield', 'degradation', 'fieldanalysis', 'diagnostics', 'faultai', 'standards', 'settings'],
+    },
+    fullyHybrid: {
+      label: 'Fully Hybrid System',
+      pages: ['database', 'hybrid', 'temp', 'fieldtest', 'fault', 'inspection', 'pr', 'degradation', 'fieldanalysis', 'diagnostics', 'yield', 'standards', 'settings'],
+    },
+    groundMount: {
+      label: 'Ground Mount Solar System',
+      pages: ['database', 'sizing', 'temp', 'fieldtest', 'fault', 'inspection', 'pr', 'inverter', 'shading', 'yield', 'fieldanalysis', 'diagnostics', 'standards', 'settings'],
+    },
+    battery: {
+      label: 'Battery Focus',
+      pages: ['database', 'hybrid', 'fieldtest', 'fault', 'pr', 'standards', 'settings'],
+    },
+    standardsOnly: {
+      label: 'Standards',
+      pages: ['standards', 'settings'],
+    },
+    pvAnalysis: {
+      label: 'PV Analysis',
+      pages: ['fieldanalysis', 'diagnostics', 'pr', 'degradation', 'yield', 'inverter', 'shading', 'faultai', 'standards', 'settings'],
+    },
+  };
+
   const main = document.getElementById('main-content');
+
+  function escapeHTML(value) {
+    return String(value ?? '')
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
+  }
+
+  function localDateISO(date) {
+    const d = date instanceof Date ? date : new Date();
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${y}-${m}-${day}`;
+  }
+
+  async function copyText(text) {
+    const value = String(text ?? '');
+    if (!value) {
+      toast('Nothing to copy', 'warning');
+      return false;
+    }
+
+    if (navigator.clipboard && window.isSecureContext) {
+      try {
+        await navigator.clipboard.writeText(value);
+        toast('Copied to clipboard', 'success');
+        return true;
+      } catch (_) {}
+    }
+
+    try {
+      const ta = document.createElement('textarea');
+      ta.value = value;
+      ta.setAttribute('readonly', 'readonly');
+      ta.style.position = 'fixed';
+      ta.style.opacity = '0';
+      ta.style.left = '-9999px';
+      document.body.appendChild(ta);
+      ta.focus();
+      ta.select();
+      const ok = document.execCommand('copy');
+      document.body.removeChild(ta);
+      if (ok) {
+        toast('Copied to clipboard', 'success');
+        return true;
+      }
+    } catch (_) {}
+
+    try {
+      window.prompt('Clipboard blocked. Copy manually:', value);
+      toast('Clipboard unavailable. Copy manually.', 'warning');
+    } catch (_) {
+      toast('Clipboard unavailable', 'error');
+    }
+    return false;
+  }
+
+  function printHTML(title, html, opts) {
+    const safeTitle = escapeHTML(title || 'Report');
+    const meta = opts && opts.meta ? `<div class="print-meta">${escapeHTML(opts.meta)}</div>` : '';
+    const win = window.open('', '_blank', 'noopener,noreferrer');
+    if (!win) {
+      toast('Pop-up blocked. Allow pop-ups to print.', 'warning');
+      return false;
+    }
+
+    const now = new Date();
+    const hh = String(now.getHours()).padStart(2, '0');
+    const mm = String(now.getMinutes()).padStart(2, '0');
+    const generated = `${localDateISO(now)} ${hh}:${mm}`;
+    const body = String(html || '');
+
+    win.document.open();
+    win.document.write(`
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>${safeTitle}</title>
+  <link rel="stylesheet" href="css/style.css?v=2" />
+  <style>
+    body { background: #fff; }
+    #print-root { max-width: 980px; margin: 0 auto; padding: 16px; }
+    .print-header { margin-bottom: 12px; border-bottom: 1px solid #e5e7eb; padding-bottom: 8px; }
+    .print-title { font-size: 1.15rem; font-weight: 700; color: #111827; }
+    .print-meta { font-size: 0.78rem; color: #6b7280; margin-top: 2px; }
+    .btn, .btn-group, button, [data-no-print] { display: none !important; }
+    @media print {
+      body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+      #print-root { padding: 0; max-width: none; }
+    }
+  </style>
+</head>
+<body>
+  <div id="print-root">
+    <div class="print-header">
+      <div class="print-title">${safeTitle}</div>
+      <div class="print-meta">Generated: ${escapeHTML(generated)}</div>
+      ${meta}
+    </div>
+    ${body}
+  </div>
+</body>
+</html>`);
+    win.document.close();
+
+    setTimeout(() => {
+      win.focus();
+      win.print();
+    }, 150);
+
+    return true;
+  }
+
+  function printSection(selectorOrElement, title, root) {
+    const source = typeof selectorOrElement === 'string'
+      ? (root ? root.querySelector(selectorOrElement) : document.querySelector(selectorOrElement))
+      : selectorOrElement;
+    if (!source || source.classList.contains('hidden')) {
+      toast('No results to print', 'warning');
+      return false;
+    }
+    const clone = source.cloneNode(true);
+    clone.querySelectorAll('.btn, .btn-group, button, [data-no-print]').forEach(el => el.remove());
+    return printHTML(title, clone.innerHTML);
+  }
 
   // -----------------------------------------------------------------------
   // NAVIGATION
   // -----------------------------------------------------------------------
 
+  function _allowedPages() {
+    const cfg = PROJECT_TYPES[state.projectType] || PROJECT_TYPES.all;
+    return new Set((cfg && Array.isArray(cfg.pages) ? cfg.pages : Object.keys(PAGES)).filter(id => !!PAGES[id]));
+  }
+
+  function _firstAllowedPage() {
+    return [..._allowedPages()][0] || 'database';
+  }
+
+  function _isPageAllowed(pageId) {
+    return _allowedPages().has(pageId);
+  }
+
   function navigate(pageId) {
-    const page = PAGES[pageId];
+    const targetPageId = _isPageAllowed(pageId) ? pageId : _firstAllowedPage();
+    const page = PAGES[targetPageId];
     if (!page) return;
 
-    state.currentPage = pageId;
+    state.currentPage = targetPageId;
 
     // Update header title
     document.getElementById('page-title').textContent = page.title;
 
     // Update bottom nav active state
     document.querySelectorAll('.bnav-btn').forEach(btn => {
-      btn.classList.toggle('active', btn.dataset.page === pageId);
+      btn.classList.toggle('active', btn.dataset.page === targetPageId);
     });
 
     // Update sidebar nav active state
     document.querySelectorAll('.nav-link').forEach(a => {
-      a.classList.toggle('active', a.dataset.page === pageId);
+      a.classList.toggle('active', a.dataset.page === targetPageId);
     });
 
     // Render page
     main.scrollTop = 0;
     page.render(main);
+  }
+
+  function _applyProjectTypeFilter(opts) {
+    const allowed = _allowedPages();
+    document.querySelectorAll('.nav-link').forEach(link => {
+      link.classList.toggle('hidden', !allowed.has(link.dataset.page));
+    });
+    document.querySelectorAll('.bnav-btn').forEach(btn => {
+      btn.classList.toggle('hidden', !allowed.has(btn.dataset.page));
+    });
+
+    const nav = document.querySelector('.sidebar-nav');
+    if (nav) {
+      const hasVisibleLink = (li) => {
+        const link = li && li.querySelector && li.querySelector('.nav-link');
+        return !!(link && !link.classList.contains('hidden'));
+      };
+      nav.querySelectorAll('.nav-divider').forEach(divider => {
+        let prev = divider.previousElementSibling;
+        while (prev && !hasVisibleLink(prev)) prev = prev.previousElementSibling;
+        let next = divider.nextElementSibling;
+        while (next && !hasVisibleLink(next)) next = next.nextElementSibling;
+        divider.classList.toggle('hidden', !(prev && next));
+      });
+    }
+
+    const selector = document.getElementById('project-mode');
+    if (selector && selector.value !== state.projectType) {
+      selector.value = state.projectType;
+    }
+
+    if (!(opts && opts.skipNavigate) && !_isPageAllowed(state.currentPage)) {
+      navigate(_firstAllowedPage());
+    }
   }
 
   // -----------------------------------------------------------------------
@@ -94,6 +313,20 @@ const App = (() => {
         navigate(a.dataset.page);
       });
     });
+
+    const projectSelect = document.getElementById('project-mode');
+    if (projectSelect) {
+      const saved = localStorage.getItem('solarpv_project_type');
+      if (saved && PROJECT_TYPES[saved]) state.projectType = saved;
+      projectSelect.value = state.projectType;
+      projectSelect.addEventListener('change', () => {
+        const next = projectSelect.value;
+        if (!PROJECT_TYPES[next]) return;
+        state.projectType = next;
+        localStorage.setItem('solarpv_project_type', next);
+        _applyProjectTypeFilter();
+      });
+    }
   }
 
   // -----------------------------------------------------------------------
@@ -158,6 +391,9 @@ const App = (() => {
   function _renderSettings(container) {
     let settings = {};
     try { settings = JSON.parse(localStorage.getItem('solarpv_settings') || '{}'); } catch {}
+    const safeName = escapeHTML(settings.inspectorName || '');
+    const safeCompany = escapeHTML(settings.company || 'Heshan Engineering Solution');
+    const safePhone = escapeHTML(settings.phone || '');
 
     container.innerHTML = `
       <div class="page">
@@ -167,15 +403,15 @@ const App = (() => {
           <div class="card-title">Inspector Details</div>
           <div class="form-group">
             <label class="form-label">Inspector Name</label>
-            <input class="form-input" id="set-name" value="${settings.inspectorName || ''}" placeholder="Your full name" />
+            <input class="form-input" id="set-name" value="${safeName}" placeholder="Your full name" />
           </div>
           <div class="form-group">
             <label class="form-label">Company</label>
-            <input class="form-input" id="set-company" value="${settings.company || 'Heshan Engineering Solution'}" />
+            <input class="form-input" id="set-company" value="${safeCompany}" />
           </div>
           <div class="form-group">
             <label class="form-label">Phone</label>
-            <input class="form-input" id="set-phone" type="tel" value="${settings.phone || ''}" />
+            <input class="form-input" id="set-phone" type="tel" value="${safePhone}" />
           </div>
           <button class="btn btn-primary btn-sm" id="set-save-btn">Save Settings</button>
         </div>
@@ -258,6 +494,7 @@ const App = (() => {
     _initBottomNav();
     _initModalClose();
     _initSW();
+    _applyProjectTypeFilter({ skipNavigate: true });
 
     // Firebase sync — render sign-in button in header, then init
     FirebaseSync.renderSignInButton(document.getElementById('header-right'));
@@ -278,5 +515,16 @@ const App = (() => {
     init();
   }
 
-  return { state, navigate, toast, showModal, closeModal };
+  return {
+    state,
+    navigate,
+    toast,
+    showModal,
+    closeModal,
+    escapeHTML,
+    localDateISO,
+    copyText,
+    printHTML,
+    printSection,
+  };
 })();

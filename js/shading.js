@@ -150,6 +150,20 @@ const ShadingLoss = (() => {
           </div>`:''}
         </div>
       </div>`;
+
+    const printWrap = document.createElement('div');
+    printWrap.className = 'btn-group';
+    printWrap.style.marginTop = '8px';
+    printWrap.setAttribute('data-no-print', '');
+    printWrap.innerHTML = '<button class="btn btn-secondary btn-sm" id="sh-print-btn">&#128424; Print</button>';
+    res.appendChild(printWrap);
+    printWrap.querySelector('#sh-print-btn').addEventListener('click', () => {
+      if (typeof App.printSection === 'function') {
+        App.printSection('#sh-result', 'Shading & Effective Irradiance Report', container);
+        return;
+      }
+      window.print();
+    });
   }
 
   // -----------------------------------------------------------------------
@@ -199,6 +213,20 @@ const ShadingLoss = (() => {
           <div class="result-unit">${diodeActive?`Bypass diode active \u2014 ${Ns} module(s) bypassed`:`Diode not activated \u2014 current limited to ${I_string.toFixed(3)} A`}</div>
         </div>
       </div>`;
+
+    const printWrap = document.createElement('div');
+    printWrap.className = 'btn-group';
+    printWrap.style.marginTop = '8px';
+    printWrap.setAttribute('data-no-print', '');
+    printWrap.innerHTML = '<button class="btn btn-secondary btn-sm" id="ps-print-btn">&#128424; Print</button>';
+    res.appendChild(printWrap);
+    printWrap.querySelector('#ps-print-btn').addEventListener('click', () => {
+      if (typeof App.printSection === 'function') {
+        App.printSection('#ps-result', 'Partial Shading String Impact Report', container);
+        return;
+      }
+      window.print();
+    });
   }
 
   // -----------------------------------------------------------------------
@@ -244,6 +272,21 @@ const ShadingLoss = (() => {
       `<div style="font-size:0.75rem;color:var(--text-muted);text-align:center;margin-top:4px">
         Loss % = (1 \u2212 cos(AOI)) \u00d7 100%. Red zone (&gt;40\u00b0) = significant loss. At 60\u00b0 = 50% loss.
       </div>`;
+
+    const aoiResult = container.querySelector('#aoi-result');
+    const printWrap = document.createElement('div');
+    printWrap.className = 'btn-group';
+    printWrap.style.marginTop = '8px';
+    printWrap.setAttribute('data-no-print', '');
+    printWrap.innerHTML = '<button class="btn btn-secondary btn-sm" id="aoi-print-btn">&#128424; Print</button>';
+    aoiResult.appendChild(printWrap);
+    printWrap.querySelector('#aoi-print-btn').addEventListener('click', () => {
+      if (typeof App.printSection === 'function') {
+        App.printSection('#aoi-result', 'AOI Cosine Loss Curve Report', container);
+        return;
+      }
+      window.print();
+    });
   }
 
   return { render, shadingLoss };

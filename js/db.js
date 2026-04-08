@@ -1,14 +1,16 @@
 /**
- * db.js — Panel Database
+ * db.js - Panel Database
  * localStorage-backed, synchronous. All calc modules call DB.getById(id).
- * Temperature coefficients stored as decimal fractions (e.g. -0.0026 per °C, NOT -0.26%/°C)
+ * Temperature coefficients stored as decimal fractions (e.g. -0.0026 per C, NOT -0.26%/C)
  */
 
 const DB = (() => {
   const STORAGE_KEY = 'solarpv_panels';
+  const MAX_IMPORT_PANELS = 1500;
+  let _lastImportReport = null;
 
   // --- PRELOADED PANELS ---
-  // Typical 2023/2024 datasheet values. Coefficients as decimal/°C.
+  // Typical 2023/2024 datasheet values. Coefficients as decimal/C.
   const PRELOADED = [
     {
       id: 'jinko_tiger_neo_580', manufacturer: 'Jinko Solar', model: 'Tiger Neo N-type 580W',
@@ -106,7 +108,7 @@ const DB = (() => {
       Pmax: 580, Voc: 52.30, Vmp: 43.95, Isc: 13.98, Imp: 13.20,
       coeffVoc: -0.0026, coeffIsc: 0.00048, coeffPmax: -0.0034,
       NOCT: 41, cells: 72, preloaded: true,
-      note: 'N-type HJT bifacial, NMOT 41°C, 1500V system, Series Fuse 25A'
+      note: 'N-type HJT bifacial, NMOT 41C, 1500V system, Series Fuse 25A'
     },
     {
       id: 'ja_jam72d00_365bp', manufacturer: 'JA Solar', model: 'JAM72D00-365/BP',
@@ -166,6 +168,107 @@ const DB = (() => {
     }
   ];
 
+  function _esc(value) {
+    if (typeof App !== 'undefined' && typeof App.escapeHTML === 'function') {
+      return App.escapeHTML(value);
+    }
+    return String(value ?? '')
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
+  }
+
+  function _cleanText(value, maxLen) {
+    if (typeof value !== 'string') value = String(value ?? '');
+    return value.replace(/[\u0000-\u001F\u007F]/g, '').trim().slice(0, maxLen || 120);
+  }
+
+  function _toFiniteNumber(value) {
+    const n = typeof value === 'number' ? value : parseFloat(value);
+    return Number.isFinite(n) ? n : NaN;
+  }
+
+  function _normalizeISODate(value) {
+    if (!value) return null;
+    const ms = Date.parse(String(value));
+    if (isNaN(ms)) return null;
+    return new Date(ms).toISOString();
+  }
+
+  function _normalizeCoeff(value, min, max, fallback) {
+    let n = _toFiniteNumber(value);
+    if (!Number.isFinite(n)) return fallback;
+    // Accept both decimal form (-0.0026) and percent form (-0.26)
+    if (Math.abs(n) > 0.05) n = n / 100;
+    if (n < min || n > max) return fallback;
+    return n;
+  }
+
+  function _normalizePanel(input, options) {
+    const opts = options || {};
+    if (!input || typeof input !== 'object') return null;
+    const existing = opts.existing && typeof opts.existing === 'object' ? opts.existing : null;
+    const nowISO = opts.nowISO || new Date().toISOString();
+
+    const manufacturer = _cleanText(input.manufacturer, 80);
+    const model = _cleanText(input.model, 120);
+    if (!manufacturer || !model) return null;
+
+    const Pmax = _toFiniteNumber(input.Pmax);
+    const Voc = _toFiniteNumber(input.Voc);
+    const Vmp = _toFiniteNumber(input.Vmp);
+    const Isc = _toFiniteNumber(input.Isc);
+    const Imp = _toFiniteNumber(input.Imp);
+    const NOCT = _toFiniteNumber(input.NOCT);
+    const cellsRaw = _toFiniteNumber(input.cells);
+
+    if (![Pmax, Voc, Vmp, Isc, Imp, NOCT].every(Number.isFinite)) return null;
+    if (Pmax <= 0 || Voc <= 0 || Vmp <= 0 || Isc <= 0 || Imp <= 0) return null;
+    if (Vmp > Voc || Imp > Isc) return null;
+    if (NOCT < 20 || NOCT > 80) return null;
+
+    const coeffVoc = _normalizeCoeff(input.coeffVoc, -0.02, 0, -0.0026);
+    const coeffIsc = _normalizeCoeff(input.coeffIsc, 0, 0.01, 0.00048);
+    const coeffPmax = _normalizeCoeff(input.coeffPmax, -0.02, 0, -0.0030);
+
+    let id = _cleanText(input.id || '', 80).toLowerCase().replace(/[^a-z0-9_]/g, '_').replace(/^_+|_+$/g, '');
+    if (!id) id = generateId(manufacturer, model);
+
+    const cells = Number.isFinite(cellsRaw) ? Math.round(cellsRaw) : 60;
+    if (cells < 1 || cells > 300) return null;
+
+    const createdAt = _normalizeISODate(input.createdAt)
+      || _normalizeISODate(existing && existing.createdAt)
+      || nowISO;
+    const updatedAt = _normalizeISODate(input.updatedAt)
+      || _normalizeISODate(existing && existing.updatedAt)
+      || createdAt;
+
+    return {
+      id,
+      manufacturer,
+      model,
+      Pmax: Number(Pmax.toFixed(3)),
+      Voc: Number(Voc.toFixed(3)),
+      Vmp: Number(Vmp.toFixed(3)),
+      Isc: Number(Isc.toFixed(3)),
+      Imp: Number(Imp.toFixed(3)),
+      coeffVoc: Number(coeffVoc.toFixed(6)),
+      coeffIsc: Number(coeffIsc.toFixed(6)),
+      coeffPmax: Number(coeffPmax.toFixed(6)),
+      NOCT: Number(NOCT.toFixed(2)),
+      cells,
+      preloaded: !!opts.allowPreloaded && input.preloaded === true,
+      note: _cleanText(input.note || '', 240),
+      createdAt,
+      updatedAt,
+      _deleted: false,
+      deletedAt: null,
+    };
+  }
+
   function _load() {
     try {
       const raw = localStorage.getItem(STORAGE_KEY);
@@ -179,7 +282,14 @@ const DB = (() => {
 
   function init() {
     if (!_load()) {
-      _save(PRELOADED.map(p => ({ ...p })));
+      const nowISO = new Date().toISOString();
+      _save(PRELOADED.map(p => ({
+        ...p,
+        createdAt: p.createdAt || nowISO,
+        updatedAt: p.updatedAt || nowISO,
+        _deleted: false,
+        deletedAt: null,
+      })));
     }
   }
 
@@ -197,15 +307,40 @@ const DB = (() => {
 
   function save(panel) {
     const panels = _load() || [];
-    const idx = panels.findIndex(p => p.id === panel.id);
-    if (idx >= 0) panels[idx] = panel;
-    else panels.push(panel);
+    const rawId = _cleanText((panel && panel.id) || '', 80)
+      .toLowerCase()
+      .replace(/[^a-z0-9_]/g, '_')
+      .replace(/^_+|_+$/g, '');
+    const idx = rawId ? panels.findIndex(p => p.id === rawId) : -1;
+    const existing = idx >= 0 ? panels[idx] : null;
+    const nowISO = new Date().toISOString();
+    const normalized = _normalizePanel(panel, {
+      allowPreloaded: panel && panel.preloaded === true,
+      existing,
+      nowISO
+    });
+    if (!normalized) return false;
+    normalized.createdAt = (existing && existing.createdAt) || normalized.createdAt || nowISO;
+    normalized.updatedAt = nowISO;
+    normalized._deleted = false;
+    normalized.deletedAt = null;
+    if (idx >= 0) panels[idx] = normalized;
+    else panels.push(normalized);
     _save(panels);
+    if (typeof FirebaseSync !== 'undefined' && FirebaseSync && typeof FirebaseSync.onPanelSaved === 'function') {
+      FirebaseSync.onPanelSaved(normalized);
+    }
+    return true;
   }
 
   function remove(id) {
-    const panels = (_load() || []).filter(p => p.id !== id);
+    const all = _load() || [];
+    const existed = all.some(p => p.id === id);
+    const panels = all.filter(p => p.id !== id);
     _save(panels);
+    if (existed && typeof FirebaseSync !== 'undefined' && FirebaseSync && typeof FirebaseSync.onPanelDeleted === 'function') {
+      FirebaseSync.onPanelDeleted(id);
+    }
   }
 
   function exportJSON() {
@@ -213,16 +348,64 @@ const DB = (() => {
   }
 
   function importJSON(json) {
+    const report = { ok: false, total: 0, added: 0, updated: 0, rejected: 0, error: '' };
+    _lastImportReport = report;
     try {
       const incoming = JSON.parse(json);
-      if (!Array.isArray(incoming)) throw new Error('Not array');
+      if (!Array.isArray(incoming)) throw new Error('JSON root must be an array');
+      if (incoming.length > MAX_IMPORT_PANELS) throw new Error(`Too many panels in one import (max ${MAX_IMPORT_PANELS})`);
+
       const existing = _load() || [];
       const map = {};
-      existing.forEach(p => { map[p.id] = p; });
-      incoming.forEach(p => { if (p.id) map[p.id] = p; });
+      existing.forEach(p => { if (p && p.id) map[p.id] = p; });
+
+      report.total = incoming.length;
+      incoming.forEach(raw => {
+        const normalized = _normalizePanel(raw, {
+          allowPreloaded: false,
+          existing: null
+        });
+        if (!normalized) {
+          report.rejected++;
+          return;
+        }
+        const existingRecord = map[normalized.id] || null;
+        if (existingRecord && existingRecord.createdAt) {
+          normalized.createdAt = existingRecord.createdAt;
+        }
+        if (map[normalized.id]) report.updated++;
+        else report.added++;
+        map[normalized.id] = normalized;
+      });
+
+      if (report.added === 0 && report.updated === 0) {
+        report.error = 'No valid panel records found in file';
+        report.ok = false;
+        _lastImportReport = report;
+        return report;
+      }
+
       _save(Object.values(map));
-      return true;
-    } catch { return false; }
+      if (typeof FirebaseSync !== 'undefined'
+        && FirebaseSync
+        && typeof FirebaseSync.isSignedIn === 'function'
+        && FirebaseSync.isSignedIn()
+        && typeof FirebaseSync.syncPanels === 'function') {
+        FirebaseSync.syncPanels({ silent: true }).catch(() => {});
+      }
+      report.ok = true;
+      _lastImportReport = report;
+      return report;
+    } catch (err) {
+      report.error = err && err.message ? err.message : 'Invalid JSON file';
+      report.ok = false;
+      _lastImportReport = report;
+      return report;
+    }
+  }
+
+  function getLastImportReport() {
+    return _lastImportReport;
   }
 
   function generateId(manufacturer, model) {
@@ -280,27 +463,27 @@ const DB = (() => {
       <div class="panel-card ${p.preloaded ? 'preloaded' : ''}">
         <div class="panel-card-info">
           <div class="panel-card-name">
-            ${p.manufacturer} ${p.model}
+            ${_esc(p.manufacturer)} ${_esc(p.model)}
             ${p.preloaded ? '<span class="tag-preloaded">Built-in</span>' : ''}
           </div>
-          <div class="panel-card-sub">${p.note || ''}</div>
+          <div class="panel-card-sub">${_esc(p.note || '')}</div>
           <div class="panel-card-specs">
             <span class="spec-chip">${p.Pmax}W</span>
             <span class="spec-chip">Voc ${p.Voc}V</span>
             <span class="spec-chip">Vmp ${p.Vmp}V</span>
             <span class="spec-chip">Isc ${p.Isc}A</span>
             <span class="spec-chip">Imp ${p.Imp}A</span>
-            <span class="spec-chip">NOCT ${p.NOCT}°C</span>
+            <span class="spec-chip">NOCT ${p.NOCT}&deg;C</span>
           </div>
           <div class="text-sm text-muted mt-4">
-            &#945;Voc: ${(p.coeffVoc * 100).toFixed(3)}%/°C &nbsp;
-            &#945;Isc: +${(p.coeffIsc * 100).toFixed(3)}%/°C &nbsp;
-            &#945;Pmax: ${(p.coeffPmax * 100).toFixed(3)}%/°C
+            &#945;Voc: ${(p.coeffVoc * 100).toFixed(3)}%/&deg;C &nbsp;
+            &#945;Isc: +${(p.coeffIsc * 100).toFixed(3)}%/&deg;C &nbsp;
+            &#945;Pmax: ${(p.coeffPmax * 100).toFixed(3)}%/&deg;C
           </div>
         </div>
         <div class="panel-card-actions">
-          <button class="btn btn-secondary btn-sm" data-edit="${p.id}">Edit</button>
-          ${!p.preloaded ? `<button class="btn btn-danger btn-sm" data-del="${p.id}">Del</button>` : ''}
+          <button class="btn btn-secondary btn-sm" data-edit="${_esc(p.id)}">Edit</button>
+          ${!p.preloaded ? `<button class="btn btn-danger btn-sm" data-del="${_esc(p.id)}">Del</button>` : ''}
         </div>
       </div>
     `).join('');
@@ -325,16 +508,17 @@ const DB = (() => {
       id: '', manufacturer: '', model: '', Pmax: '', Voc: '', Vmp: '', Isc: '', Imp: '',
       coeffVoc: -0.0026, coeffIsc: 0.00048, coeffPmax: -0.0030, NOCT: 43, cells: 72, note: '', preloaded: false
     };
+    const safeTitle = isNew ? 'Add Panel' : `Edit: ${p.manufacturer} ${p.model}`;
 
-    App.showModal(isNew ? 'Add Panel' : `Edit: ${p.manufacturer} ${p.model}`, `
+    App.showModal(safeTitle, `
       <div class="form-row cols-2">
         <div class="form-group">
           <label class="form-label">Manufacturer</label>
-          <input class="form-input" id="pf-mfr" value="${p.manufacturer}" placeholder="e.g. Jinko Solar" />
+          <input class="form-input" id="pf-mfr" value="${_esc(p.manufacturer)}" placeholder="e.g. Jinko Solar" />
         </div>
         <div class="form-group">
           <label class="form-label">Model</label>
-          <input class="form-input" id="pf-model" value="${p.model}" placeholder="e.g. Tiger Neo 580W" />
+          <input class="form-input" id="pf-model" value="${_esc(p.model)}" placeholder="e.g. Tiger Neo 580W" />
         </div>
       </div>
       <div class="form-row cols-3">
@@ -359,29 +543,29 @@ const DB = (() => {
           <input class="form-input" id="pf-imp" type="number" step="0.01" value="${p.Imp}" />
         </div>
         <div class="form-group">
-          <label class="form-label">NOCT (°C)</label>
+          <label class="form-label">NOCT (&deg;C)</label>
           <input class="form-input" id="pf-noct" type="number" value="${p.NOCT}" />
         </div>
       </div>
       <div class="section-title">Temperature Coefficients</div>
-      <div class="info-box">Enter as %/°C (e.g. -0.26). Stored internally as decimal.</div>
+      <div class="info-box">Enter as %/&deg;C (e.g. -0.26). Stored internally as decimal.</div>
       <div class="form-row cols-3">
         <div class="form-group">
-          <label class="form-label">&#945;Voc (%/°C)</label>
+          <label class="form-label">&#945;Voc (%/&deg;C)</label>
           <input class="form-input" id="pf-cvoc" type="number" step="0.001" value="${(p.coeffVoc * 100).toFixed(3)}" />
         </div>
         <div class="form-group">
-          <label class="form-label">&#945;Isc (%/°C)</label>
+          <label class="form-label">&#945;Isc (%/&deg;C)</label>
           <input class="form-input" id="pf-cisc" type="number" step="0.001" value="${(p.coeffIsc * 100).toFixed(3)}" />
         </div>
         <div class="form-group">
-          <label class="form-label">&#945;Pmax (%/°C)</label>
+          <label class="form-label">&#945;Pmax (%/&deg;C)</label>
           <input class="form-input" id="pf-cpmax" type="number" step="0.001" value="${(p.coeffPmax * 100).toFixed(3)}" />
         </div>
       </div>
       <div class="form-group">
         <label class="form-label">Note (optional)</label>
-        <input class="form-input" id="pf-note" value="${p.note || ''}" placeholder="e.g. N-type TOPCon bifacial" />
+        <input class="form-input" id="pf-note" value="${_esc(p.note || '')}" placeholder="e.g. N-type TOPCon bifacial" />
       </div>
     `, [
       { label: 'Cancel', cls: 'btn-secondary', action: 'close' },
@@ -405,10 +589,11 @@ const DB = (() => {
             coeffIsc: parseFloat(document.getElementById('pf-cisc').value) / 100,
             coeffPmax: parseFloat(document.getElementById('pf-cpmax').value) / 100,
             note: document.getElementById('pf-note').value.trim(),
-            preloaded: false
+            preloaded: isNew ? false : !!p.preloaded
           };
 
-          save(newPanel);
+          const ok = save(newPanel);
+          if (!ok) { App.toast('Invalid panel data. Check numeric fields and coefficients.', 'error'); return false; }
           App.closeModal();
           // Re-render the database page
           renderPage(document.getElementById('main-content'));
@@ -436,12 +621,14 @@ const DB = (() => {
       if (!file) return;
       const reader = new FileReader();
       reader.onload = ev => {
-        const ok = importJSON(ev.target.result);
-        if (ok) {
+        const result = importJSON(ev.target.result);
+        if (result && result.ok) {
           renderPage(document.getElementById('main-content'));
-          App.toast('Panels imported', 'success');
+          const msg = `Panels imported (${result.added} added, ${result.updated} updated${result.rejected ? `, ${result.rejected} rejected` : ''})`;
+          App.toast(msg, result.rejected ? 'warning' : 'success');
         } else {
-          App.toast('Invalid JSON file', 'error');
+          const msg = result && result.error ? result.error : 'Invalid JSON file';
+          App.toast(msg, 'error');
         }
       };
       reader.readAsText(file);
@@ -449,5 +636,6 @@ const DB = (() => {
     input.click();
   }
 
-  return { init, getAll, getById, save, remove, exportJSON, importJSON, generateId, renderPage };
+  return { init, getAll, getById, save, remove, exportJSON, importJSON, getLastImportReport, generateId, renderPage };
 })();
+

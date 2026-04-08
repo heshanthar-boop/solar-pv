@@ -4,11 +4,22 @@
  */
 
 const PRCalc = (() => {
+  function _esc(value) {
+    if (typeof App !== 'undefined' && typeof App.escapeHTML === 'function') {
+      return App.escapeHTML(value);
+    }
+    return String(value ?? '')
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
+  }
 
   function render(container) {
     const panels = DB.getAll();
     const panelOptions = panels.map(p =>
-      `<option value="${p.id}">${p.manufacturer} ${p.model} (${p.Pmax}W)</option>`
+      `<option value="${_esc(p.id)}">${_esc(p.manufacturer)} ${_esc(p.model)} (${_esc(p.Pmax)}W)</option>`
     ).join('');
 
     container.innerHTML = `
@@ -157,13 +168,27 @@ const PRCalc = (() => {
       <div class="result-box ${cls}">
         <div class="result-value">PR = ${prPct}%</div>
         <div class="result-label">${verdict}</div>
-        <div class="result-sub">E_AC = ${E} kWh &bull; H_poa = ${H} kWh/m² &bull; P_stc = ${P} kWp</div>
+        <div class="result-sub">E_AC = ${_esc(E)} kWh &bull; H_poa = ${_esc(H)} kWh/m&sup2; &bull; P_stc = ${_esc(P)} kWp</div>
       </div>
       <div class="info-box" style="margin-top:8px">
         Benchmark: ≥80% = Good &bull; 70–80% = Acceptable &bull; &lt;70% = Poor / fault suspected<br>
-        IEC 61724-1: PR = ${E} / (${H} × ${P} / 1.0) = <strong>${prPct}%</strong>
+        IEC 61724-1: PR = ${_esc(E)} / (${_esc(H)} × ${_esc(P)} / 1.0) = <strong>${_esc(prPct)}%</strong>
       </div>
     `;
+
+    const printWrap = document.createElement('div');
+    printWrap.className = 'btn-group';
+    printWrap.style.marginTop = '8px';
+    printWrap.setAttribute('data-no-print', '');
+    printWrap.innerHTML = '<button class="btn btn-secondary btn-sm" id="pr-print-btn">&#128424; Print</button>';
+    div.appendChild(printWrap);
+    printWrap.querySelector('#pr-print-btn').addEventListener('click', () => {
+      if (typeof App.printSection === 'function') {
+        App.printSection('#pr-result', 'Performance Ratio Report', container);
+        return;
+      }
+      window.print();
+    });
   }
 
   function _spotPR(container) {
@@ -192,9 +217,23 @@ const PRCalc = (() => {
     div.innerHTML = `
       <div class="result-box ${cls}">
         <div class="result-value">Spot PR = ${prPct}%</div>
-        <div class="result-label">AC Output: ${Pac} kW &bull; Expected at G=${G} W/m², T=${T}°C: ${P_expected_kW.toFixed(2)} kW</div>
+        <div class="result-label">AC Output: ${_esc(Pac)} kW &bull; Expected at G=${_esc(G)} W/m&sup2;, T=${_esc(T)}°C: ${_esc(P_expected_kW.toFixed(2))} kW</div>
       </div>
     `;
+
+    const printWrap = document.createElement('div');
+    printWrap.className = 'btn-group';
+    printWrap.style.marginTop = '8px';
+    printWrap.setAttribute('data-no-print', '');
+    printWrap.innerHTML = '<button class="btn btn-secondary btn-sm" id="pr-spot-print-btn">&#128424; Print</button>';
+    div.appendChild(printWrap);
+    printWrap.querySelector('#pr-spot-print-btn').addEventListener('click', () => {
+      if (typeof App.printSection === 'function') {
+        App.printSection('#pr-spot-result', 'Spot PR Report', container);
+        return;
+      }
+      window.print();
+    });
   }
 
   function _checkIR(container) {
@@ -213,7 +252,7 @@ const PRCalc = (() => {
       const badge = pass
         ? '<span class="status-badge badge-pass">PASS</span>'
         : '<span class="status-badge badge-fail">FAIL</span>';
-      return `<tr class="${cls}"><td>${label}</td><td>${val} MΩ</td><td>${MIN} MΩ</td><td>${badge}</td></tr>`;
+      return `<tr class="${cls}"><td>${_esc(label)}</td><td>${_esc(val)} M&Omega;</td><td>${_esc(MIN)} M&Omega;</td><td>${badge}</td></tr>`;
     }
 
     const allPass = (!isNaN(pos) ? pos >= MIN : true) && (!isNaN(neg) ? neg >= MIN : true);
@@ -223,7 +262,7 @@ const PRCalc = (() => {
     div.innerHTML = `
       <div class="result-box ${allPass ? 'alert-safe' : 'alert-unsafe'}" style="margin-bottom:10px">
         <div class="result-value">${allPass ? '&#10003; PASS' : '&#9888; FAIL'}</div>
-        <div class="result-label">${label} — Test voltage: ${volt}V DC</div>
+        <div class="result-label">${_esc(label)} — Test voltage: ${_esc(volt)}V DC</div>
       </div>
       <table class="status-table">
         <thead><tr><th>Test</th><th>Measured</th><th>Minimum</th><th>Result</th></tr></thead>
@@ -237,6 +276,20 @@ const PRCalc = (() => {
         Test both polarities. Values below 1 MΩ indicate earth fault — do not energise.
       </div>
     `;
+
+    const printWrap = document.createElement('div');
+    printWrap.className = 'btn-group';
+    printWrap.style.marginTop = '8px';
+    printWrap.setAttribute('data-no-print', '');
+    printWrap.innerHTML = '<button class="btn btn-secondary btn-sm" id="ir-print-btn">&#128424; Print</button>';
+    div.appendChild(printWrap);
+    printWrap.querySelector('#ir-print-btn').addEventListener('click', () => {
+      if (typeof App.printSection === 'function') {
+        App.printSection('#ir-result', 'Insulation Resistance Report', container);
+        return;
+      }
+      window.print();
+    });
   }
 
   return { render };

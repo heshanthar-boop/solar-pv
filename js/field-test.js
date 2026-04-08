@@ -8,10 +8,33 @@ const FieldTest = (() => {
   let _strings = [];
   let _panel = null;
 
+  function _esc(value) {
+    if (typeof App !== 'undefined' && typeof App.escapeHTML === 'function') {
+      return App.escapeHTML(value);
+    }
+    return String(value ?? '')
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
+  }
+
+  function _localDateISO() {
+    if (typeof App !== 'undefined' && typeof App.localDateISO === 'function') {
+      return App.localDateISO();
+    }
+    const d = new Date();
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${y}-${m}-${day}`;
+  }
+
   function render(container) {
     const panels = DB.getAll();
     const panelOptions = panels.map(p =>
-      `<option value="${p.id}">${p.manufacturer} ${p.model} (${p.Pmax}W)</option>`
+      `<option value="${_esc(p.id)}">${_esc(p.manufacturer)} ${_esc(p.model)} (${p.Pmax}W)</option>`
     ).join('');
 
     // Pre-fill from sizing result if available
@@ -49,7 +72,7 @@ const FieldTest = (() => {
             </div>
             <div class="form-group">
               <label class="form-label">Test Date</label>
-              <input class="form-input" id="ft-date" type="date" value="${new Date().toISOString().slice(0,10)}" />
+              <input class="form-input" id="ft-date" type="date" value="${_localDateISO()}" />
             </div>
           </div>
         </div>
@@ -128,9 +151,9 @@ const FieldTest = (() => {
         <tbody id="ft-tbody">
           ${_strings.map((s, i) => `
             <tr>
-              <td><input class="form-input" style="padding:6px 8px;font-size:0.82rem" data-idx="${i}" data-field="label" value="${s.label}" /></td>
-              <td><input class="form-input" style="padding:6px 8px;font-size:0.82rem" type="number" step="0.1" data-idx="${i}" data-field="Voc" value="${s.Voc}" placeholder="V" /></td>
-              <td><input class="form-input" style="padding:6px 8px;font-size:0.82rem" type="number" step="0.01" data-idx="${i}" data-field="Isc" value="${s.Isc}" placeholder="A" /></td>
+              <td><input class="form-input" style="padding:6px 8px;font-size:0.82rem" data-idx="${i}" data-field="label" value="${_esc(s.label)}" /></td>
+              <td><input class="form-input" style="padding:6px 8px;font-size:0.82rem" type="number" step="0.1" data-idx="${i}" data-field="Voc" value="${_esc(s.Voc)}" placeholder="V" /></td>
+              <td><input class="form-input" style="padding:6px 8px;font-size:0.82rem" type="number" step="0.01" data-idx="${i}" data-field="Isc" value="${_esc(s.Isc)}" placeholder="A" /></td>
               <td><button class="btn btn-danger btn-sm" style="padding:4px 8px" data-del="${i}">&#10005;</button></td>
             </tr>
           `).join('')}
@@ -226,7 +249,7 @@ const FieldTest = (() => {
                 const iscDevCls = !r.passIsc ? 'text-danger fw-bold' : '';
                 return `
                   <tr class="${rowCls}">
-                    <td><strong>${r.label}</strong></td>
+                    <td><strong>${_esc(r.label)}</strong></td>
                     <td>${r.Voc_meas.toFixed(1)}</td>
                     <td>${r.Voc_corrected.toFixed(1)}</td>
                     <td>${r.Voc_expected.toFixed(1)}</td>
@@ -242,13 +265,44 @@ const FieldTest = (() => {
         </div>
 
         <div class="btn-group" style="margin-top:12px">
+          <button class="btn btn-secondary btn-sm" id="ft-print-btn">&#128424; Print</button>
           <button class="btn btn-secondary btn-sm" id="ft-copy-btn">&#128203; Copy as Text</button>
+          <button class="btn btn-secondary btn-sm" id="ft-csv-btn">&#128190; Export CSV</button>
+          <button class="btn btn-success btn-sm" id="ft-pdf-btn">&#128196; Export PDF</button>
         </div>
       </div>
     `;
 
+    resultsDiv.querySelector('#ft-print-btn').addEventListener('click', () => {
+      if (typeof App.printSection === 'function') {
+        App.printSection('#ft-results', 'Field Test vs STC Report', container);
+        return;
+      }
+      window.print();
+    });
+
     resultsDiv.querySelector('#ft-copy-btn').addEventListener('click', () => {
+      if (typeof App.copyText === 'function') {
+        App.copyText(copyLines);
+        return;
+      }
       navigator.clipboard.writeText(copyLines).then(() => App.toast('Copied to clipboard', 'success'));
+    });
+
+    resultsDiv.querySelector('#ft-csv-btn').addEventListener('click', () => {
+      if (typeof Reports === 'undefined' || typeof Reports.downloadFieldTestCSV !== 'function') {
+        App.toast('CSV export not available', 'error');
+        return;
+      }
+      Reports.downloadFieldTestCSV(App.state.fieldTestResults);
+    });
+
+    resultsDiv.querySelector('#ft-pdf-btn').addEventListener('click', () => {
+      if (typeof Reports === 'undefined' || typeof Reports.generateFieldTest !== 'function') {
+        App.toast('PDF export not available', 'error');
+        return;
+      }
+      Reports.generateFieldTest(App.state.fieldTestResults);
     });
 
     resultsDiv.scrollIntoView({ behavior: 'smooth', block: 'start' });

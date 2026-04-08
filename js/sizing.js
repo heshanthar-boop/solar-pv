@@ -5,11 +5,22 @@
  */
 
 const Sizing = (() => {
+  function _esc(value) {
+    if (typeof App !== 'undefined' && typeof App.escapeHTML === 'function') {
+      return App.escapeHTML(value);
+    }
+    return String(value ?? '')
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
+  }
 
   function render(container) {
     const panels = DB.getAll();
     const panelOptions = panels.map(p =>
-      `<option value="${p.id}">${p.manufacturer} ${p.model} (${p.Pmax}W)</option>`
+      `<option value="${_esc(p.id)}">${_esc(p.manufacturer)} ${_esc(p.model)} (${_esc(p.Pmax)}W)</option>`
     ).join('');
 
     // Restore last values from App.state if available
@@ -223,8 +234,8 @@ const Sizing = (() => {
     const violationsHtml = violations.length > 0
       ? violations.map(v => `
           <div class="danger-box">
-            <strong>${v.param}</strong>: ${v.value} &gt; limit ${v.limit}<br>
-            ${v.msg}
+            <strong>${_esc(v.param)}</strong>: ${_esc(v.value)} &gt; limit ${_esc(v.limit)}<br>
+            ${_esc(v.msg)}
           </div>`).join('')
       : `<div class="info-box">All inverter voltage and current limits are satisfied at site temperature extremes.</div>`;
 
@@ -278,7 +289,24 @@ const Sizing = (() => {
           ${_rbox(((params_tmax.array_Pmax_kW / params_stc.array_Pmax_kW - 1)*100).toFixed(1) + '%', 'Power Derating')}
         </div>
       </div>
+
+      <div class="card" data-no-print>
+        <div class="btn-group">
+          <button class="btn btn-secondary btn-sm" id="sz-print-btn">&#128424; Print Result</button>
+        </div>
+      </div>
     `;
+
+    const printBtn = resultsDiv.querySelector('#sz-print-btn');
+    if (printBtn) {
+      printBtn.addEventListener('click', () => {
+        if (typeof App.printSection === 'function') {
+          App.printSection('#sz-results', 'String Sizing Report', container);
+          return;
+        }
+        window.print();
+      });
+    }
 
     resultsDiv.scrollIntoView({ behavior: 'smooth', block: 'start' });
   }
@@ -288,11 +316,11 @@ const Sizing = (() => {
     const badge = pass
       ? '<span class="status-badge badge-pass">PASS</span>'
       : '<span class="status-badge badge-fail">FAIL</span>';
-    return `<tr class="${cls}"><td>${label}</td><td><strong>${value}</strong></td><td>${limit}</td><td>${badge}</td></tr>`;
+    return `<tr class="${cls}"><td>${_esc(label)}</td><td><strong>${_esc(value)}</strong></td><td>${_esc(limit)}</td><td>${badge}</td></tr>`;
   }
 
   function _rbox(value, label) {
-    return `<div class="result-box"><div class="result-value">${value}</div><div class="result-label">${label}</div></div>`;
+    return `<div class="result-box"><div class="result-value">${_esc(value)}</div><div class="result-label">${_esc(label)}</div></div>`;
   }
 
   return { render };

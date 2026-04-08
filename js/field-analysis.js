@@ -5,6 +5,17 @@
  */
 
 const FieldAnalysis = (() => {
+  function _esc(value) {
+    if (typeof App !== 'undefined' && typeof App.escapeHTML === 'function') {
+      return App.escapeHTML(value);
+    }
+    return String(value ?? '')
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
+  }
 
   // Internal state
   let _data = [];   // array of test point objects (raw + corrected)
@@ -117,7 +128,7 @@ const FieldAnalysis = (() => {
     const v     = vals || {};
     const td    = (id, val, ph) =>
       `<td style="padding:4px"><input class="form-input" style="width:72px;padding:4px 6px;font-size:0.78rem"
-        data-col="${id}" type="number" step="any" placeholder="${ph||''}" value="${val||''}" /></td>`;
+        data-col="${_esc(id)}" type="number" step="any" placeholder="${_esc(ph||'')}" value="${_esc(val||'')}" /></td>`;
 
     const tr = document.createElement('tr');
     tr.style.borderBottom = '1px solid var(--border)';
@@ -264,7 +275,13 @@ const FieldAnalysis = (() => {
 
     // Build results HTML
     const res = container.querySelector('#fa-results');
-    res.innerHTML = '';
+    res.innerHTML = `
+      <div class="card" data-no-print style="margin-bottom:12px">
+        <div class="btn-group">
+          <button class="btn btn-secondary btn-sm" id="fa-print-btn">&#128424; Print Analysis</button>
+        </div>
+      </div>
+    `;
 
     // --- STC Correction Table ---
     res.insertAdjacentHTML('beforeend', `
@@ -372,6 +389,17 @@ const FieldAnalysis = (() => {
 
     // --- SVG Chart ---
     _renderChart(res, corrected, metric, reg, predYears, predMeas, predLin, predCmp, P0_str);
+
+    const printBtn = res.querySelector('#fa-print-btn');
+    if (printBtn) {
+      printBtn.addEventListener('click', () => {
+        if (typeof App.printSection === 'function') {
+          App.printSection('#fa-results', 'Field Analysis & Degradation Report', container);
+          return;
+        }
+        window.print();
+      });
+    }
   }
 
   // -----------------------------------------------------------------------

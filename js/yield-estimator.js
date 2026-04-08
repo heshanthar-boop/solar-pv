@@ -34,6 +34,28 @@
  */
 
 const YieldEstimator = (() => {
+  function _esc(value) {
+    if (typeof App !== 'undefined' && typeof App.escapeHTML === 'function') {
+      return App.escapeHTML(value);
+    }
+    return String(value ?? '')
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
+  }
+
+  function _localDateISO() {
+    if (typeof App !== 'undefined' && typeof App.localDateISO === 'function') {
+      return App.localDateISO();
+    }
+    const d = new Date();
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${y}-${m}-${day}`;
+  }
 
   // =========================================================================
   // STATIC DATA — Sri Lanka GHI dataset (kWh/m²/day)
@@ -516,11 +538,11 @@ const YieldEstimator = (() => {
   function render(container) {
     const panels = DB.getAll();
     const panelOptions = panels.map(p =>
-      `<option value="${p.id}">${p.manufacturer} ${p.model} (${p.Pmax}W)</option>`
+      `<option value="${_esc(p.id)}">${_esc(p.manufacturer)} ${_esc(p.model)} (${_esc(p.Pmax)}W)</option>`
     ).join('');
 
     const locationOptions = SL_LOCATIONS.map(l =>
-      `<option value="${l.id}">${l.name}</option>`
+      `<option value="${_esc(l.id)}">${_esc(l.name)}</option>`
     ).join('');
 
     container.innerHTML = `
@@ -698,8 +720,8 @@ const YieldEstimator = (() => {
     const div  = container.querySelector('#ye-opt-tilt-result');
     div.innerHTML = `
       <div class="info-box">
-        Optimal tilt for <strong>${loc.name}</strong> (azimuth ${azimuth}°):
-        <strong>${best.tilt}°</strong> — Annual POA = ${best.H_annual.toFixed(0)} kWh/m²/yr.
+        Optimal tilt for <strong>${_esc(loc.name)}</strong> (azimuth ${_esc(azimuth)}°):
+        <strong>${_esc(best.tilt)}°</strong> — Annual POA = ${_esc(best.H_annual.toFixed(0))} kWh/m²/yr.
         <button class="btn btn-secondary btn-sm" style="margin-left:8px" id="ye-apply-tilt">Apply</button>
       </div>`;
     div.querySelector('#ye-apply-tilt').addEventListener('click', () => {
@@ -737,6 +759,25 @@ const YieldEstimator = (() => {
     const monthly = simulateMonthly(loc, P_dc, NOCT, coeffPmax, tilt, azimuth, losses, rho);
     const dcac    = checkDCACRatio(P_dc, P_ac);
 
+    const summary = {
+      E_annual: monthly.reduce((s, m) => s + m.E_mon, 0),
+      H_poa_annual: monthly.reduce((s, m) => s + m.H_poa * m.days, 0),
+      PR_avg: monthly.reduce((s, m) => s + m.PR * m.days, 0) / 365,
+      SY_annual: monthly.reduce((s, m) => s + m.E_mon, 0) / P_dc,
+      T_cell_avg: monthly.reduce((s, m) => s + m.T_cell * m.days, 0) / 365,
+      L_temp_avg: monthly.reduce((s, m) => s + m.L_temp * m.days, 0) / 365,
+    };
+
+    App.state.yieldResults = {
+      date: _localDateISO(),
+      location: { id: loc.id, name: loc.name, lat: loc.lat, lon: loc.lon },
+      system: { P_dc, P_ac, NOCT, coeffPmax, tilt, azimuth, rho },
+      losses,
+      monthly,
+      dcac,
+      summary,
+    };
+
     _renderResults(container, monthly, dcac, loc, P_dc, P_ac, NOCT, coeffPmax, losses, tilt, azimuth);
   }
 
@@ -773,7 +814,7 @@ const YieldEstimator = (() => {
 
       <!-- ANNUAL SUMMARY -->
       <div class="card">
-        <div class="card-title">&#128200; Annual Summary — ${loc.name}</div>
+        <div class="card-title">&#128200; Annual Summary — ${_esc(loc.name)}</div>
         <div class="result-grid">
           ${_rbox(E_annual.toFixed(0) + ' kWh', 'Annual Energy')}
           ${_rbox(SY_annual.toFixed(0) + ' kWh/kWp', 'Specific Yield')}
@@ -783,7 +824,12 @@ const YieldEstimator = (() => {
           ${_rbox((L_temp_avg * 100).toFixed(1) + '%', 'Avg Temp Loss')}
         </div>
         <div class="info-box" style="margin-top:8px;font-size:0.80rem">
-          System: ${P_dc} kWp DC / ${P_ac} kW AC &bull; Tilt ${tilt}° / Azimuth ${azimuth}° &bull; NOCT ${NOCT}°C
+          System: ${_esc(P_dc)} kWp DC / ${_esc(P_ac)} kW AC &bull; Tilt ${_esc(tilt)}° / Azimuth ${_esc(azimuth)}° &bull; NOCT ${_esc(NOCT)}°C
+        </div>
+        <div class="btn-group" style="margin-top:10px">
+          <button class="btn btn-secondary btn-sm" id="ye-print-btn">&#128424; Print</button>
+          <button class="btn btn-secondary btn-sm" id="ye-csv-btn">&#128190; Export CSV</button>
+          <button class="btn btn-success btn-sm" id="ye-pdf-btn">&#128196; Export PDF</button>
         </div>
       </div>
 
@@ -877,6 +923,30 @@ const YieldEstimator = (() => {
       const hourly  = simulateHourly(mData, P_dc, NOCT, coeffPmax_pct, losses, dT);
       _renderHourlyChart(container.querySelector('#ye-hourly-chart'), hourly, mData.monthName);
     });
+    container.querySelector('#ye-csv-btn').addEventListener('click', () => {
+      if (typeof Reports === 'undefined' || typeof Reports.downloadYieldCSV !== 'function') {
+        App.toast('CSV export not available', 'error');
+        return;
+      }
+      Reports.downloadYieldCSV(App.state.yieldResults);
+    });
+
+    container.querySelector('#ye-print-btn').addEventListener('click', () => {
+      if (typeof App.printSection === 'function') {
+        App.printSection('#ye-results', 'Yield Estimator Report', container);
+        return;
+      }
+      window.print();
+    });
+
+    container.querySelector('#ye-pdf-btn').addEventListener('click', () => {
+      if (typeof Reports === 'undefined' || typeof Reports.generateYield !== 'function') {
+        App.toast('PDF export not available', 'error');
+        return;
+      }
+      Reports.generateYield(App.state.yieldResults);
+    });
+
 
     resultsDiv.scrollIntoView({ behavior: 'smooth', block: 'start' });
   }
@@ -949,7 +1019,7 @@ const YieldEstimator = (() => {
 
     div.innerHTML = `
       <div class="info-box" style="margin-bottom:6px;font-size:0.80rem">
-        <strong>${monthName}</strong> — Daily total: ${E_total.toFixed(2)} kWh &bull; Peak irradiance: ${maxG.toFixed(0)} W/m² &bull; Peak power: ${maxP.toFixed(2)} kW
+        <strong>${_esc(monthName)}</strong> — Daily total: ${_esc(E_total.toFixed(2))} kWh &bull; Peak irradiance: ${_esc(maxG.toFixed(0))} W/m² &bull; Peak power: ${_esc(maxP.toFixed(2))} kW
       </div>
       <svg viewBox="0 0 ${W} ${H}" style="width:100%;max-width:700px;display:block;margin:0 auto">
         <line x1="${PL}" y1="${PT}" x2="${PL}" y2="${PT+cH}" stroke="var(--text-secondary)" stroke-width="1.5"/>
@@ -1025,7 +1095,7 @@ const YieldEstimator = (() => {
   }
 
   function _rbox(value, label, cls) {
-    return `<div class="result-box ${cls||''}"><div class="result-value">${value}</div><div class="result-label">${label}</div></div>`;
+    return `<div class="result-box ${cls||''}"><div class="result-value">${_esc(value)}</div><div class="result-label">${_esc(label)}</div></div>`;
   }
 
   // =========================================================================

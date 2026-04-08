@@ -10,6 +10,29 @@ const Inspection = (() => {
   let _session = null;
   let _saveTimer = null;
 
+  function _esc(value) {
+    if (typeof App !== 'undefined' && typeof App.escapeHTML === 'function') {
+      return App.escapeHTML(value);
+    }
+    return String(value ?? '')
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
+  }
+
+  function _localDateISO() {
+    if (typeof App !== 'undefined' && typeof App.localDateISO === 'function') {
+      return App.localDateISO();
+    }
+    const d = new Date();
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${y}-${m}-${day}`;
+  }
+
   // -----------------------------------------------------------------------
   // SESSION MANAGEMENT
   // -----------------------------------------------------------------------
@@ -21,7 +44,7 @@ const Inspection = (() => {
       updatedAt: new Date().toISOString(),
       site: {
         projectName: '', siteLocation: '', gpsCoords: '',
-        date: new Date().toISOString().slice(0, 10),
+        date: _localDateISO(),
         inspector: _getInspectorName(),
         weather: '', irradiance: '', ambientTemp: '',
         inverterModel: '', systemCapacity: '',
@@ -121,6 +144,25 @@ const Inspection = (() => {
 
     const sc = _session.systemChecks;
     const si = _session.site;
+    const siSafe = {
+      projectName: _esc(si.projectName),
+      siteLocation: _esc(si.siteLocation),
+      gpsCoords: _esc(si.gpsCoords),
+      date: _esc(si.date),
+      inspector: _esc(si.inspector),
+      weather: _esc(si.weather),
+      irradiance: _esc(si.irradiance),
+      ambientTemp: _esc(si.ambientTemp),
+      inverterModel: _esc(si.inverterModel),
+      systemCapacity: _esc(si.systemCapacity),
+      notes: _esc(si.notes),
+    };
+    const scSafe = {
+      earthing_resistance: _esc(sc.earthing_resistance),
+      ir_array: _esc(sc.ir_array),
+      pr_measured: _esc(sc.pr_measured),
+      pr_expected: _esc(sc.pr_expected),
+    };
 
     const body = container.querySelector('#insp-body');
     body.innerHTML = `
@@ -131,19 +173,19 @@ const Inspection = (() => {
         <div class="form-row cols-2">
           <div class="form-group">
             <label class="form-label">Project Name</label>
-            <input class="form-input" id="si-proj" value="${si.projectName}" placeholder="e.g. Colombo Solar 1MW" />
+            <input class="form-input" id="si-proj" value="${siSafe.projectName}" placeholder="e.g. Colombo Solar 1MW" />
           </div>
           <div class="form-group">
             <label class="form-label">Site Location</label>
-            <input class="form-input" id="si-loc" value="${si.siteLocation}" placeholder="City / Address" />
+            <input class="form-input" id="si-loc" value="${siSafe.siteLocation}" placeholder="City / Address" />
           </div>
           <div class="form-group">
             <label class="form-label">GPS Coordinates</label>
-            <input class="form-input" id="si-gps" value="${si.gpsCoords}" placeholder="e.g. 6.9271° N, 79.8612° E" />
+            <input class="form-input" id="si-gps" value="${siSafe.gpsCoords}" placeholder="e.g. 6.9271° N, 79.8612° E" />
           </div>
           <div class="form-group">
             <label class="form-label">System Capacity (kWp)</label>
-            <input class="form-input" id="si-cap" type="number" step="0.1" value="${si.systemCapacity}" placeholder="e.g. 100" />
+            <input class="form-input" id="si-cap" type="number" step="0.1" value="${siSafe.systemCapacity}" placeholder="e.g. 100" />
           </div>
           <div class="form-group">
             <label class="form-label">Inspection Type</label>
@@ -155,15 +197,15 @@ const Inspection = (() => {
           </div>
           <div class="form-group">
             <label class="form-label">Inspection Date</label>
-            <input class="form-input" id="si-date" type="date" value="${si.date}" />
+            <input class="form-input" id="si-date" type="date" value="${siSafe.date}" />
           </div>
           <div class="form-group">
             <label class="form-label">Inspector Name</label>
-            <input class="form-input" id="si-inspector" value="${si.inspector}" placeholder="Full Name" />
+            <input class="form-input" id="si-inspector" value="${siSafe.inspector}" placeholder="Full Name" />
           </div>
           <div class="form-group">
             <label class="form-label">Inverter Model</label>
-            <input class="form-input" id="si-inv" value="${si.inverterModel}" placeholder="e.g. Huawei SUN2000-50KTL" />
+            <input class="form-input" id="si-inv" value="${siSafe.inverterModel}" placeholder="e.g. Huawei SUN2000-50KTL" />
           </div>
           <div class="form-group">
             <label class="form-label">Weather</label>
@@ -175,16 +217,16 @@ const Inspection = (() => {
           </div>
           <div class="form-group">
             <label class="form-label">Irradiance (W/m²)</label>
-            <input class="form-input" id="si-irr" type="number" value="${si.irradiance}" placeholder="e.g. 850" />
+            <input class="form-input" id="si-irr" type="number" value="${siSafe.irradiance}" placeholder="e.g. 850" />
           </div>
           <div class="form-group">
             <label class="form-label">Ambient Temp (°C)</label>
-            <input class="form-input" id="si-temp" type="number" step="0.1" value="${si.ambientTemp}" />
+            <input class="form-input" id="si-temp" type="number" step="0.1" value="${siSafe.ambientTemp}" />
           </div>
         </div>
         <div class="form-group">
           <label class="form-label">General Observations</label>
-          <textarea class="form-textarea" id="si-notes" placeholder="Overall site condition, access issues, safety observations...">${si.notes}</textarea>
+          <textarea class="form-textarea" id="si-notes" placeholder="Overall site condition, access issues, safety observations...">${siSafe.notes}</textarea>
         </div>
       </div>
 
@@ -204,7 +246,7 @@ const Inspection = (() => {
           ${_scSelect('sc-earth-cont', 'Earthing Continuity', sc.earthing_cont, ['','Pass','Fail','N/A'])}
           <div class="form-group">
             <label class="form-label">Earth Resistance (Ω)</label>
-            <input class="form-input" id="sc-earth-res" type="number" step="0.1" value="${sc.earthing_resistance}" placeholder="&lt; 1Ω required" />
+            <input class="form-input" id="sc-earth-res" type="number" step="0.1" value="${scSafe.earthing_resistance}" placeholder="&lt; 1Ω required" />
             <div class="form-hint">IEC 60364: &lt;1Ω. Record measured value.</div>
           </div>
         </div>
@@ -233,16 +275,16 @@ const Inspection = (() => {
         <div class="form-row cols-2">
           <div class="form-group">
             <label class="form-label">Array IR Test (MΩ) — DC to Earth</label>
-            <input class="form-input" id="sc-ir-array" type="number" step="0.01" value="${sc.ir_array}" placeholder="&gt; 1 MΩ required" />
+            <input class="form-input" id="sc-ir-array" type="number" step="0.01" value="${scSafe.ir_array}" placeholder="&gt; 1 MΩ required" />
             <div class="form-hint">IEC 62446-1: minimum 1 MΩ at 500V DC test voltage.</div>
           </div>
           <div class="form-group">
             <label class="form-label">Measured Performance Ratio (%)</label>
-            <input class="form-input" id="sc-pr-meas" type="number" step="0.1" value="${sc.pr_measured}" placeholder="Typical 75–85%" />
+            <input class="form-input" id="sc-pr-meas" type="number" step="0.1" value="${scSafe.pr_measured}" placeholder="Typical 75–85%" />
           </div>
           <div class="form-group">
             <label class="form-label">Expected PR (%)</label>
-            <input class="form-input" id="sc-pr-exp" type="number" step="0.1" value="${sc.pr_expected}" placeholder="Design PR" />
+            <input class="form-input" id="sc-pr-exp" type="number" step="0.1" value="${scSafe.pr_expected}" placeholder="Design PR" />
             <div class="form-hint">Deviation &gt;5% warrants investigation.</div>
           </div>
         </div>
@@ -334,6 +376,9 @@ const Inspection = (() => {
     });
     body.querySelector('#insp-del-btn').addEventListener('click', () => {
       if (!confirm('Delete this inspection?')) return;
+      if (typeof FirebaseSync !== 'undefined' && FirebaseSync && typeof FirebaseSync.onSessionDeleted === 'function') {
+        FirebaseSync.onSessionDeleted(_session.id);
+      }
       const sessions = _loadSessions().filter(s => s.id !== _session.id);
       localStorage.setItem(STORAGE_KEY, JSON.stringify(sessions));
       _session = null; App.state.lastSessionId = null;
@@ -343,14 +388,16 @@ const Inspection = (() => {
 
   // Helper: system check select dropdown
   function _scSelect(id, label, value, options) {
+    const safeId = _esc(id);
+    const safeLabel = _esc(label);
     const optHtml = options.map(o =>
-      `<option value="${o}" ${value===o?'selected':''}>${o||'-- Select --'}</option>`
+      `<option value="${_esc(o)}" ${value===o?'selected':''}>${_esc(o||'-- Select --')}</option>`
     ).join('');
     const cls = value === 'Pass' ? 'text-success' : value === 'Fail' ? 'text-danger' : '';
     return `
       <div class="form-group">
-        <label class="form-label">${label}</label>
-        <select class="form-select ${cls}" id="${id}">
+        <label class="form-label">${safeLabel}</label>
+        <select class="form-select ${cls}" id="${safeId}">
           ${optHtml}
         </select>
       </div>`;
@@ -366,21 +413,21 @@ const Inspection = (() => {
     container.innerHTML = _session.strings.map((s, i) => `
       <div class="string-row" id="sr-${i}">
         <div class="string-row-header">
-          <input class="string-label-input" data-si="${i}" data-sfield="label" value="${s.label}" />
+          <input class="string-label-input" data-si="${i}" data-sfield="label" value="${_esc(s.label)}" />
           <button class="btn btn-danger btn-sm" style="padding:4px 10px" data-sdel="${i}">&#10005;</button>
         </div>
         <div class="form-row cols-3">
           <div class="form-group" style="margin-bottom:8px">
             <label class="form-label">Voc (V)</label>
-            <input class="form-input" type="number" step="0.1" data-si="${i}" data-sfield="Voc" value="${s.Voc}" placeholder="Measured" />
+            <input class="form-input" type="number" step="0.1" data-si="${i}" data-sfield="Voc" value="${_esc(s.Voc)}" placeholder="Measured" />
           </div>
           <div class="form-group" style="margin-bottom:8px">
             <label class="form-label">Isc (A)</label>
-            <input class="form-input" type="number" step="0.01" data-si="${i}" data-sfield="Isc" value="${s.Isc}" placeholder="Measured" />
+            <input class="form-input" type="number" step="0.01" data-si="${i}" data-sfield="Isc" value="${_esc(s.Isc)}" placeholder="Measured" />
           </div>
           <div class="form-group" style="margin-bottom:8px">
             <label class="form-label">IR (MΩ)</label>
-            <input class="form-input" type="number" step="0.01" data-si="${i}" data-sfield="IR" value="${s.IR||''}" placeholder="&gt;1 MΩ" />
+            <input class="form-input" type="number" step="0.01" data-si="${i}" data-sfield="IR" value="${_esc(s.IR||'')}" placeholder="&gt;1 MΩ" />
           </div>
         </div>
         <div class="form-label" style="margin-bottom:6px">Visual — IEC 61215/61730 (check = defect found)</div>
@@ -396,7 +443,7 @@ const Inspection = (() => {
           ${_checkbox(i, 'frame',       'Frame Damage',     s.visual.frame)}
         </div>
         <div class="form-group" style="margin-top:8px;margin-bottom:0">
-          <input class="form-input" style="font-size:0.82rem;padding:7px 10px" placeholder="String notes" data-si="${i}" data-sfield="notes" value="${s.notes}" />
+          <input class="form-input" style="font-size:0.82rem;padding:7px 10px" placeholder="String notes" data-si="${i}" data-sfield="notes" value="${_esc(s.notes)}" />
         </div>
       </div>
     `).join('');
@@ -441,13 +488,13 @@ const Inspection = (() => {
     const listHtml = sessions.map(s => `
       <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--border)">
         <div>
-          <div class="fw-bold">${s.site.projectName || 'Untitled'}</div>
-          <div class="text-sm text-muted">${s.site.date} &bull; ${s.strings.length} strings &bull; ${s.site.inspector}</div>
-          <div class="text-sm text-muted">${s.site.inspectionType || ''}</div>
+          <div class="fw-bold">${_esc(s.site.projectName || 'Untitled')}</div>
+          <div class="text-sm text-muted">${_esc(s.site.date)} &bull; ${_esc(s.strings.length)} strings &bull; ${_esc(s.site.inspector)}</div>
+          <div class="text-sm text-muted">${_esc(s.site.inspectionType || '')}</div>
         </div>
         <div style="display:flex;gap:6px">
-          <button class="btn btn-secondary btn-sm" data-load="${s.id}">Load</button>
-          <button class="btn btn-danger btn-sm" data-del-s="${s.id}">Del</button>
+          <button class="btn btn-secondary btn-sm" data-load="${_esc(s.id)}">Load</button>
+          <button class="btn btn-danger btn-sm" data-del-s="${_esc(s.id)}">Del</button>
         </div>
       </div>
     `).join('');
@@ -466,6 +513,9 @@ const Inspection = (() => {
       document.querySelectorAll('[data-del-s]').forEach(btn => {
         btn.addEventListener('click', () => {
           if (!confirm('Delete?')) return;
+          if (typeof FirebaseSync !== 'undefined' && FirebaseSync && typeof FirebaseSync.onSessionDeleted === 'function') {
+            FirebaseSync.onSessionDeleted(btn.dataset.delS);
+          }
           const updated = _loadSessions().filter(s => s.id !== btn.dataset.delS);
           localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
           App.closeModal(); _showSavedList(container);
@@ -476,3 +526,4 @@ const Inspection = (() => {
 
   return { render };
 })();
+

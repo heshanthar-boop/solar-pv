@@ -193,7 +193,24 @@ const TempCalc = (() => {
           </tbody>
         </table>
       </div>
+
+      <div class="card" data-no-print>
+        <div class="btn-group">
+          <button class="btn btn-secondary btn-sm" id="tc-print-btn">&#128424; Print Result</button>
+        </div>
+      </div>
     `;
+
+    const printBtn = resultsDiv.querySelector('#tc-print-btn');
+    if (printBtn) {
+      printBtn.addEventListener('click', () => {
+        if (typeof App.printSection === 'function') {
+          App.printSection('#tc-results', 'Temperature Correction Report', container);
+          return;
+        }
+        window.print();
+      });
+    }
 
     resultsDiv.scrollIntoView({ behavior: 'smooth', block: 'start' });
   }

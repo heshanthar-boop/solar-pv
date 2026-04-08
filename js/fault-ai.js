@@ -6,6 +6,17 @@
  */
 
 const FaultAI = (() => {
+  function _esc(value) {
+    if (typeof App !== 'undefined' && typeof App.escapeHTML === 'function') {
+      return App.escapeHTML(value);
+    }
+    return String(value ?? '')
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
+  }
 
   function render(container) {
     container.innerHTML = `
@@ -76,7 +87,7 @@ const FaultAI = (() => {
 
     container.querySelector('#ai-run-btn').addEventListener('click', () => {
       try { _runDiagnosis(container); }
-      catch(e) { container.querySelector('#ai-result').innerHTML = '<div class="danger-box">Error: '+e.message+'</div>'; }
+      catch(e) { container.querySelector('#ai-result').innerHTML = `<div class="danger-box">Error: ${_esc(e && e.message ? e.message : 'Unknown error')}</div>`; }
     });
   }
 
@@ -86,9 +97,9 @@ const FaultAI = (() => {
 
   function _inp(id, label, ph, val, hint) {
     return `<div class="form-group">
-      <label class="form-label">${label}</label>
-      <input class="form-input" id="${id}" type="number" step="any" placeholder="${ph||''}" value="${val||''}" />
-      ${hint?`<div class="form-hint">${hint}</div>`:''}
+      <label class="form-label">${_esc(label)}</label>
+      <input class="form-input" id="${_esc(id)}" type="number" step="any" placeholder="${_esc(ph||'')}" value="${_esc(val||'')}" />
+      ${hint?`<div class="form-hint">${_esc(hint)}</div>`:''}
     </div>`;
   }
 
@@ -291,7 +302,7 @@ const FaultAI = (() => {
           const y  = 10 + i*20;
           const uc = urgencyColor[f.urgency]||'#d97706';
           return `
-            <text x="0" y="${y+11}" font-size="9" fill="var(--text-secondary)" style="font-family:monospace">${f.name.substring(0,22).padEnd(22)}</text>
+            <text x="0" y="${y+11}" font-size="9" fill="var(--text-secondary)" style="font-family:monospace">${_esc(f.name.substring(0,22).padEnd(22))}</text>
             <rect x="150" y="${y}" width="${bw.toFixed(1)}" height="14" rx="3" fill="${uc}" opacity="0.85"/>
             <text x="${(154+bw).toFixed(1)}" y="${y+11}" font-size="9" fill="${uc}" font-weight="700">${f.confidence}%</text>`;
         }).join('')}
@@ -302,7 +313,7 @@ const FaultAI = (() => {
       <div class="section-title" style="margin-top:10px">Secondary Possibilities</div>
       ${others.map(f=>`
         <div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid var(--border)">
-          <span style="font-size:0.82rem">${f.icon} ${f.name}</span>
+          <span style="font-size:0.82rem">${f.icon} ${_esc(f.name)}</span>
           <span style="font-size:0.78rem;color:${urgencyColor[f.urgency]};font-weight:600">${f.confidence}%</span>
         </div>`).join('')}
     ` : '';
@@ -310,7 +321,7 @@ const FaultAI = (() => {
     const criticalWarning = primary.urgency === 'critical' ?
       `<div class="danger-box" style="margin-bottom:10px">
         <strong>\u26a0 CRITICAL FAULT DETECTED \u26a0</strong><br>
-        ${primary.action}
+        ${_esc(primary.action)}
       </div>` : '';
 
     container.querySelector('#ai-result').innerHTML = `
@@ -320,16 +331,16 @@ const FaultAI = (() => {
       <div class="card" style="margin-bottom:12px;border:2px solid ${urgencyColor[primary.urgency]}">
         <div style="display:flex;justify-content:space-between;align-items:flex-start">
           <div>
-            <div style="font-size:1.1rem;font-weight:700">${primary.icon} ${primary.name}</div>
+            <div style="font-size:1.1rem;font-weight:700">${primary.icon} ${_esc(primary.name)}</div>
             <div style="font-size:0.78rem;color:${urgencyColor[primary.urgency]};font-weight:600;margin-top:2px">
-              Urgency: ${urgencyLabel[primary.urgency]} &nbsp;|&nbsp; Confidence: ${primary.confidence}%
+              Urgency: ${_esc(urgencyLabel[primary.urgency])} &nbsp;|&nbsp; Confidence: ${_esc(primary.confidence)}%
             </div>
           </div>
-          <div style="font-size:1.8rem;font-weight:800;color:${urgencyColor[primary.urgency]}">${primary.confidence}%</div>
+          <div style="font-size:1.8rem;font-weight:800;color:${urgencyColor[primary.urgency]}">${_esc(primary.confidence)}%</div>
         </div>
-        <div style="font-size:0.82rem;margin-top:10px;color:var(--text-secondary)">${primary.symptoms}</div>
+        <div style="font-size:0.82rem;margin-top:10px;color:var(--text-secondary)">${_esc(primary.symptoms)}</div>
         <div style="background:var(--primary-bg);border-radius:var(--radius);padding:8px;margin-top:8px;font-size:0.82rem">
-          <strong>Recommended Action:</strong> ${primary.action}
+          <strong>Recommended Action:</strong> ${_esc(primary.action)}
         </div>
       </div>
 
@@ -342,13 +353,28 @@ const FaultAI = (() => {
 
       <!-- EVIDENCE -->
       <div class="card" style="margin-bottom:12px">
-        <div class="card-title">Evidence Used (${inputs.inputCount} parameters)</div>
+        <div class="card-title">Evidence Used (${_esc(inputs.inputCount)} parameters)</div>
         <div style="font-family:monospace;font-size:0.8rem;background:var(--bg-3);border-radius:var(--radius);padding:10px;line-height:1.8">
-          ${evidence.length > 0 ? evidence.map(e=>`<div>\u2022 ${e}</div>`).join('') : '<div>No measurements entered</div>'}
+          ${evidence.length > 0 ? evidence.map(e=>`<div>\u2022 ${_esc(e)}</div>`).join('') : '<div>No measurements entered</div>'}
         </div>
         ${inputs.inputCount < 4 ? `<div class="warn-box" style="margin-top:8px;font-size:0.8rem">Enter more measurements for higher confidence. Ideally: Voc, Isc, module temp, degradation rate, IR resistance.</div>` : ''}
       </div>
     `;
+
+    const resultDiv = container.querySelector('#ai-result');
+    const printWrap = document.createElement('div');
+    printWrap.className = 'btn-group';
+    printWrap.style.marginTop = '8px';
+    printWrap.setAttribute('data-no-print', '');
+    printWrap.innerHTML = '<button class="btn btn-secondary btn-sm" id="ai-print-btn">&#128424; Print Diagnosis</button>';
+    resultDiv.appendChild(printWrap);
+    printWrap.querySelector('#ai-print-btn').addEventListener('click', () => {
+      if (typeof App.printSection === 'function') {
+        App.printSection('#ai-result', 'AI Fault Diagnosis Report', container);
+        return;
+      }
+      window.print();
+    });
   }
 
   return { render };

@@ -180,7 +180,8 @@ const Degradation = (() => {
   }
 
   function _steps(container, resultId, steps, verdict, cls) {
-    container.querySelector('#' + resultId).innerHTML = `
+    const resultDiv = container.querySelector('#' + resultId);
+    resultDiv.innerHTML = `
       <div>
         <div class="section-title">Step-by-Step Calculation</div>
         <div style="font-family:monospace;font-size:0.82rem;background:var(--bg-3);border-radius:var(--radius);padding:12px;line-height:1.9;overflow-x:auto">
@@ -189,7 +190,21 @@ const Degradation = (() => {
         <div class="result-box ${cls}" style="margin-top:10px">
           <div class="result-value" style="font-size:1.2rem">${verdict}</div>
         </div>
+        <div class="btn-group" style="margin-top:8px" data-no-print>
+          <button class="btn btn-secondary btn-sm" id="${resultId}-print-btn">&#128424; Print</button>
+        </div>
       </div>`;
+
+    const printBtn = resultDiv.querySelector('#' + resultId + '-print-btn');
+    if (printBtn) {
+      printBtn.addEventListener('click', () => {
+        if (typeof App.printSection === 'function') {
+          App.printSection('#' + resultId, 'Module Degradation Report', container);
+          return;
+        }
+        window.print();
+      });
+    }
   }
 
   function _keyYearTable(P0, keyYears, fn) {

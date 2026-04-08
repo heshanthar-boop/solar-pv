@@ -5,6 +5,17 @@
  */
 
 const Standards = (() => {
+  function _esc(value) {
+    if (typeof App !== 'undefined' && typeof App.escapeHTML === 'function') {
+      return App.escapeHTML(value);
+    }
+    return String(value ?? '')
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
+  }
 
   // -----------------------------------------------------------------------
   // STANDARDS DATA
@@ -506,16 +517,16 @@ const Standards = (() => {
   function _inp(id, label, placeholder, value, hint) {
     return `
       <div class="form-group">
-        <label class="form-label">${label}</label>
-        <input class="form-input" id="${id}" type="number" step="any" placeholder="${placeholder||''}" value="${value||''}" />
-        ${hint ? `<div class="form-hint">${hint}</div>` : ''}
+        <label class="form-label">${_esc(label)}</label>
+        <input class="form-input" id="${_esc(id)}" type="number" step="any" placeholder="${_esc(placeholder||'')}" value="${_esc(value||'')}" />
+        ${hint ? `<div class="form-hint">${_esc(hint)}</div>` : ''}
       </div>`;
   }
 
   function _buildCalcHtml(calcId) {
     const panels = DB.getAll();
     const pOpts = `<option value="">-- Select Panel (optional) --</option>` +
-      panels.map(p => `<option value="${p.id}">${p.manufacturer} ${p.model}</option>`).join('');
+      panels.map(p => `<option value="${_esc(p.id)}">${_esc(p.manufacturer)} ${_esc(p.model)}</option>`).join('');
 
     switch (calcId) {
 
@@ -846,7 +857,7 @@ const Standards = (() => {
         <button class="btn btn-primary btn-sm calc-run-btn">Calculate</button>
         <div id="calc-result"></div>`;
 
-      default: return `<div class="text-muted">Calculator not implemented for: ${calcId}</div>`;
+      default: return `<div class="text-muted">Calculator not implemented for: ${_esc(calcId)}</div>`;
     }
   }
 
@@ -868,10 +879,10 @@ const Standards = (() => {
       <div style="margin-top:10px">
         <div class="section-title">Step-by-Step Calculation</div>
         <div style="font-family:monospace;font-size:0.82rem;background:var(--bg-3);border-radius:var(--radius);padding:12px;line-height:1.9;overflow-x:auto">
-          ${steps.map(s => `<div>${s}</div>`).join('')}
+          ${steps.map(s => `<div>${_esc(s)}</div>`).join('')}
         </div>
         <div class="result-box ${verdictCls}" style="margin-top:10px">
-          <div class="result-value" style="font-size:1.3rem">${verdict}</div>
+          <div class="result-value" style="font-size:1.3rem">${_esc(verdict)}</div>
         </div>
       </div>`;
   }
@@ -1138,7 +1149,10 @@ const Standards = (() => {
           const H = _g(area, 'c-hpoa');
           const P = _g(area, 'c-pkwp');
           if (isNaN(E) || isNaN(H) || isNaN(P) || H===0 || P===0) { result.innerHTML = '<div class="danger-box">Enter all three values</div>'; break; }
-          const pr = E / (H * P);
+          const prCalc = (typeof StandardsCalc !== 'undefined' && StandardsCalc && typeof StandardsCalc.performanceRatio === 'function')
+            ? StandardsCalc.performanceRatio(E, H, P)
+            : null;
+          const pr = prCalc ? prCalc.pr : (E / (H * P));
           const pct = (pr * 100).toFixed(1);
           const cls = pr >= 0.80 ? 'alert-safe' : pr >= 0.70 ? 'alert-warn' : 'alert-unsafe';
           result.innerHTML = _steps([
@@ -1159,7 +1173,10 @@ const Standards = (() => {
           const E = _g(area, 'c-eac-yr');
           const P = _g(area, 'c-pkwp');
           if (isNaN(E) || isNaN(P) || P===0) { result.innerHTML = '<div class="danger-box">Enter energy and capacity</div>'; break; }
-          const sy = E / P;
+          const syCalc = (typeof StandardsCalc !== 'undefined' && StandardsCalc && typeof StandardsCalc.specificYield === 'function')
+            ? StandardsCalc.specificYield(E, P)
+            : null;
+          const sy = syCalc ? syCalc.value : (E / P);
           const cls = sy >= 1300 ? 'alert-safe' : sy >= 1000 ? 'alert-warn' : 'alert-unsafe';
           result.innerHTML = _steps([
             `Specific Yield = Annual AC Energy ÷ System DC Capacity`,
@@ -1511,7 +1528,7 @@ const Standards = (() => {
           result.innerHTML = '<div class="text-muted">Calculator not implemented.</div>';
       }
     } catch (e) {
-      result.innerHTML = `<div class="danger-box">Error: ${e.message}</div>`;
+      result.innerHTML = `<div class="danger-box">Error: ${_esc(e && e.message ? e.message : 'Unknown error')}</div>`;
     }
   }
 

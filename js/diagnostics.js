@@ -5,6 +5,17 @@
  */
 
 const PVDiagnostics = (() => {
+  function _esc(value) {
+    if (typeof App !== 'undefined' && typeof App.escapeHTML === 'function') {
+      return App.escapeHTML(value);
+    }
+    return String(value ?? '')
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
+  }
 
   // -----------------------------------------------------------------------
   // RENDER
@@ -63,9 +74,9 @@ const PVDiagnostics = (() => {
 
   function _inp(id, label, ph, val, hint) {
     return `<div class="form-group">
-      <label class="form-label">${label}</label>
-      <input class="form-input" id="${id}" type="number" step="any" placeholder="${ph||''}" value="${val||''}" />
-      ${hint ? `<div class="form-hint">${hint}</div>` : ''}
+      <label class="form-label">${_esc(label)}</label>
+      <input class="form-input" id="${_esc(id)}" type="number" step="any" placeholder="${_esc(ph||'')}" value="${_esc(val||'')}" />
+      ${hint ? `<div class="form-hint">${_esc(hint)}</div>` : ''}
     </div>`;
   }
 
@@ -73,12 +84,24 @@ const PVDiagnostics = (() => {
     return `<div style="margin-top:10px">
       <div class="section-title">Step-by-Step</div>
       <div style="font-family:monospace;font-size:0.8rem;background:var(--bg-3);border-radius:var(--radius);padding:10px;line-height:1.8;overflow-x:auto">
-        ${steps.map(s=>`<div>${s}</div>`).join('')}
+        ${steps.map(s=>`<div>${_esc(s)}</div>`).join('')}
       </div>
       <div class="result-box ${cls}" style="margin-top:8px">
-        <div class="result-value" style="font-size:1.15rem">${verdict}</div>
+        <div class="result-value" style="font-size:1.15rem">${_esc(verdict)}</div>
       </div>
     </div>`;
+  }
+
+  function _wirePrint(scope, btnSelector, resultSelector, title) {
+    const btn = scope.querySelector(btnSelector);
+    if (!btn) return;
+    btn.addEventListener('click', () => {
+      if (typeof App.printSection === 'function') {
+        App.printSection(resultSelector, title, scope);
+        return;
+      }
+      window.print();
+    });
   }
 
   // -----------------------------------------------------------------------
@@ -116,7 +139,8 @@ const PVDiagnostics = (() => {
       const cls  = FF > 0.80 ? 'alert-safe' : FF >= 0.70 ? 'alert-warn' : 'alert-unsafe';
       const label= FF > 0.80 ? 'Good — No fill factor fault' : FF >= 0.70 ? 'Acceptable — Minor degradation possible' : 'FAULT — Significant power loss. Check bypass diodes, cell damage, shading.';
 
-      c.querySelector('#ff-result').innerHTML = _steps([
+      const resultDiv = c.querySelector('#ff-result');
+      resultDiv.innerHTML = _steps([
         'Formula: FF = (Vmp \u00d7 Imp) \u00f7 (Voc \u00d7 Isc)',
         `Step 1: Pmp = Vmp \u00d7 Imp = ${vmp} \u00d7 ${imp} = ${Pmp.toFixed(3)} W`,
         `Step 2: Pmax_ideal = Voc \u00d7 Isc = ${voc} \u00d7 ${isc} = ${Pmax.toFixed(3)} W`,
@@ -125,6 +149,13 @@ const PVDiagnostics = (() => {
         `Benchmark: <0.70 = Fault | 0.70\u20130.80 = Acceptable | >0.80 = Good`,
         label
       ], `FF = ${FF.toFixed(4)} (${(FF*100).toFixed(1)}%) \u2014 ${FF>0.80?'\u2713 Good':FF>=0.70?'\u26a0 Acceptable':'\u2717 Fault'}`, cls);
+
+      resultDiv.insertAdjacentHTML('beforeend', `
+        <div class="btn-group" style="margin-top:8px" data-no-print>
+          <button class="btn btn-secondary btn-sm" id="ff-print-btn">&#128424; Print</button>
+        </div>
+      `);
+      _wirePrint(c, '#ff-print-btn', '#ff-result', 'PV Diagnostics - Fill Factor');
     });
   }
 
@@ -229,7 +260,8 @@ const PVDiagnostics = (() => {
         </svg>`;
 
       const FF2 = (Vmp*Imp)/(Voc*Isc);
-      c.querySelector('#iv-result').innerHTML = `
+      const resultDiv = c.querySelector('#iv-result');
+      resultDiv.innerHTML = `
         ${svg}
         <div style="font-size:0.78rem;color:var(--text-muted);text-align:center;margin-top:4px">Blue = I-V curve &nbsp;|&nbsp; Orange dashed = P-V curve &nbsp;|&nbsp; Green dot = Pmp point</div>
         <div class="section-title" style="margin-top:10px">Key Parameters</div>
@@ -240,6 +272,13 @@ const PVDiagnostics = (() => {
           <div>Fill Factor = ${FF2.toFixed(4)} (${(FF2*100).toFixed(1)}%)</div>
           <div>Curve shape parameter a = ${(Math.log(1-Imp/Isc)/Math.log(Vmp/Voc)).toFixed(4)}</div>
         </div>`;
+
+      resultDiv.insertAdjacentHTML('beforeend', `
+        <div class="btn-group" style="margin-top:8px" data-no-print>
+          <button class="btn btn-secondary btn-sm" id="iv-print-btn">&#128424; Print</button>
+        </div>
+      `);
+      _wirePrint(c, '#iv-print-btn', '#iv-result', 'PV Diagnostics - IV Curve');
     });
   }
 
@@ -319,7 +358,8 @@ const PVDiagnostics = (() => {
         </tr>`;
       }).join('');
 
-      c.querySelector('#mm-result').innerHTML = `
+      const resultDiv = c.querySelector('#mm-result');
+      resultDiv.innerHTML = `
         <div style="margin-top:12px">
           <div class="section-title">Step-by-Step</div>
           <div style="font-family:monospace;font-size:0.8rem;background:var(--bg-3);border-radius:var(--radius);padding:10px;line-height:1.8">
@@ -339,6 +379,13 @@ const PVDiagnostics = (() => {
             <div class="result-unit">${overall>10?'\u2717 CRITICAL \u2014 investigate shading, diode failure, or soiling':overall>5?'\u26a0 WARNING \u2014 check string wiring and modules':'\u2713 Within tolerance \u2014 mismatch acceptable'}</div>
           </div>
         </div>`;
+
+      resultDiv.insertAdjacentHTML('beforeend', `
+        <div class="btn-group" style="margin-top:8px" data-no-print>
+          <button class="btn btn-secondary btn-sm" id="mm-print-btn">&#128424; Print</button>
+        </div>
+      `);
+      _wirePrint(c, '#mm-print-btn', '#mm-result', 'PV Diagnostics - String Mismatch');
     });
   }
 
@@ -383,20 +430,21 @@ const PVDiagnostics = (() => {
 
       const rows = scores.map((s,i)=>`
         <tr>
-          <td style="font-weight:600">${i===0?'&#128269; ':''}${s.name}</td>
+          <td style="font-weight:600">${i===0?'&#128269; ':''}${_esc(s.name)}</td>
           <td>
             <div style="background:var(--bg-3);border-radius:4px;overflow:hidden;height:14px;width:100%">
               <div style="width:${s.confidence}%;height:14px;background:${i===0?'var(--primary)':'var(--border)'}"></div>
             </div>
           </td>
           <td style="font-weight:700;color:${i===0?'var(--primary)':'var(--text-secondary)'};min-width:44px">${s.confidence}%</td>
-          <td style="font-size:0.75rem;color:var(--text-muted)">${s.reason}</td>
+          <td style="font-size:0.75rem;color:var(--text-muted)">${_esc(s.reason)}</td>
         </tr>`).join('');
 
       const primary = scores[0];
       const cls = primary.confidence > 70 ? 'alert-unsafe' : primary.confidence > 40 ? 'alert-warn' : 'alert-safe';
 
-      c.querySelector('#fc-result').innerHTML = `
+      const resultDiv = c.querySelector('#fc-result');
+      resultDiv.innerHTML = `
         <div style="margin-top:12px">
           <div class="section-title">Evidence Used</div>
           <div style="font-family:monospace;font-size:0.8rem;background:var(--bg-3);border-radius:var(--radius);padding:10px;line-height:1.8">
@@ -412,10 +460,17 @@ const PVDiagnostics = (() => {
           </table>
           <div class="result-box ${cls}" style="margin-top:10px">
             <div class="result-label">Primary Fault</div>
-            <div class="result-value">${primary.name}</div>
-            <div class="result-unit">Confidence: ${primary.confidence}% &nbsp;|&nbsp; ${primary.action}</div>
+            <div class="result-value">${_esc(primary.name)}</div>
+            <div class="result-unit">Confidence: ${_esc(primary.confidence)}% &nbsp;|&nbsp; ${_esc(primary.action)}</div>
           </div>
         </div>`;
+
+      resultDiv.insertAdjacentHTML('beforeend', `
+        <div class="btn-group" style="margin-top:8px" data-no-print>
+          <button class="btn btn-secondary btn-sm" id="diag-fc-print-btn">&#128424; Print</button>
+        </div>
+      `);
+      _wirePrint(c, '#diag-fc-print-btn', '#fc-result', 'PV Diagnostics - Fault Classification');
     });
   }
 

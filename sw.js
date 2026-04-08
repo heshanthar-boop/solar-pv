@@ -2,16 +2,19 @@
  * sw.js — Service Worker (cache-first offline support)
  */
 
-const CACHE_NAME = 'solarpv-v4';
+const CACHE_NAME = 'solarpv-v8';
 
 const LOCAL_ASSETS = [
   './',
   './index.html',
   './manifest.json',
   './css/style.css',
+  './css/style.css?v=2',
   './js/db.js',
   './js/pv-calc.js',
+  './js/standards-calc.js',
   './js/sizing.js',
+  './js/hybrid.js',
   './js/temp-correct.js',
   './js/field-test.js',
   './js/fault.js',
@@ -24,6 +27,7 @@ const LOCAL_ASSETS = [
   './js/diagnostics.js',
   './js/inverter-perf.js',
   './js/shading.js',
+  './js/yield-estimator.js',
   './js/fault-ai.js',
   './js/firebase-sync.js',
   './js/app.js',
@@ -32,6 +36,7 @@ const LOCAL_ASSETS = [
 const CDN_ASSETS = [
   'https://unpkg.com/jspdf@2.5.2/dist/jspdf.umd.min.js',
   'https://unpkg.com/jspdf-autotable@3.8.4/dist/jspdf.plugin.autotable.min.js',
+  'https://unpkg.com/docx@8.5.0/build/index.umd.js',
 ];
 
 self.addEventListener('install', event => {

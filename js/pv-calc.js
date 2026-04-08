@@ -148,7 +148,8 @@ const PVCalc = (() => {
   function checkSizingLimits(panel, n_mod, n_str, T_min, T_max_cell, inv) {
     const violations = [];
     const Voc_worst = vocAtTemp(panel.Voc, panel.coeffVoc, T_min) * n_mod;
-    const Vmp_best  = vmpAtTemp(panel.Vmp, panel.coeffVoc, T_max_cell) * n_mod;
+    const Vmp_hot   = vmpAtTemp(panel.Vmp, panel.coeffVoc, T_max_cell) * n_mod;
+    const Vmp_cold  = vmpAtTemp(panel.Vmp, panel.coeffVoc, T_min) * n_mod;
     const Isc_worst = iscAtTemp(panel.Isc, panel.coeffIsc, T_max_cell) * n_str;
 
     if (Voc_worst > inv.V_max) {
@@ -159,20 +160,20 @@ const PVCalc = (() => {
         msg: `String Voc at ${T_min}°C = ${Voc_worst.toFixed(1)} V exceeds inverter max ${inv.V_max} V. Reduce to max ${Math.floor(inv.V_max / vocAtTemp(panel.Voc, panel.coeffVoc, T_min))} modules.`
       });
     }
-    if (Vmp_best < inv.V_mppt_min) {
+    if (Vmp_hot < inv.V_mppt_min) {
       violations.push({
         param: 'String Vmp at T_max',
-        value: Vmp_best.toFixed(1) + ' V',
+        value: Vmp_hot.toFixed(1) + ' V',
         limit: inv.V_mppt_min + ' V (MPPT min)',
-        msg: `String Vmp at ${T_max_cell.toFixed(0)}°C cell = ${Vmp_best.toFixed(1)} V is below MPPT minimum ${inv.V_mppt_min} V. Increase to min ${Math.ceil(inv.V_mppt_min / vmpAtTemp(panel.Vmp, panel.coeffVoc, T_max_cell))} modules.`
+        msg: `String Vmp at ${T_max_cell.toFixed(0)}°C cell = ${Vmp_hot.toFixed(1)} V is below MPPT minimum ${inv.V_mppt_min} V. Increase to min ${Math.ceil(inv.V_mppt_min / vmpAtTemp(panel.Vmp, panel.coeffVoc, T_max_cell))} modules.`
       });
     }
-    if (Vmp_best > inv.V_mppt_max) {
+    if (Vmp_cold > inv.V_mppt_max) {
       violations.push({
         param: 'String Vmp at T_min (MPPT max)',
-        value: vocAtTemp(panel.Voc, panel.coeffVoc, T_min) * n_mod + ' V',
+        value: Vmp_cold.toFixed(1) + ' V',
         limit: inv.V_mppt_max + ' V',
-        msg: `String Vmp at low temp may exceed MPPT max ${inv.V_mppt_max} V. Check tracking range.`
+        msg: `String Vmp at ${T_min}°C = ${Vmp_cold.toFixed(1)} V exceeds MPPT max ${inv.V_mppt_max} V. Reduce modules per string or use higher MPPT range inverter.`
       });
     }
     if (Isc_worst > inv.I_max_per_mppt) {
@@ -387,6 +388,113 @@ const PVCalc = (() => {
   }
 
   // -----------------------------------------------------------------------
+  // HYBRID SYSTEM SIZING
+  // -----------------------------------------------------------------------
+
+  /**
+   * Battery bank capacity sizing for hybrid/off-grid autonomy planning.
+   *
+   * Required nominal battery energy (kWh):
+   *   E_nom = (E_day * N_autonomy * reserve) / (DoD * eta_batt * eta_inv * temp_derate)
+   */
+  function batteryCapacity(dailyEnergy_kWh, autonomyDays, dod, etaBatt, etaInv, tempDerate, reserveFactor) {
+    if (
+      !Number.isFinite(dailyEnergy_kWh) || dailyEnergy_kWh <= 0 ||
+      !Number.isFinite(autonomyDays) || autonomyDays <= 0 ||
+      !Number.isFinite(dod) || dod <= 0 || dod > 1 ||
+      !Number.isFinite(etaBatt) || etaBatt <= 0 || etaBatt > 1 ||
+      !Number.isFinite(etaInv) || etaInv <= 0 || etaInv > 1 ||
+      !Number.isFinite(tempDerate) || tempDerate <= 0 || tempDerate > 1
+    ) {
+      return null;
+    }
+
+    const reserve = Number.isFinite(reserveFactor) && reserveFactor > 0 ? reserveFactor : 1.0;
+    const requiredDelivered_kWh = dailyEnergy_kWh * autonomyDays * reserve;
+    const requiredUsable_kWh = requiredDelivered_kWh / (etaBatt * etaInv * tempDerate);
+    const requiredNominal_kWh = requiredUsable_kWh / dod;
+
+    return {
+      requiredDelivered_kWh,
+      requiredUsable_kWh,
+      requiredNominal_kWh,
+      totalEfficiency: etaBatt * etaInv * tempDerate,
+      dod,
+      reserve,
+    };
+  }
+
+  /**
+   * Convert battery energy in kWh to ampere-hour at nominal DC bus voltage.
+   */
+  function batteryAhAtVoltage(energy_kWh, busVoltage_V) {
+    if (!Number.isFinite(energy_kWh) || energy_kWh <= 0 || !Number.isFinite(busVoltage_V) || busVoltage_V <= 0) {
+      return null;
+    }
+    return (energy_kWh * 1000) / busVoltage_V;
+  }
+
+  /**
+   * PV DC capacity estimate for hybrid system energy balance.
+   *
+   * Base PV size:
+   *   P_dc = E_day / (PSH * PR_sys)
+   */
+  function hybridPVCapacity(dailyEnergy_kWh, psh, systemPR, oversizeFactor) {
+    if (
+      !Number.isFinite(dailyEnergy_kWh) || dailyEnergy_kWh <= 0 ||
+      !Number.isFinite(psh) || psh <= 0 ||
+      !Number.isFinite(systemPR) || systemPR <= 0 || systemPR > 1
+    ) {
+      return null;
+    }
+    const oversize = Number.isFinite(oversizeFactor) && oversizeFactor > 0 ? oversizeFactor : 1.0;
+    const base_kWp = dailyEnergy_kWh / (psh * systemPR);
+    return {
+      base_kWp,
+      recommended_kWp: base_kWp * oversize,
+      oversize,
+    };
+  }
+
+  /**
+   * Hybrid inverter sizing from peak and surge demand.
+   */
+  function hybridInverterCapacity(peakLoad_kW, surgeLoad_kW, safetyFactor) {
+    if (!Number.isFinite(peakLoad_kW) || peakLoad_kW <= 0) return null;
+    const factor = Number.isFinite(safetyFactor) && safetyFactor > 0 ? safetyFactor : 1.25;
+    const surgeInput = Number.isFinite(surgeLoad_kW) && surgeLoad_kW > 0 ? surgeLoad_kW : peakLoad_kW * 1.5;
+    const requiredContinuous_kW = peakLoad_kW * factor;
+    const requiredSurge_kW = Math.max(surgeInput, requiredContinuous_kW * 1.5);
+
+    return {
+      requiredContinuous_kW,
+      requiredSurge_kW,
+      safetyFactor: factor,
+      suggestedNameplate_kW: Math.ceil(requiredContinuous_kW * 2) / 2, // 0.5kW step
+    };
+  }
+
+  /**
+   * Approximate battery-side charge current from PV capacity.
+   * I_charge ~= P_dc / V_batt * margin
+   */
+  function hybridChargeCurrent(pv_kWp, batteryVoltage_V, marginFactor) {
+    if (
+      !Number.isFinite(pv_kWp) || pv_kWp <= 0 ||
+      !Number.isFinite(batteryVoltage_V) || batteryVoltage_V <= 0
+    ) {
+      return null;
+    }
+    const margin = Number.isFinite(marginFactor) && marginFactor > 0 ? marginFactor : 1.25;
+    const current_A = (pv_kWp * 1000 / batteryVoltage_V) * margin;
+    return {
+      current_A,
+      margin,
+    };
+  }
+
+  // -----------------------------------------------------------------------
   // UTILITY
   // -----------------------------------------------------------------------
 
@@ -401,6 +509,7 @@ const PVCalc = (() => {
     correctVocToSTC, correctIscToSTC, fieldTestString,
     detectFault,
     performanceRatio, expectedPower, irTestResult,
+    batteryCapacity, batteryAhAtVoltage, hybridPVCapacity, hybridInverterCapacity, hybridChargeCurrent,
     round2, round1, pctStr,
     THRESH
   };

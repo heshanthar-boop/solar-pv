@@ -165,6 +165,20 @@ const InverterPerf = (() => {
           Efficiency drops at low load (&lt;10%) and may also drop at high temp (&gt;40\u00b0C).
         </div>
       </div>`;
+
+    const printWrap = document.createElement('div');
+    printWrap.className = 'btn-group';
+    printWrap.style.marginTop = '8px';
+    printWrap.setAttribute('data-no-print', '');
+    printWrap.innerHTML = '<button class="btn btn-secondary btn-sm" id="ip-print-btn">&#128424; Print</button>';
+    res.appendChild(printWrap);
+    printWrap.querySelector('#ip-print-btn').addEventListener('click', () => {
+      if (typeof App.printSection === 'function') {
+        App.printSection('#ip-result', 'Inverter Efficiency Report', container);
+        return;
+      }
+      window.print();
+    });
   }
 
   function _lossBar(e) {
@@ -256,6 +270,20 @@ const InverterPerf = (() => {
       `<div style="font-size:0.75rem;color:var(--text-muted);text-align:center;margin-top:4px">
         Peak efficiency typically at 50\u201375% load. Efficiency drops at light load and high temperature.
       </div>`;
+
+    const printWrap = document.createElement('div');
+    printWrap.className = 'btn-group';
+    printWrap.style.marginTop = '8px';
+    printWrap.setAttribute('data-no-print', '');
+    printWrap.innerHTML = '<button class="btn btn-secondary btn-sm" id="ec-print-btn">&#128424; Print</button>';
+    res.appendChild(printWrap);
+    printWrap.querySelector('#ec-print-btn').addEventListener('click', () => {
+      if (typeof App.printSection === 'function') {
+        App.printSection('#ec-result', 'Inverter Efficiency Curve Report', container);
+        return;
+      }
+      window.print();
+    });
   }
 
   // -----------------------------------------------------------------------
@@ -293,6 +321,20 @@ const InverterPerf = (() => {
           <div class="result-unit">${optimal?'\u2713 Optimal':pass?'\u26a0 Acceptable':'\u2717 Out of range'}</div>
         </div>
       </div>`;
+
+    const printWrap = document.createElement('div');
+    printWrap.className = 'btn-group';
+    printWrap.style.marginTop = '8px';
+    printWrap.setAttribute('data-no-print', '');
+    printWrap.innerHTML = '<button class="btn btn-secondary btn-sm" id="ar-print-btn">&#128424; Print</button>';
+    res.appendChild(printWrap);
+    printWrap.querySelector('#ar-print-btn').addEventListener('click', () => {
+      if (typeof App.printSection === 'function') {
+        App.printSection('#ar-result', 'AC/DC Ratio Report', container);
+        return;
+      }
+      window.print();
+    });
   }
 
   return { render, inverterEfficiency };
