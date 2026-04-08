@@ -212,6 +212,23 @@ const HybridSetup = (() => {
         { n: 'Setting match', f: 'Commissioned inverter settings must equal submitted utility settings', w: 'Avoid rework at inspection.' },
         { n: 'Export gate', f: 'Export ON only after utility acceptance', w: 'Compliance control.' }
       ],
+      sources: [
+        {
+          t: 'PUCSL Guidelines on Rooftop Solar PV Installation for Utility Providers (Revision 1, Sep 2022)',
+          u: 'https://www.pucsl.gov.lk/wp-content/uploads/2022/10/Guidelines-on-Rooftop-Solar-PV-installation-for-Utility-Providers_Revision-1.pdf',
+          n: 'Application package, process timeline, commissioning witness, agreement, and authorization flow.'
+        },
+        {
+          t: 'CEB Net Metering/Net Accounting/Net Plus Addendum',
+          u: 'https://ceb.lk/front_img/1608095391ADDENDEM.pdf',
+          n: 'Written permission before parallel operation, meter clauses, and setting-change restrictions.'
+        },
+        {
+          t: 'CEB Recommended Settings for Solar PV Inverters (2025-02-25)',
+          u: 'https://www.ceb.lk/front_img/img_reports/1742277909Solar_Inverter_settings.pdf',
+          n: 'Reference values for submitted vs commissioned profile matching.'
+        }
+      ],
       k: ['ceb', 'leco', 'approval', 'submission', 'export']
     }
   ];
@@ -442,7 +459,8 @@ const HybridSetup = (() => {
       ...s.points,
       ...s.k,
       ...s.limits.map(x => `${x.p} ${x.v} ${x.n}`),
-      ...s.calcs.map(x => `${x.n} ${x.f} ${x.w}`)
+      ...s.calcs.map(x => `${x.n} ${x.f} ${x.w}`),
+      ...(s.sources || []).map(x => `${x.t} ${x.n || ''}`)
     ].join(' ').toLowerCase();
     return hay.includes(q);
   }
@@ -468,6 +486,18 @@ const HybridSetup = (() => {
               </tbody>
             </table>
           </div>
+
+          ${(s.sources || []).length ? `
+            <div class="section-title">Primary Source Documents</div>
+            <div style="overflow-x:auto">
+              <table class="status-table">
+                <thead><tr><th>Document</th><th>Scope</th></tr></thead>
+                <tbody>
+                  ${(s.sources || []).map(x => `<tr><td><a href="${_esc(x.u)}" target="_blank" rel="noopener noreferrer">${_esc(x.t)}</a></td><td>${_esc(x.n || '')}</td></tr>`).join('')}
+                </tbody>
+              </table>
+            </div>
+          ` : ''}
 
           <div class="section-title">Related Calculations</div>
           <div style="overflow-x:auto">
@@ -602,14 +632,16 @@ const HybridSetup = (() => {
 
     const limitRows = [];
     const calcRows = [];
+    const sourceRows = [];
     STANDARDS.forEach(s => {
       (s.limits || []).forEach(l => limitRows.push([s.code, l.p, l.v, l.n]));
       (s.calcs || []).forEach(c => calcRows.push([s.code, c.n, c.f, c.w]));
+      (s.sources || []).forEach(src => sourceRows.push([s.code, src.t, src.u, src.n || '']));
     });
 
     const smartClauses = _selectSmartClauses(r, { acdc, cRate, dodBand });
 
-    return { checks, assumptions, formulaRows, workedSteps, limitRows, calcRows, smartClauses, acdc, cRate };
+    return { checks, assumptions, formulaRows, workedSteps, limitRows, calcRows, sourceRows, smartClauses, acdc, cRate };
   }
 
   function _statusFromRule(condPass, condWarn) {
@@ -713,6 +745,7 @@ const HybridSetup = (() => {
     const workedRows = c.workedSteps.map(s => `<tr><td><strong>${_esc(s[0])}</strong></td><td><code>${_esc(s[1])}</code></td></tr>`).join('');
     const checksRows = c.checks.map(x => `<tr><td><strong>${_esc(x.check)}</strong></td><td>${_esc(x.value)}</td><td>${_esc(x.target)}</td><td>${_esc(x.status.toUpperCase())}</td><td>${_esc(x.note)}</td></tr>`).join('');
     const limitsRows = c.limitRows.map(l => `<tr><td>${_esc(l[0])}</td><td><strong>${_esc(l[1])}</strong></td><td>${_esc(l[2])}</td><td>${_esc(l[3])}</td></tr>`).join('');
+    const sourceRows = c.sourceRows.map(s => `<tr><td>${_esc(s[0])}</td><td><strong>${_esc(s[1])}</strong></td><td><a href="${_esc(s[2])}" target="_blank" rel="noopener noreferrer">${_esc(s[2])}</a></td><td>${_esc(s[3])}</td></tr>`).join('');
     const calcRows = c.calcRows.map(k => `<tr><td>${_esc(k[0])}</td><td><strong>${_esc(k[1])}</strong></td><td><code>${_esc(k[2])}</code></td><td>${_esc(k[3])}</td></tr>`).join('');
     const smartRows = c.smartClauses
       .map(s => s.clauses.map(cl => `<tr><td>${_esc(s.code)}</td><td>${_esc(s.reasons.join(' | '))}</td><td>${_esc(cl.type)}</td><td>${_esc(cl.text)}</td></tr>`).join(''))
@@ -785,6 +818,12 @@ const HybridSetup = (() => {
   <table>
     <tr><th>Standard</th><th>Parameter</th><th>Limit / Value</th><th>Note</th></tr>
     ${limitsRows}
+  </table>
+
+  <h2>Primary Source Documents</h2>
+  <table>
+    <tr><th>Standard</th><th>Document</th><th>Link</th><th>Scope</th></tr>
+    ${sourceRows}
   </table>
 
   <h2>Standards Related Calculations</h2>
@@ -893,6 +932,9 @@ const HybridSetup = (() => {
 
     content.push(heading('Standards Limits Reference'));
     content.push(table(['Standard', 'Parameter', 'Limit / Value', 'Note'], ctx.limitRows));
+
+    content.push(heading('Primary Source Documents'));
+    content.push(table(['Standard', 'Document', 'Link', 'Scope'], ctx.sourceRows));
 
     content.push(heading('Standards Related Calculations'));
     content.push(table(['Standard', 'Calculation', 'Formula / Check', 'Purpose'], ctx.calcRows));
@@ -1038,6 +1080,16 @@ const HybridSetup = (() => {
       head: [['Standard', 'Parameter', 'Limit / Value', 'Note']],
       body: ctx.limitRows,
       styles: { fontSize: 6.8, cellPadding: 1.6 },
+      headStyles: { fillColor: [217, 119, 6], textColor: [255, 255, 255], fontSize: 8 }
+    });
+    y = doc.lastAutoTable.finalY + 4;
+
+    section('Primary Source Documents');
+    autoTable({
+      startY: y, margin: { left: margin, right: margin },
+      head: [['Standard', 'Document', 'Link', 'Scope']],
+      body: ctx.sourceRows,
+      styles: { fontSize: 6.6, cellPadding: 1.4 },
       headStyles: { fillColor: [217, 119, 6], textColor: [255, 255, 255], fontSize: 8 }
     });
     y = doc.lastAutoTable.finalY + 4;

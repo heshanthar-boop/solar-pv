@@ -214,6 +214,43 @@ const Standards = (() => {
       calcs: ['grid_voltage_check', 'system_size_check']
     },
     {
+      id: 'ceb_leco_approval',
+      code: 'CEB/LECO Approval Path (Sri Lanka Practice)',
+      title: 'Export-Enabled Hybrid Utility Workflow',
+      scope: 'Practical utility workflow checks before enabling parallel operation and export in Sri Lanka.',
+      keyPoints: [
+        'Submit complete application package: SLD, interconnection/protection details, and supporting documents for initial review.',
+        'Use licensee-approved inverter model/profile and utility-compliant import/export metering arrangement.',
+        'Complete witnessed commissioning tests and execute the interconnection agreement before export.',
+        'Do not change approved inverter protection settings without prior written utility permission.',
+      ],
+      limits: [
+        { param: 'Initial clearance timeline', value: 'ONE week (target)', note: 'PUCSL utility guideline 3.3: for duly filled application with fee.' },
+        { param: 'Metering', value: 'Licensee-managed import/export meter arrangement', note: 'Meters installed/maintained by licensee; initial installation cost borne by consumer.' },
+        { param: 'Inverter status', value: 'Type approval of licensee required', note: 'CEB addendum X.9 for interconnection inverters.' },
+        { param: 'Setting changes', value: 'Prior written permission required', note: 'CEB addendum X.3.9: do not change submitted settings without permission.' },
+        { param: 'Parallel operation/export', value: 'Only after successful commissioning + agreement + utility authorization', note: 'PUCSL utility guideline 3.9 and CEB/LECO permission clauses.' },
+      ],
+      calcs: ['ceb_readiness_check', 'ceb_setting_match', 'ceb_export_gate'],
+      sources: [
+        {
+          title: 'PUCSL - Guidelines on Rooftop Solar PV Installation for Utility Providers (Revision 1, Sep 2022)',
+          url: 'https://www.pucsl.gov.lk/wp-content/uploads/2022/10/Guidelines-on-Rooftop-Solar-PV-installation-for-Utility-Providers_Revision-1.pdf',
+          note: 'Process steps, initial clearance, commissioning witness, agreement, and parallel-operation authorization.'
+        },
+        {
+          title: 'CEB - Net Metering / Net Accounting / Net Plus Addendum (Annex)',
+          url: 'https://ceb.lk/front_img/1608095391ADDENDEM.pdf',
+          note: 'Type-approved inverter requirement, metering clauses, and written permission for setting changes.'
+        },
+        {
+          title: 'CEB - Recommended Settings for Solar PV Inverters (GM meeting 2025-02-25)',
+          url: 'https://www.ceb.lk/front_img/img_reports/1742277909Solar_Inverter_settings.pdf',
+          note: 'Utility profile values used to verify submitted vs commissioned settings.'
+        },
+      ]
+    },
+    {
       id: 'iec62116',
       code: 'IEC 62116:2014',
       title: 'Anti-Islanding Protection for Grid-Connected Inverters',
@@ -417,6 +454,11 @@ const Standards = (() => {
       </tr>`).join('');
 
     const pointsHtml = s.keyPoints.map(p => `<li>${p}</li>`).join('');
+    const sourceRows = (s.sources || []).map(src => `
+      <li>
+        <a href="${_esc(src.url)}" target="_blank" rel="noopener noreferrer">${_esc(src.title)}</a>
+        ${src.note ? `<div style="font-size:0.78rem;color:var(--text-muted)">${_esc(src.note)}</div>` : ''}
+      </li>`).join('');
 
     const calcBtns = s.calcs.map(cId => `
       <button class="btn btn-secondary btn-sm std-calc-btn" data-std-id="${s.id}" data-calc-id="${cId}">
@@ -447,6 +489,12 @@ const Standards = (() => {
               <tbody>${limitRows}</tbody>
             </table>
           </div>
+          ${sourceRows ? `
+            <div class="section-title">Primary Source Documents</div>
+            <ul style="margin:0 0 12px 18px;font-size:0.83rem;line-height:1.7">
+              ${sourceRows}
+            </ul>
+          ` : ''}
           ${s.calcs.length ? `
             <div class="section-title">Interactive Calculators</div>
             <div class="btn-group" style="flex-wrap:wrap">
@@ -482,6 +530,9 @@ const Standards = (() => {
       max_strings_no_fuse:  'Max Strings (No Fuse)',
       grid_voltage_check:   'Grid Voltage Check',
       system_size_check:    'System Size Check',
+      ceb_readiness_check:  'CEB/LECO Readiness Check',
+      ceb_setting_match:    'Setting Match Check',
+      ceb_export_gate:      'Export Enable Gate',
       cell_temp_noct:       'Cell Temperature (NOCT)',
       inverter_sizing:      'Inverter Sizing (AC/DC Ratio)',
       cable_vdrop:          'Cable Voltage Drop',
@@ -774,6 +825,46 @@ const Standards = (() => {
         <button class="btn btn-primary btn-sm calc-run-btn">Check</button>
         <div id="calc-result"></div>`;
 
+      case 'ceb_readiness_check': return `
+        <div class="info-box">PUCSL utility workflow: complete application, compliance records, commissioning, and authorization checks before export enable.</div>
+        <div class="form-row cols-2">
+          <label class="form-label"><input id="c-r-sld" type="checkbox" /> SLD + protection details attached</label>
+          <label class="form-label"><input id="c-r-approvals" type="checkbox" /> Equipment approvals/type certificates attached</label>
+          <label class="form-label"><input id="c-r-meter" type="checkbox" /> Metering arrangement confirmed with utility</label>
+          <label class="form-label"><input id="c-r-settings" type="checkbox" /> Inverter settings sheet submitted</label>
+          <label class="form-label"><input id="c-r-tests" type="checkbox" /> Commissioning/inspection reports complete</label>
+          <label class="form-label"><input id="c-r-agreement" type="checkbox" /> Utility agreement/authorization complete</label>
+        </div>
+        <button class="btn btn-primary btn-sm calc-run-btn">Run Readiness Check</button>
+        <div id="calc-result"></div>`;
+
+      case 'ceb_setting_match': return `
+        <div class="info-box">Compare submitted utility profile against commissioned inverter profile. CEB addendum requires written permission before any setting changes.</div>
+        <div class="form-row cols-2">
+          ${_inp('c-sm-vsub', 'Submitted Overvoltage Sustained Limit (pu)', '1.06', '1.06', 'Typical CEB profile value for many <1MW plants')}
+          ${_inp('c-sm-vcom', 'Commissioned Overvoltage Sustained Limit (pu)', '1.06', '1.06', 'Read from inverter exported settings')}
+          ${_inp('c-sm-rsub', 'Submitted Reconnect Delay (s)', '600', '600', 'CEB recommended profile uses 600 s')}
+          ${_inp('c-sm-rcom', 'Commissioned Reconnect Delay (s)', '600', '600', 'Must match submitted utility profile')}
+        </div>
+        <div class="form-group">
+          <label class="form-label"><input id="c-sm-perm" type="checkbox" /> Written utility permission exists for any deviation</label>
+        </div>
+        <button class="btn btn-primary btn-sm calc-run-btn">Check Setting Match</button>
+        <div id="calc-result"></div>`;
+
+      case 'ceb_export_gate': return `
+        <div class="info-box">Final gate before enabling export: approvals, tests, agreement, and utility acceptance must all be complete.</div>
+        <div class="form-row cols-2">
+          <label class="form-label"><input id="c-eg-clearance" type="checkbox" /> Initial clearance obtained</label>
+          <label class="form-label"><input id="c-eg-inspection" type="checkbox" /> Utility inspection / witnessed commissioning passed</label>
+          <label class="form-label"><input id="c-eg-agreement" type="checkbox" /> Interconnection agreement executed</label>
+          <label class="form-label"><input id="c-eg-meter" type="checkbox" /> Utility bi-directional metering commissioned</label>
+          <label class="form-label"><input id="c-eg-accept" type="checkbox" /> Final written utility acceptance received</label>
+          <label class="form-label"><input id="c-eg-exportreq" type="checkbox" /> Site is requesting export enable now</label>
+        </div>
+        <button class="btn btn-primary btn-sm calc-run-btn">Evaluate Export Gate</button>
+        <div id="calc-result"></div>`;
+
       case 'inverter_sizing': return `
         <div class="info-box">Sri Lanka / PUCSL rule: Inverter AC rating ≥ 0.85 × Array DC (kWp). Ratio 0.8–1.0 is typical. Below 0.8 causes clipping losses; above 1.0 wastes inverter capacity.</div>
         <div class="form-row cols-2">
@@ -872,6 +963,10 @@ const Standards = (() => {
   function _gs(area, id) {
     const el = area.querySelector('#' + id);
     return el ? el.value : '';
+  }
+  function _gc(area, id) {
+    const el = area.querySelector('#' + id);
+    return !!(el && el.checked);
   }
 
   function _steps(steps, verdict, verdictCls) {
@@ -1332,6 +1427,72 @@ const Standards = (() => {
             pass ? `${sys} ≤ ${sanc} → ✓ Within PUCSL residential limit` : `${sys} > ${sanc} → Exceeds sanctioned load. Requires PUCSL special approval or load upgrade.`,
             sys > 100 ? `System > 100 kWp → Commercial/industrial approval process required` : ``
           ], pass ? `✓ Compliant — ${sys} kWp ≤ ${sanc} kVA` : `✗ Exceeds limit — approval required`, pass?'alert-safe':'alert-warn');
+          break;
+        }
+
+        case 'ceb_readiness_check': {
+          const checks = [
+            { id: 'c-r-sld',        label: 'SLD + protection details attached' },
+            { id: 'c-r-approvals',  label: 'Equipment approvals/type certificates attached' },
+            { id: 'c-r-meter',      label: 'Metering arrangement confirmed with utility' },
+            { id: 'c-r-settings',   label: 'Inverter settings sheet submitted' },
+            { id: 'c-r-tests',      label: 'Commissioning/inspection reports complete' },
+            { id: 'c-r-agreement',  label: 'Utility agreement/authorization complete' },
+          ];
+          const complete = checks.filter(c => _gc(area, c.id));
+          const missing = checks.filter(c => !_gc(area, c.id));
+          const pass = missing.length === 0;
+          result.innerHTML = _steps([
+            'Workflow basis: PUCSL process (application review, commissioning witness, utility agreement, and authorization before export).',
+            `Completed checks = ${complete.length} / ${checks.length}`,
+            ...checks.map((c, idx) => `Step ${idx + 1}: ${c.label} -> ${_gc(area, c.id) ? 'YES' : 'NO'}`),
+            pass ? 'All readiness gates are complete.' : `Missing items: ${missing.map(m => m.label).join('; ')}`,
+          ], pass ? 'READY FOR SUBMISSION/COMMISSIONING GATE' : 'NOT READY - COMPLETE MISSING ITEMS', pass ? 'alert-safe' : 'alert-warn');
+          break;
+        }
+
+        case 'ceb_setting_match': {
+          const vSub = _g(area, 'c-sm-vsub');
+          const vCom = _g(area, 'c-sm-vcom');
+          const rSub = _g(area, 'c-sm-rsub');
+          const rCom = _g(area, 'c-sm-rcom');
+          if (isNaN(vSub) || isNaN(vCom) || isNaN(rSub) || isNaN(rCom)) { result.innerHTML = '<div class="danger-box">Enter all submitted and commissioned setting values</div>'; break; }
+          const hasPermission = _gc(area, 'c-sm-perm');
+          const vDiff = Math.abs(vSub - vCom);
+          const rDiff = Math.abs(rSub - rCom);
+          const vMatch = vDiff <= 0.001;
+          const rMatch = rDiff <= 0.1;
+          const pass = (vMatch && rMatch) || hasPermission;
+          result.innerHTML = _steps([
+            'Check rule: commissioned inverter settings must match submitted utility profile unless written utility approval exists for deviations.',
+            `Step 1: Submitted OV sustained limit = ${vSub.toFixed(3)} pu; Commissioned = ${vCom.toFixed(3)} pu; Difference = ${vDiff.toFixed(3)} pu`,
+            `Step 2: Submitted reconnect delay = ${rSub.toFixed(1)} s; Commissioned = ${rCom.toFixed(1)} s; Difference = ${rDiff.toFixed(1)} s`,
+            `Step 3: Direct match result -> Voltage: ${vMatch ? 'MATCH' : 'MISMATCH'}, Delay: ${rMatch ? 'MATCH' : 'MISMATCH'}`,
+            `Step 4: Written utility permission for mismatch -> ${hasPermission ? 'YES' : 'NO'}`,
+            pass ? 'Setting profile is acceptable for inspection.' : 'Profile mismatch without written permission -> high rework risk at inspection.',
+          ], pass ? 'SETTING CHECK PASS' : 'SETTING CHECK FAIL', pass ? 'alert-safe' : 'alert-unsafe');
+          break;
+        }
+
+        case 'ceb_export_gate': {
+          const gates = [
+            { id: 'c-eg-clearance', label: 'Initial clearance obtained' },
+            { id: 'c-eg-inspection', label: 'Utility inspection / witnessed commissioning passed' },
+            { id: 'c-eg-agreement', label: 'Interconnection agreement executed' },
+            { id: 'c-eg-meter', label: 'Utility bi-directional metering commissioned' },
+            { id: 'c-eg-accept', label: 'Final written utility acceptance received' },
+          ];
+          const exportReq = _gc(area, 'c-eg-exportreq');
+          const complete = gates.filter(g => _gc(area, g.id));
+          const missing = gates.filter(g => !_gc(area, g.id));
+          const pass = exportReq && missing.length === 0;
+          result.innerHTML = _steps([
+            'Compliance gate: parallel operation/export only after utility acceptance and agreement completion.',
+            `Step 1: Export request present -> ${exportReq ? 'YES' : 'NO'}`,
+            ...gates.map((g, idx) => `Step ${idx + 2}: ${g.label} -> ${_gc(area, g.id) ? 'YES' : 'NO'}`),
+            missing.length ? `Missing gates: ${missing.map(m => m.label).join('; ')}` : 'All mandatory gates complete.',
+            pass ? 'Export enable condition satisfied.' : 'Keep export disabled until all gates are complete and accepted by utility.',
+          ], pass ? 'EXPORT ON PERMITTED' : 'EXPORT MUST REMAIN OFF', pass ? 'alert-safe' : 'alert-unsafe');
           break;
         }
 
