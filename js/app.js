@@ -10,6 +10,8 @@ const App = (() => {
     projectType: 'all',
     sizingInputs: null,
     sizingResult: null,   // used by FaultChecker + FieldTest
+    wireInputs: null,
+    wireResult: null,
     hybridInputs: null,
     hybridResult: null,
     fieldTestResults: null,
@@ -21,6 +23,7 @@ const App = (() => {
   const PAGES = {
     database:   { title: 'Panel Database',      render: (c) => DB.renderPage(c) },
     sizing:     { title: 'String Sizing',       render: (c) => Sizing.render(c) },
+    wirecalc:   { title: 'Wire Calculation',    render: (c) => WireCalc.render(c) },
     hybrid:     { title: 'Hybrid Setup',        render: (c) => HybridSetup.render(c) },
     temp:       { title: 'Temp Correction',     render: (c) => TempCalc.render(c) },
     fieldtest:  { title: 'Field Test vs STC',   render: (c) => FieldTest.render(c) },
@@ -45,31 +48,31 @@ const App = (() => {
     },
     gridTie: {
       label: 'Grid-Tie System',
-      pages: ['database', 'sizing', 'temp', 'fieldtest', 'fault', 'inspection', 'pr', 'inverter', 'shading', 'yield', 'standards', 'settings'],
+      pages: ['database', 'sizing', 'wirecalc', 'temp', 'fieldtest', 'fault', 'inspection', 'pr', 'inverter', 'shading', 'yield', 'standards', 'settings'],
     },
     gridTieHybrid: {
       label: 'Grid-Tie Hybrid System',
-      pages: ['database', 'sizing', 'hybrid', 'temp', 'fieldtest', 'fault', 'inspection', 'pr', 'inverter', 'shading', 'yield', 'degradation', 'fieldanalysis', 'diagnostics', 'faultai', 'standards', 'settings'],
+      pages: ['database', 'sizing', 'wirecalc', 'hybrid', 'temp', 'fieldtest', 'fault', 'inspection', 'pr', 'inverter', 'shading', 'yield', 'degradation', 'fieldanalysis', 'diagnostics', 'faultai', 'standards', 'settings'],
     },
     fullyHybrid: {
       label: 'Fully Hybrid System',
-      pages: ['database', 'hybrid', 'temp', 'fieldtest', 'fault', 'inspection', 'pr', 'degradation', 'fieldanalysis', 'diagnostics', 'yield', 'standards', 'settings'],
+      pages: ['database', 'wirecalc', 'hybrid', 'temp', 'fieldtest', 'fault', 'inspection', 'pr', 'degradation', 'fieldanalysis', 'diagnostics', 'yield', 'standards', 'settings'],
     },
     groundMount: {
       label: 'Ground Mount Solar System',
-      pages: ['database', 'sizing', 'temp', 'fieldtest', 'fault', 'inspection', 'pr', 'inverter', 'shading', 'yield', 'fieldanalysis', 'diagnostics', 'standards', 'settings'],
+      pages: ['database', 'sizing', 'wirecalc', 'temp', 'fieldtest', 'fault', 'inspection', 'pr', 'inverter', 'shading', 'yield', 'fieldanalysis', 'diagnostics', 'standards', 'settings'],
     },
     battery: {
       label: 'Battery Focus',
-      pages: ['database', 'hybrid', 'fieldtest', 'fault', 'pr', 'standards', 'settings'],
+      pages: ['database', 'wirecalc', 'hybrid', 'fieldtest', 'fault', 'pr', 'standards', 'settings'],
     },
     standardsOnly: {
       label: 'Standards',
-      pages: ['standards', 'settings'],
+      pages: ['standards', 'wirecalc', 'settings'],
     },
     pvAnalysis: {
       label: 'PV Analysis',
-      pages: ['fieldanalysis', 'diagnostics', 'pr', 'degradation', 'yield', 'inverter', 'shading', 'faultai', 'standards', 'settings'],
+      pages: ['fieldanalysis', 'diagnostics', 'pr', 'degradation', 'yield', 'inverter', 'shading', 'faultai', 'standards', 'wirecalc', 'settings'],
     },
   };
 

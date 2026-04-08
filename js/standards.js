@@ -105,7 +105,7 @@ const Standards = (() => {
         { param: 'DC cable current capacity', value: '≥ 1.25 × Isc', note: 'Continuous current, apply derating' },
         { param: 'String fuse rating', value: '≤ Series Fuse Rating on module label', note: 'Never exceed module reverse current limit' },
       ],
-      calcs: ['cable_sizing', 'string_fuse', 'earth_resistance']
+      calcs: ['cable_sizing', 'cable_selector_adv', 'string_fuse', 'earth_resistance']
     },
     {
       id: 'iec61643',
@@ -293,7 +293,7 @@ const Standards = (() => {
         { param: 'Earth resistance', value: '< 1 Ω', note: 'Fall-of-potential or clamp test method' },
         { param: 'DC cable type', value: 'PV1-F or TUV approved', note: 'UV-resistant, double insulation, rated 90°C' },
       ],
-      calcs: ['spd_uc_rating', 'inverter_sizing', 'cable_vdrop', 'dc_fuse_sizing']
+      calcs: ['spd_uc_rating', 'inverter_sizing', 'cable_vdrop', 'cable_selector_adv', 'dc_fuse_sizing']
     },
     {
       id: 'sls1543',
@@ -519,6 +519,7 @@ const Standards = (() => {
       cable_sizing:         'DC Cable Sizing',
       string_fuse:          'String Fuse Rating',
       earth_resistance:     'Earth Resistance Check',
+      cable_selector_adv:   'AC/DC Cable Size Selector',
       spd_uc_rating:        'SPD Voltage Rating',
       spd_summary:          'SPD Selection Guide',
       pr_calc:              'Performance Ratio',
@@ -890,6 +891,75 @@ const Standards = (() => {
           </select>
         </div>
         <button class="btn btn-primary btn-sm calc-run-btn">Calculate</button>
+        <div id="calc-result"></div>`;
+
+      case 'cable_selector_adv': return `
+        <div class="info-box">Advanced pre-design selector using Kelani catalogue tables (E/F/H) with IEC/SLS checks: combines ampacity, environmental derating, and voltage-drop limits to suggest cable CSA.</div>
+        <div class="form-row cols-2">
+          <div class="form-group">
+            <label class="form-label">System Type</label>
+            <select class="form-select" id="c-cs-system">
+              <option value="dc">DC 2-wire (PV/battery)</option>
+              <option value="ac1p">AC 1-phase</option>
+              <option value="ac3p">AC 3-phase</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Cable Construction</label>
+            <select class="form-select" id="c-cs-construction">
+              <option value="multi_core_non_armoured">Multicore non-armoured</option>
+              <option value="multi_core_armoured">Multicore armoured</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Conductor Material</label>
+            <select class="form-select" id="c-cs-mat">
+              <option value="cu">Copper (Cu)</option>
+              <option value="al">Aluminum (Al)</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Insulation Class</label>
+            <select class="form-select" id="c-cs-ins">
+              <option value="xlpe">XLPE / 90C</option>
+              <option value="pvc">PVC / 70C</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Installation / Place</label>
+            <select class="form-select" id="c-cs-install">
+              <option value="closed_tube">Closed conduit/tube/trunking</option>
+              <option value="open_air">Open air / perforated tray</option>
+              <option value="clipped_direct">Clipped direct</option>
+              <option value="buried_direct">Buried direct in ground</option>
+              <option value="buried_duct">Buried in duct</option>
+              <option value="rooftop_open">Rooftop open-air route</option>
+            </select>
+          </div>
+          ${_inp('c-cs-temp', 'Ambient Temperature (C)', '35', '35', 'Derating uses insulation temperature range')}
+          ${_inp('c-cs-gtemp', 'Ground Temperature (C)', '20', '20', 'Used for buried methods (Kelani Z-02)')}
+          ${_inp('c-cs-group', 'Loaded Circuits Grouped Together', '1', '1', '1 = single circuit, higher = heavier grouping derating')}
+          <div class="form-group">
+            <label class="form-label">Buried Spacing</label>
+            <select class="form-select" id="c-cs-bspacing">
+              <option value="touching">Touching</option>
+              <option value="one_d">One cable diameter</option>
+              <option value="0.125m">0.125 m</option>
+              <option value="0.25m">0.25 m</option>
+              <option value="0.5m">0.5 m</option>
+              <option value="1.0m">1.0 m</option>
+            </select>
+          </div>
+          ${_inp('c-cs-l', 'Length One-way (m)', '40', '40', 'Route length from source to load')}
+          ${_inp('c-cs-v', 'Nominal Voltage (V)', '230', '230', 'Example: 48V DC, 230V 1P, 400V 3P')}
+          ${_inp('c-cs-i', 'Load Current (A) [optional]', '', '', 'If blank, current is calculated from load power')}
+          ${_inp('c-cs-p', 'Load Power (kW) [optional]', '', '', 'Used when current is not entered')}
+          ${_inp('c-cs-pf', 'Power Factor (AC)', '0.95', '0.95', 'Used for AC current derivation')}
+          ${_inp('c-cs-cf', 'Continuous Load Factor', '1.25', '1.25', 'IEC PV practice often uses 1.25 for continuous design')}
+          ${_inp('c-cs-vdlim', 'Voltage Drop Limit (%)', '', '', 'Blank = 1% for DC, 3% for AC')}
+        </div>
+        <div class="info-box">Standards checkpoints: current capacity with correction factors (IEC 60364-5-52), voltage-drop limits by circuit role (IEC 60364-7-712 / SLS 1522), and final datasheet verification before construction.</div>
+        <button class="btn btn-primary btn-sm calc-run-btn">Calculate Recommended Cable Size</button>
         <div id="calc-result"></div>`;
 
       case 'dc_fuse_sizing': return `
@@ -1662,6 +1732,87 @@ const Standards = (() => {
           break;
         }
 
+        case 'cable_selector_adv': {
+          const systemType = _gs(area, 'c-cs-system') || 'dc';
+          const cableConstruction = _gs(area, 'c-cs-construction') || 'multi_core_non_armoured';
+          const material = _gs(area, 'c-cs-mat') || 'cu';
+          const insulation = _gs(area, 'c-cs-ins') || 'xlpe';
+          const installMethod = _gs(area, 'c-cs-install') || 'closed_tube';
+          const ambient_C = _g(area, 'c-cs-temp');
+          const groundTemp_C = _g(area, 'c-cs-gtemp');
+          const groupedCircuits = _g(area, 'c-cs-group');
+          const buriedSpacing = _gs(area, 'c-cs-bspacing') || 'touching';
+          const lengthOneWay_m = _g(area, 'c-cs-l');
+          const nominal_V = _g(area, 'c-cs-v');
+          const current_A = _g(area, 'c-cs-i');
+          const load_kW = _g(area, 'c-cs-p');
+          const powerFactor = _g(area, 'c-cs-pf');
+          const continuousFactor = _g(area, 'c-cs-cf');
+          const dropLimitInput = _g(area, 'c-cs-vdlim');
+
+          if (isNaN(lengthOneWay_m) || isNaN(nominal_V)) {
+            result.innerHTML = '<div class="danger-box">Enter at least cable length and nominal voltage</div>';
+            break;
+          }
+
+          const selector = (typeof StandardsCalc !== 'undefined' && StandardsCalc && typeof StandardsCalc.cableSizeSelector === 'function')
+            ? StandardsCalc.cableSizeSelector({
+                systemType,
+                cableConstruction,
+                material,
+                insulation,
+                installMethod,
+                ambient_C,
+                groundTemp_C,
+                groupedCircuits,
+                buriedSpacing,
+                lengthOneWay_m,
+                nominal_V,
+                current_A,
+                load_kW,
+                powerFactor,
+                continuousFactor,
+                dropLimit_pct: isNaN(dropLimitInput) ? undefined : dropLimitInput,
+              })
+            : null;
+
+          if (!selector) {
+            result.innerHTML = '<div class="danger-box">Enter load current, or load power + voltage (and PF for AC).</div>';
+            break;
+          }
+
+          const pass = selector.ampacityPass && selector.vdropPass;
+          const cls = pass ? 'alert-safe' : (selector.selectedCSA_mm2 >= 300 ? 'alert-unsafe' : 'alert-warn');
+          const sysLabel = systemType === 'ac3p' ? 'AC 3-phase' : (systemType === 'ac1p' ? 'AC 1-phase' : 'DC 2-wire');
+          const currentFormula = systemType === 'ac3p'
+            ? 'I = P / (sqrt(3) x V x PF)'
+            : (systemType === 'ac1p' ? 'I = P / (V x PF)' : 'I = P / V');
+          const limitDriver = selector.limitedBy === 'ampacity' ? 'ampacity/thermal limit' : 'voltage-drop limit';
+          const coeffText = Number.isFinite(selector.selectedVdropCoeff_mV_per_A_m)
+            ? selector.selectedVdropCoeff_mV_per_A_m.toFixed(3)
+            : 'N/A';
+
+          result.innerHTML = _steps([
+            `System: ${sysLabel}, Material: ${material.toUpperCase()}, Insulation: ${insulation.toUpperCase()}, Install: ${installMethod.replace(/_/g, ' ')}`,
+            `Catalogue profile: ${selector.catalogProfileLabel || selector.catalogProfile || 'N/A'} (${selector.tableMethodLabel || 'method N/A'})`,
+            `Step 1: Current source = ${selector.currentSource === 'entered_current' ? 'entered current' : `derived from load power using ${currentFormula}`}`,
+            `Step 2: I_load = ${selector.I_load_A.toFixed(2)} A`,
+            `Step 3: Continuous design current = I_load x factor = ${selector.I_load_A.toFixed(2)} x ${selector.factors.continuousFactor.toFixed(2)} = ${selector.designCurrent_A.toFixed(2)} A`,
+            `Step 4: Derating factors -> Temperature=${selector.tempFactor.toFixed(2)} (${selector.tempFactorSource || 'table'}), Grouping=${selector.groupFactor.toFixed(2)} (${selector.groupFactorSource || 'table'})`,
+            `Step 5: Required base ampacity = ${selector.designCurrent_A.toFixed(2)} / (${selector.tempFactor.toFixed(2)} x ${selector.groupFactor.toFixed(2)}) = ${selector.requiredBaseAmpacity_A.toFixed(2)} A`,
+            `Step 6: Ampacity-driven CSA = ${selector.ampacityRequiredCSA_mm2} mm2`,
+            `Step 7: Allowed drop coeff = ${selector.vdropAllowedCoeff_mV_per_A_m.toFixed(3)} mV/A/m, Required CSA by Vdrop = ${selector.requiredAreaByVdrop_mm2.toFixed(2)} mm2 -> standard ${selector.vdropRequiredCSA_mm2} mm2`,
+            `Step 8: Recommended standard CSA = ${selector.selectedCSA_mm2} mm2 (driven by ${limitDriver})`,
+            `Step 9: With ${selector.selectedCSA_mm2} mm2 -> allowable current = ${selector.selectedAllowableCurrent_A.toFixed(2)} A, voltage drop = ${selector.selectedVdrop_V.toFixed(2)} V (${selector.selectedVdrop_pct.toFixed(2)}%), coeff = ${coeffText} mV/A/m`,
+            `Ampacity check: ${selector.selectedAllowableCurrent_A.toFixed(2)} A ${selector.ampacityPass ? '>=' : '<'} ${selector.designCurrent_A.toFixed(2)} A -> ${selector.ampacityPass ? 'PASS' : 'FAIL'}`,
+            `Voltage-drop check: ${selector.selectedVdrop_pct.toFixed(2)}% ${selector.vdropPass ? '<=' : '>'} ${selector.dropLimit_pct.toFixed(2)}% -> ${selector.vdropPass ? 'PASS' : 'FAIL'}`,
+            ...((selector.sourceRefs || []).map((x, idx) => `Catalogue ref ${idx + 1}: ${x}`)),
+            ...((selector.warnings || []).map((x, idx) => `Warning ${idx + 1}: ${x}`)),
+            ...selector.standardsChecklist.map((s, idx) => `Standards note ${idx + 1}: ${s}`),
+          ], `Recommended Cable: ${selector.selectedCSA_mm2} mm2 (${material.toUpperCase()}, ${sysLabel})`, cls);
+          break;
+        }
+
         case 'dc_fuse_sizing': {
           const panelId = _gs(area, 'c-panel');
           const fuseR = _g(area, 'c-fuse-r');
@@ -1695,3 +1846,5 @@ const Standards = (() => {
 
   return { render };
 })();
+
+
