@@ -225,14 +225,33 @@ const Standards = (() => {
         'Do not change approved inverter protection settings without prior written utility permission.',
       ],
       limits: [
-        { param: 'Initial clearance timeline', value: 'ONE week (target)', note: 'PUCSL utility guideline 3.3: for duly filled application with fee.' },
-        { param: 'Metering', value: 'Licensee-managed import/export meter arrangement', note: 'Meters installed/maintained by licensee; initial installation cost borne by consumer.' },
-        { param: 'Inverter status', value: 'Type approval of licensee required', note: 'CEB addendum X.9 for interconnection inverters.' },
+        { param: 'Sustained OV (<1MW)', value: '10-min avg <= 1.06 pu; trip <= 3 s above limit', note: 'CEB recommended inverter settings (2025-02-25).' },
+        { param: 'Sustained OV (>=1MW)', value: '10-min avg <= 1.05 pu; trip <= 3 s above limit', note: 'CEB recommended inverter settings (2025-02-25).' },
+        { param: 'Emergency trip (<1MW)', value: 'OV2 1.20/0.16s, OV1 1.15/2s, UV1 0.70/10s, UV2 0.45/0.32s', note: 'Protection values in CEB settings sheet.' },
+        { param: 'Emergency trip (>=1MW)', value: 'OV2 1.20/0.16s, OV1 1.15/5s, UV1 0.70/21s, UV2 0.45/5s', note: 'Protection values in CEB settings sheet.' },
+        { param: 'Reconnect (<1MW)', value: '0.94 < V < 1.06 and 49.5 < f < 50.5; delay >= 600 s', note: 'Service-enable gate.' },
+        { param: 'Reconnect (>=1MW)', value: '0.95 < V < 1.05 and 49.5 < f < 50.5; delay >= 600 s', note: 'Service-enable gate.' },
+        { param: 'Enter-service ramp', value: 'Linear 900 s ramp (nameplate/900s)', note: 'Limits abrupt power step at reconnection.' },
+        { param: 'Standard LV supply reference', value: '230 V (L-N), 50 Hz', note: 'LECO Supply Services Code agreement template.' },
+        { param: 'Retail service connection sizes', value: '1ph 15A/30A, 3ph 30A/60A', note: 'LECO new-connection instruction baseline.' },
+        { param: 'Bulk customer threshold', value: 'Contract demand > 42 kVA', note: 'LECO definition used for service/process class.' },
+        { param: 'Retail meter accuracy', value: 'Within +/-2.5%', note: 'Meter test threshold under LECO SSC metering clause.' },
+        { param: 'Indicative connection lead time', value: 'Retail 10 working days; Bulk 40 working days', note: 'Subject to payment realization and prerequisites.' },
         { param: 'Setting changes', value: 'Prior written permission required', note: 'CEB addendum X.3.9: do not change submitted settings without permission.' },
-        { param: 'Parallel operation/export', value: 'Only after successful commissioning + agreement + utility authorization', note: 'PUCSL utility guideline 3.9 and CEB/LECO permission clauses.' },
+        { param: 'Parallel operation/export', value: 'Only after commissioning + agreement + final utility authorization', note: 'PUCSL workflow and utility clauses.' },
       ],
       calcs: ['ceb_readiness_check', 'ceb_setting_match', 'ceb_export_gate'],
       sources: [
+        {
+          title: 'CEB Standards / Specifications Portal',
+          url: 'https://www.ceb.lk/standard-spec/en',
+          note: 'Primary CEB publication portal for standards/specification documents.'
+        },
+        {
+          title: 'LECO Official Portal',
+          url: 'https://www.leco.lk/index_e.php',
+          note: 'LECO service and utility reference portal used during interconnection coordination.'
+        },
         {
           title: 'PUCSL - Guidelines on Rooftop Solar PV Installation for Utility Providers (Revision 1, Sep 2022)',
           url: 'https://www.pucsl.gov.lk/wp-content/uploads/2022/10/Guidelines-on-Rooftop-Solar-PV-installation-for-Utility-Providers_Revision-1.pdf',
@@ -246,7 +265,22 @@ const Standards = (() => {
         {
           title: 'CEB - Recommended Settings for Solar PV Inverters (GM meeting 2025-02-25)',
           url: 'https://www.ceb.lk/front_img/img_reports/1742277909Solar_Inverter_settings.pdf',
-          note: 'Utility profile values used to verify submitted vs commissioned settings.'
+          note: 'Utility numeric setpoints for sustained/emergency operation, reconnect criteria, and ramp controls.'
+        },
+        {
+          title: 'CEB - Grid Connection Code (Published July 2024)',
+          url: 'https://www.ceb.lk/front_img/img_reports/1723552921Grid_Connection_Code_for_publishing_in_CEB_web.pdf',
+          note: 'LVRT/frequency/power-quality framework referenced by current inverter profile sheets.'
+        },
+        {
+          title: 'CEB - RTSPV Tariff Announcement (2025)',
+          url: 'https://www.ceb.lk/front_img/img_reports/1744891684Tariff%20Announcement%20For%20Rooftop%20Solar%20PV%20(RTSPV)%20Systems%20-%202025.pdf',
+          note: 'Applicable tariff bands by AC capacity for projects cleared under 2025 policy window.'
+        },
+        {
+          title: 'LECO - Supply Services Code (March 2015, Rev 00)',
+          url: 'https://www.pucsl.gov.lk/wp-content/uploads/2020/11/Supply-Services-Code-LECO-E.pdf',
+          note: 'Service classes, connection prerequisites, meter accuracy (+/-2.5%), and customer/service process limits.'
         },
       ]
     },
@@ -840,12 +874,25 @@ const Standards = (() => {
         <div id="calc-result"></div>`;
 
       case 'ceb_setting_match': return `
-        <div class="info-box">Compare submitted utility profile against commissioned inverter profile. CEB addendum requires written permission before any setting changes.</div>
+        <div class="info-box">Compare submitted utility profile against commissioned inverter profile. CEB settings sheet (2025-02-25) uses 1.06 pu sustained OV for &lt;1MW and 1.05 pu for &ge;1MW, with 600 s reconnect delay and 49.5-50.5 Hz reconnect window.</div>
+        <div class="form-group">
+          <label class="form-label">Plant Capacity Class</label>
+          <select class="form-select" id="c-sm-class">
+            <option value="lt1">Below 1 MW</option>
+            <option value="ge1">1 MW and above</option>
+          </select>
+        </div>
         <div class="form-row cols-2">
-          ${_inp('c-sm-vsub', 'Submitted Overvoltage Sustained Limit (pu)', '1.06', '1.06', 'Typical CEB profile value for many <1MW plants')}
-          ${_inp('c-sm-vcom', 'Commissioned Overvoltage Sustained Limit (pu)', '1.06', '1.06', 'Read from inverter exported settings')}
-          ${_inp('c-sm-rsub', 'Submitted Reconnect Delay (s)', '600', '600', 'CEB recommended profile uses 600 s')}
-          ${_inp('c-sm-rcom', 'Commissioned Reconnect Delay (s)', '600', '600', 'Must match submitted utility profile')}
+          ${_inp('c-sm-vsub', 'Submitted Sustained OV Limit (pu)', '1.06', '1.06', 'Use 1.06 for <1MW, 1.05 for >=1MW unless utility-approved variant')}
+          ${_inp('c-sm-vcom', 'Commissioned Sustained OV Limit (pu)', '1.06', '1.06', 'Read from inverter exported settings')}
+          ${_inp('c-sm-rsub', 'Submitted Reconnect Delay (s)', '600', '600', 'CEB profile default is 600 s')}
+          ${_inp('c-sm-rcom', 'Commissioned Reconnect Delay (s)', '600', '600', 'Must match submitted profile')}
+          ${_inp('c-sm-fminsub', 'Submitted Reconnect f_min (Hz)', '49.5', '49.5', 'Expected reconnect window lower limit')}
+          ${_inp('c-sm-fmincom', 'Commissioned Reconnect f_min (Hz)', '49.5', '49.5', 'Read from inverter settings export')}
+          ${_inp('c-sm-fmaxsub', 'Submitted Reconnect f_max (Hz)', '50.5', '50.5', 'Expected reconnect window upper limit')}
+          ${_inp('c-sm-fmaxcom', 'Commissioned Reconnect f_max (Hz)', '50.5', '50.5', 'Read from inverter settings export')}
+          ${_inp('c-sm-rampsub', 'Submitted Enter-Service Ramp (s)', '900', '900', 'CEB profile default is linear 900 s ramp')}
+          ${_inp('c-sm-rampcom', 'Commissioned Enter-Service Ramp (s)', '900', '900', 'Must match submitted profile')}
         </div>
         <div class="form-group">
           <label class="form-label"><input id="c-sm-perm" type="checkbox" /> Written utility permission exists for any deviation</label>
@@ -1522,24 +1569,59 @@ const Standards = (() => {
         }
 
         case 'ceb_setting_match': {
+          const plantClass = _gs(area, 'c-sm-class') === 'ge1' ? 'ge1' : 'lt1';
+          const expectedV = plantClass === 'ge1' ? 1.05 : 1.06;
+          const expectedFMin = 49.5;
+          const expectedFMax = 50.5;
+          const expectedDelay = 600;
+          const expectedRamp = 900;
           const vSub = _g(area, 'c-sm-vsub');
           const vCom = _g(area, 'c-sm-vcom');
           const rSub = _g(area, 'c-sm-rsub');
           const rCom = _g(area, 'c-sm-rcom');
-          if (isNaN(vSub) || isNaN(vCom) || isNaN(rSub) || isNaN(rCom)) { result.innerHTML = '<div class="danger-box">Enter all submitted and commissioned setting values</div>'; break; }
+          const fMinSub = _g(area, 'c-sm-fminsub');
+          const fMinCom = _g(area, 'c-sm-fmincom');
+          const fMaxSub = _g(area, 'c-sm-fmaxsub');
+          const fMaxCom = _g(area, 'c-sm-fmaxcom');
+          const rampSub = _g(area, 'c-sm-rampsub');
+          const rampCom = _g(area, 'c-sm-rampcom');
+          if ([vSub, vCom, rSub, rCom, fMinSub, fMinCom, fMaxSub, fMaxCom, rampSub, rampCom].some(v => isNaN(v))) {
+            result.innerHTML = '<div class="danger-box">Enter all submitted and commissioned setting values</div>';
+            break;
+          }
           const hasPermission = _gc(area, 'c-sm-perm');
           const vDiff = Math.abs(vSub - vCom);
           const rDiff = Math.abs(rSub - rCom);
+          const fMinDiff = Math.abs(fMinSub - fMinCom);
+          const fMaxDiff = Math.abs(fMaxSub - fMaxCom);
+          const rampDiff = Math.abs(rampSub - rampCom);
+          const expectedVDiff = Math.abs(vSub - expectedV);
+          const expectedDelayDiff = Math.abs(rSub - expectedDelay);
+          const expectedFMinDiff = Math.abs(fMinSub - expectedFMin);
+          const expectedFMaxDiff = Math.abs(fMaxSub - expectedFMax);
+          const expectedRampDiff = Math.abs(rampSub - expectedRamp);
           const vMatch = vDiff <= 0.001;
           const rMatch = rDiff <= 0.1;
-          const pass = (vMatch && rMatch) || hasPermission;
+          const fMinMatch = fMinDiff <= 0.01;
+          const fMaxMatch = fMaxDiff <= 0.01;
+          const rampMatch = rampDiff <= 1.0;
+          const directMatch = vMatch && rMatch && fMinMatch && fMaxMatch && rampMatch;
+          const submittedExpectedOk =
+            expectedVDiff <= 0.01 &&
+            expectedDelayDiff <= 1.0 &&
+            expectedFMinDiff <= 0.05 &&
+            expectedFMaxDiff <= 0.05 &&
+            expectedRampDiff <= 5.0;
+          const pass = (directMatch && submittedExpectedOk) || hasPermission;
           result.innerHTML = _steps([
-            'Check rule: commissioned inverter settings must match submitted utility profile unless written utility approval exists for deviations.',
-            `Step 1: Submitted OV sustained limit = ${vSub.toFixed(3)} pu; Commissioned = ${vCom.toFixed(3)} pu; Difference = ${vDiff.toFixed(3)} pu`,
-            `Step 2: Submitted reconnect delay = ${rSub.toFixed(1)} s; Commissioned = ${rCom.toFixed(1)} s; Difference = ${rDiff.toFixed(1)} s`,
-            `Step 3: Direct match result -> Voltage: ${vMatch ? 'MATCH' : 'MISMATCH'}, Delay: ${rMatch ? 'MATCH' : 'MISMATCH'}`,
-            `Step 4: Written utility permission for mismatch -> ${hasPermission ? 'YES' : 'NO'}`,
-            pass ? 'Setting profile is acceptable for inspection.' : 'Profile mismatch without written permission -> high rework risk at inspection.',
+            'Check rule: commissioned inverter settings must match submitted utility profile and submitted profile should align with selected utility class unless written approval exists.',
+            `Step 1: Selected class = ${plantClass === 'ge1' ? '>=1MW' : '<1MW'}; expected submitted values: OV=${expectedV.toFixed(2)} pu, f_reconnect=${expectedFMin.toFixed(1)}-${expectedFMax.toFixed(1)} Hz, delay=${expectedDelay}s, ramp=${expectedRamp}s`,
+            `Step 2: Submitted profile vs expected -> OV diff ${expectedVDiff.toFixed(3)} pu, f_min diff ${expectedFMinDiff.toFixed(2)} Hz, f_max diff ${expectedFMaxDiff.toFixed(2)} Hz, delay diff ${expectedDelayDiff.toFixed(1)} s, ramp diff ${expectedRampDiff.toFixed(1)} s`,
+            `Step 3: Submitted vs commissioned -> OV diff ${vDiff.toFixed(3)} pu, f_min diff ${fMinDiff.toFixed(2)} Hz, f_max diff ${fMaxDiff.toFixed(2)} Hz, delay diff ${rDiff.toFixed(1)} s, ramp diff ${rampDiff.toFixed(1)} s`,
+            `Step 4: Direct match result -> OV ${vMatch ? 'MATCH' : 'MISMATCH'}, freq window ${fMinMatch && fMaxMatch ? 'MATCH' : 'MISMATCH'}, delay ${rMatch ? 'MATCH' : 'MISMATCH'}, ramp ${rampMatch ? 'MATCH' : 'MISMATCH'}`,
+            `Step 5: Submitted profile aligns with selected class defaults -> ${submittedExpectedOk ? 'YES' : 'NO'}`,
+            `Step 6: Written utility permission for any deviation -> ${hasPermission ? 'YES' : 'NO'}`,
+            pass ? 'Setting profile is acceptable for inspection.' : 'Profile mismatch or off-profile settings without written permission -> high rework risk at inspection.',
           ], pass ? 'SETTING CHECK PASS' : 'SETTING CHECK FAIL', pass ? 'alert-safe' : 'alert-unsafe');
           break;
         }

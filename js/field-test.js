@@ -1,7 +1,7 @@
-/**
- * field-test.js — Field Test vs STC Comparison
+﻿/**
+ * field-test.js - Field Test vs STC Comparison
  * Enter measured Voc/Isc per string + site conditions.
- * Corrects to STC, compares to datasheet, pass/fail per string.
+ * Corrects to STC and compares using selectable standards profile.
  */
 
 const FieldTest = (() => {
@@ -31,11 +31,34 @@ const FieldTest = (() => {
     return `${y}-${m}-${day}`;
   }
 
+  function _profiles() {
+    if (typeof PVCalc !== 'undefined' && PVCalc && PVCalc.FIELD_TEST_PROFILES) {
+      return PVCalc.FIELD_TEST_PROFILES;
+    }
+    return {
+      iec62446_2016: {
+        id: 'iec62446_2016',
+        label: 'IEC 62446-1:2016',
+        vocTolPct: 2,
+        iscTolPct: 5,
+      }
+    };
+  }
+
   function render(container) {
     const panels = DB.getAll();
     const panelOptions = panels.map(p =>
       `<option value="${_esc(p.id)}">${_esc(p.manufacturer)} ${_esc(p.model)} (${p.Pmax}W)</option>`
     ).join('');
+
+    const profileMap = _profiles();
+    const profileDefault = (App.state.fieldTestProfileId && profileMap[App.state.fieldTestProfileId])
+      ? App.state.fieldTestProfileId
+      : 'iec62446_2016';
+    const profileOptions = Object.keys(profileMap).map((id) => {
+      const p = profileMap[id] || {};
+      return `<option value="${_esc(id)}" ${id === profileDefault ? 'selected' : ''}>${_esc(p.label || id)}</option>`;
+    }).join('');
 
     // Pre-fill from sizing result if available
     const sr = App.state.sizingResult;
@@ -61,18 +84,22 @@ const FieldTest = (() => {
               <input class="form-input" id="ft-nmod" type="number" value="${defNmod}" />
             </div>
             <div class="form-group">
-              <label class="form-label">Irradiance (W/m²)</label>
+              <label class="form-label">Irradiance (W/m2)</label>
               <input class="form-input" id="ft-irr" type="number" value="900" />
               <div class="form-hint">From reference cell / pyranometer</div>
             </div>
             <div class="form-group">
-              <label class="form-label">Module Temp (°C)</label>
+              <label class="form-label">Module Temp (C)</label>
               <input class="form-input" id="ft-tmod" type="number" value="55" />
               <div class="form-hint">Back-of-panel IR or Pt100</div>
             </div>
             <div class="form-group">
               <label class="form-label">Test Date</label>
               <input class="form-input" id="ft-date" type="date" value="${_localDateISO()}" />
+            </div>
+            <div class="form-group">
+              <label class="form-label">Pass Criteria Profile</label>
+              <select class="form-select" id="ft-profile">${profileOptions}</select>
             </div>
           </div>
         </div>
@@ -92,7 +119,6 @@ const FieldTest = (() => {
       </div>
     `;
 
-    // Pre-select panel
     if (defPanelId) {
       container.querySelector('#ft-panel').value = defPanelId;
       _panel = DB.getById(defPanelId);
@@ -102,7 +128,6 @@ const FieldTest = (() => {
       _panel = DB.getById(e.target.value) || null;
     });
 
-    // Init with 2 empty strings
     _strings = [];
     _addString();
     _addString();
@@ -116,7 +141,7 @@ const FieldTest = (() => {
     container.querySelector('#ft-bulk-btn').addEventListener('click', () => {
       const n = parseInt(prompt('How many strings to add?', '10'));
       if (!isNaN(n) && n > 0) {
-        for (let i = 0; i < n; i++) _addString();
+        for (let i = 0; i < n; i += 1) _addString();
         _renderStringList(container);
       }
     });
@@ -135,7 +160,7 @@ const FieldTest = (() => {
   function _renderStringList(container) {
     const list = container.querySelector('#ft-string-list');
     if (!_strings.length) {
-      list.innerHTML = `<div class="text-muted text-sm">No strings added yet.</div>`;
+      list.innerHTML = '<div class="text-muted text-sm">No strings added yet.</div>';
       return;
     }
     list.innerHTML = `
@@ -168,7 +193,7 @@ const FieldTest = (() => {
     });
     list.querySelectorAll('[data-del]').forEach(btn => {
       btn.addEventListener('click', () => {
-        _strings.splice(parseInt(btn.dataset.del), 1);
+        _strings.splice(parseInt(btn.dataset.del, 10), 1);
         _renderStringList(container);
       });
     });
@@ -181,46 +206,66 @@ const FieldTest = (() => {
     if (!_panel) return;
 
     const n_mod = parseInt(container.querySelector('#ft-nmod').value) || 20;
-    const G     = parseFloat(container.querySelector('#ft-irr').value) || 900;
+    const G = parseFloat(container.querySelector('#ft-irr').value) || 900;
     const T_mod = parseFloat(container.querySelector('#ft-tmod').value) || 55;
+    const profileId = container.querySelector('#ft-profile')
+      ? String(container.querySelector('#ft-profile').value || 'iec62446_2016')
+      : 'iec62446_2016';
 
-    const results = _strings.map(s => {
+    App.state.fieldTestProfileId = profileId;
+
+    const results = _strings.map((s) => {
       const Voc = parseFloat(s.Voc);
       const Isc = parseFloat(s.Isc);
       if (isNaN(Voc) || isNaN(Isc)) return { label: s.label, skipped: true };
       return {
         label: s.label,
-        ...PVCalc.fieldTestString(_panel, Voc, Isc, T_mod, G, n_mod)
+        ...PVCalc.fieldTestString(_panel, Voc, Isc, T_mod, G, n_mod, { profileId })
       };
     }).filter(r => !r.skipped);
 
     if (!results.length) { App.toast('No valid measurements to compare', 'error'); return; }
 
+    const first = results[0] || {};
+    const vocTol = Number(first.vocTolerancePct || 0);
+    const iscTol = Number(first.iscTolerancePct || 0);
+    const profileLabel = String(first.profileLabel || profileId);
+
     const passAll = results.every(r => r.passVoc && r.passIsc);
     const failCount = results.filter(r => !r.passVoc || !r.passIsc).length;
 
-    // Build tab-separated copy text for WhatsApp/notes
     const copyLines = [
-      `String\tVoc Meas\tVoc Corr\tVoc DS\tVoc Dev%\tVoc P/F\tIsc Meas\tIsc Corr\tIsc DS\tIsc Dev%\tIsc P/F`,
+      `Profile: ${profileLabel} (Voc +/-${vocTol.toFixed(1)}%, Isc +/-${iscTol.toFixed(1)}%)`,
+      'String\tVoc Meas\tVoc Corr\tVoc DS\tVoc Dev%\tVoc P/F\tIsc Meas\tIsc Corr\tIsc DS\tIsc Dev%\tIsc P/F',
       ...results.map(r =>
-        `${r.label}\t${r.Voc_meas.toFixed(1)}\t${r.Voc_corrected.toFixed(1)}\t${r.Voc_expected.toFixed(1)}\t${r.devVoc.toFixed(2)}%\t${r.passVoc?'PASS':'FAIL'}\t${r.Isc_meas.toFixed(2)}\t${r.Isc_corrected.toFixed(2)}\t${r.Isc_expected.toFixed(2)}\t${r.devIsc.toFixed(2)}%\t${r.passIsc?'PASS':'FAIL'}`
+        `${r.label}\t${r.Voc_meas.toFixed(1)}\t${r.Voc_corrected.toFixed(1)}\t${r.Voc_expected.toFixed(1)}\t${r.devVoc.toFixed(2)}%\t${r.passVoc ? 'PASS' : 'FAIL'}\t${r.Isc_meas.toFixed(2)}\t${r.Isc_corrected.toFixed(2)}\t${r.Isc_expected.toFixed(2)}\t${r.devIsc.toFixed(2)}%\t${r.passIsc ? 'PASS' : 'FAIL'}`
       )
     ].join('\n');
 
-    // Save for reports
-    App.state.fieldTestResults = { panel: _panel, n_mod, G, T_mod, results, date: container.querySelector('#ft-date').value };
+    App.state.fieldTestResults = {
+      panel: _panel,
+      n_mod,
+      G,
+      T_mod,
+      results,
+      date: container.querySelector('#ft-date').value,
+      profileId,
+      profileLabel,
+      tolerances: { vocPct: vocTol, iscPct: iscTol },
+      qualityBadges: ['Datasheet-backed', 'Heuristic'],
+    };
 
     const resultsDiv = container.querySelector('#ft-results');
     resultsDiv.classList.remove('hidden');
     resultsDiv.innerHTML = `
       <div class="card">
         <div class="result-box ${passAll ? 'alert-safe' : 'alert-unsafe'}" style="margin-bottom:12px">
-          <div class="result-value">${passAll ? '&#10003; ALL PASS' : `&#9888; ${failCount} STRING${failCount>1?'S':''} FAIL`}</div>
-          <div class="result-label">${results.length} strings tested &bull; Corrected to STC &bull; G=${G} W/m², T_mod=${T_mod}°C</div>
+          <div class="result-value">${passAll ? '&#10003; ALL PASS' : `&#9888; ${failCount} STRING${failCount > 1 ? 'S' : ''} FAIL`}</div>
+          <div class="result-label">${results.length} strings tested &bull; Corrected to STC &bull; G=${G} W/m2, T_mod=${T_mod}C</div>
         </div>
 
         <div class="info-box">
-          Pass criteria: Voc ±3% of datasheet STC &bull; Isc ±5% of datasheet STC
+          Profile: ${_esc(profileLabel)} &bull; Pass criteria: Voc &plusmn;${vocTol.toFixed(1)}% and Isc &plusmn;${iscTol.toFixed(1)}%
         </div>
 
         <div style="overflow-x:auto">
@@ -239,12 +284,8 @@ const FieldTest = (() => {
             <tbody>
               ${results.map(r => {
                 const rowCls = (!r.passVoc || !r.passIsc) ? 'status-warning' : '';
-                const vocBadge = r.passVoc
-                  ? `<span class="status-badge badge-pass">PASS</span>`
-                  : `<span class="status-badge badge-fail">FAIL</span>`;
-                const iscBadge = r.passIsc
-                  ? `<span class="status-badge badge-pass">PASS</span>`
-                  : `<span class="status-badge badge-fail">FAIL</span>`;
+                const vocBadge = r.passVoc ? '<span class="status-badge badge-pass">PASS</span>' : '<span class="status-badge badge-fail">FAIL</span>';
+                const iscBadge = r.passIsc ? '<span class="status-badge badge-pass">PASS</span>' : '<span class="status-badge badge-fail">FAIL</span>';
                 const vocDevCls = !r.passVoc ? 'text-danger fw-bold' : '';
                 const iscDevCls = !r.passIsc ? 'text-danger fw-bold' : '';
                 return `
@@ -253,11 +294,11 @@ const FieldTest = (() => {
                     <td>${r.Voc_meas.toFixed(1)}</td>
                     <td>${r.Voc_corrected.toFixed(1)}</td>
                     <td>${r.Voc_expected.toFixed(1)}</td>
-                    <td class="${vocDevCls}">${(r.devVoc>=0?'+':'')}${r.devVoc.toFixed(2)}% ${vocBadge}</td>
+                    <td class="${vocDevCls}">${(r.devVoc >= 0 ? '+' : '')}${r.devVoc.toFixed(2)}% ${vocBadge}</td>
                     <td>${r.Isc_meas.toFixed(2)}</td>
                     <td>${r.Isc_corrected.toFixed(2)}</td>
                     <td>${r.Isc_expected.toFixed(2)}</td>
-                    <td class="${iscDevCls}">${(r.devIsc>=0?'+':'')}${r.devIsc.toFixed(2)}% ${iscBadge}</td>
+                    <td class="${iscDevCls}">${(r.devIsc >= 0 ? '+' : '')}${r.devIsc.toFixed(2)}% ${iscBadge}</td>
                   </tr>`;
               }).join('')}
             </tbody>
@@ -269,6 +310,7 @@ const FieldTest = (() => {
           <button class="btn btn-secondary btn-sm" id="ft-copy-btn">&#128203; Copy as Text</button>
           <button class="btn btn-secondary btn-sm" id="ft-csv-btn">&#128190; Export CSV</button>
           <button class="btn btn-success btn-sm" id="ft-pdf-btn">&#128196; Export PDF</button>
+          <button class="btn btn-secondary btn-sm" id="ft-docx-btn">Export DOCX</button>
         </div>
       </div>
     `;
@@ -304,6 +346,17 @@ const FieldTest = (() => {
       }
       Reports.generateFieldTest(App.state.fieldTestResults);
     });
+
+    const docxBtn = resultsDiv.querySelector('#ft-docx-btn');
+    if (docxBtn) {
+      docxBtn.addEventListener('click', () => {
+        if (typeof Reports === 'undefined' || typeof Reports.generateFieldTestDOCX !== 'function') {
+          App.toast('DOCX export not available', 'error');
+          return;
+        }
+        Reports.generateFieldTestDOCX(App.state.fieldTestResults);
+      });
+    }
 
     resultsDiv.scrollIntoView({ behavior: 'smooth', block: 'start' });
   }

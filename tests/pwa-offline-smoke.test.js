@@ -65,6 +65,8 @@ test('service worker install caches local assets even if CDN caching fails', asy
   assert.ok(sw.addAllCalls[0].includes('./index.html'));
   assert.ok(sw.addAllCalls[0].includes('./js/app.js'));
   assert.ok(sw.addAllCalls[0].includes('./js/hybrid.js'));
+  assert.ok(sw.addAllCalls[0].includes('./data/hybrid-inverters.json'));
+  assert.ok(sw.addAllCalls[0].includes('./data/hybrid-batteries.json'));
 });
 
 test('service worker activate removes old caches', async () => {

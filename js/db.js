@@ -206,6 +206,25 @@ const DB = (() => {
     return n;
   }
 
+  function _normalizeBoundedNumber(value, min, max, fallback) {
+    const n = _toFiniteNumber(value);
+    if (!Number.isFinite(n)) return fallback;
+    if (n < min || n > max) return fallback;
+    return n;
+  }
+
+  function _normalizeURL(value) {
+    const cleaned = _cleanText(value || '', 400);
+    if (!cleaned) return '';
+    try {
+      const u = new URL(cleaned);
+      if (u.protocol !== 'http:' && u.protocol !== 'https:') return '';
+      return u.toString();
+    } catch (_) {
+      return '';
+    }
+  }
+
   function _normalizePanel(input, options) {
     const opts = options || {};
     if (!input || typeof input !== 'object') return null;
@@ -222,6 +241,7 @@ const DB = (() => {
     const Isc = _toFiniteNumber(input.Isc);
     const Imp = _toFiniteNumber(input.Imp);
     const NOCT = _toFiniteNumber(input.NOCT);
+    const NMOTraw = _toFiniteNumber(input.NMOT);
     const cellsRaw = _toFiniteNumber(input.cells);
 
     if (![Pmax, Voc, Vmp, Isc, Imp, NOCT].every(Number.isFinite)) return null;
@@ -232,6 +252,17 @@ const DB = (() => {
     const coeffVoc = _normalizeCoeff(input.coeffVoc, -0.02, 0, -0.0026);
     const coeffIsc = _normalizeCoeff(input.coeffIsc, 0, 0.01, 0.00048);
     const coeffPmax = _normalizeCoeff(input.coeffPmax, -0.02, 0, -0.0030);
+    const coeffVmp = _normalizeCoeff(input.coeffVmp, -0.02, 0, coeffVoc);
+    const coeffImp = _normalizeCoeff(input.coeffImp, -0.01, 0.01, coeffIsc);
+    const NMOT = Number.isFinite(NMOTraw) ? NMOTraw : NOCT;
+    if (NMOT < 20 || NMOT > 80) return null;
+
+    const seriesFuseA = _normalizeBoundedNumber(input.seriesFuseA, 1, 100, null);
+    const maxSystemV = _normalizeBoundedNumber(input.maxSystemV, 100, 2000, 1500);
+    const datasheetUrl = _normalizeURL(input.datasheetUrl || (existing && existing.datasheetUrl));
+    const datasheetRev = _cleanText(input.datasheetRev || '', 80);
+    const tolerancePlusPct = _normalizeBoundedNumber(input.tolerancePlusPct, 0, 10, 0);
+    const toleranceMinusPct = _normalizeBoundedNumber(input.toleranceMinusPct, 0, 10, 0);
 
     let id = _cleanText(input.id || '', 80).toLowerCase().replace(/[^a-z0-9_]/g, '_').replace(/^_+|_+$/g, '');
     if (!id) id = generateId(manufacturer, model);
@@ -258,7 +289,16 @@ const DB = (() => {
       coeffVoc: Number(coeffVoc.toFixed(6)),
       coeffIsc: Number(coeffIsc.toFixed(6)),
       coeffPmax: Number(coeffPmax.toFixed(6)),
+      coeffVmp: Number(coeffVmp.toFixed(6)),
+      coeffImp: Number(coeffImp.toFixed(6)),
       NOCT: Number(NOCT.toFixed(2)),
+      NMOT: Number(NMOT.toFixed(2)),
+      seriesFuseA: Number.isFinite(seriesFuseA) ? Number(seriesFuseA.toFixed(2)) : null,
+      maxSystemV: Number(maxSystemV.toFixed(0)),
+      datasheetUrl,
+      datasheetRev,
+      tolerancePlusPct: Number(tolerancePlusPct.toFixed(2)),
+      toleranceMinusPct: Number(toleranceMinusPct.toFixed(2)),
       cells,
       preloaded: !!opts.allowPreloaded && input.preloaded === true,
       note: _cleanText(input.note || '', 240),
@@ -293,9 +333,39 @@ const DB = (() => {
     }
   }
 
+  function _withDefaults(panel) {
+    if (!panel || typeof panel !== 'object') return panel;
+    const coeffVoc = _normalizeCoeff(panel.coeffVoc, -0.02, 0, -0.0026);
+    const coeffIsc = _normalizeCoeff(panel.coeffIsc, 0, 0.01, 0.00048);
+    const coeffPmax = _normalizeCoeff(panel.coeffPmax, -0.02, 0, -0.0030);
+    const coeffVmp = _normalizeCoeff(panel.coeffVmp, -0.02, 0, coeffVoc);
+    const coeffImp = _normalizeCoeff(panel.coeffImp, -0.01, 0.01, coeffIsc);
+    const NOCT = _normalizeBoundedNumber(panel.NOCT, 20, 80, 43);
+    const NMOT = _normalizeBoundedNumber(panel.NMOT, 20, 80, NOCT);
+    const maxSystemV = _normalizeBoundedNumber(panel.maxSystemV, 100, 2000, 1500);
+    const tolerancePlusPct = _normalizeBoundedNumber(panel.tolerancePlusPct, 0, 10, 0);
+    const toleranceMinusPct = _normalizeBoundedNumber(panel.toleranceMinusPct, 0, 10, 0);
+    return {
+      ...panel,
+      coeffVoc: Number(coeffVoc.toFixed(6)),
+      coeffIsc: Number(coeffIsc.toFixed(6)),
+      coeffPmax: Number(coeffPmax.toFixed(6)),
+      coeffVmp: Number(coeffVmp.toFixed(6)),
+      coeffImp: Number(coeffImp.toFixed(6)),
+      NOCT: Number(NOCT.toFixed(2)),
+      NMOT: Number(NMOT.toFixed(2)),
+      seriesFuseA: _normalizeBoundedNumber(panel.seriesFuseA, 1, 100, null),
+      maxSystemV: Number(maxSystemV.toFixed(0)),
+      datasheetUrl: _normalizeURL(panel.datasheetUrl || ''),
+      datasheetRev: _cleanText(panel.datasheetRev || '', 80),
+      tolerancePlusPct: Number(tolerancePlusPct.toFixed(2)),
+      toleranceMinusPct: Number(toleranceMinusPct.toFixed(2)),
+    };
+  }
+
   function getAll() {
     const panels = _load() || [];
-    return panels.sort((a, b) => {
+    return panels.map(_withDefaults).sort((a, b) => {
       const m = a.manufacturer.localeCompare(b.manufacturer);
       return m !== 0 ? m : a.model.localeCompare(b.model);
     });
@@ -344,7 +414,7 @@ const DB = (() => {
   }
 
   function exportJSON() {
-    return JSON.stringify(_load() || [], null, 2);
+    return JSON.stringify(getAll(), null, 2);
   }
 
   function importJSON(json) {
@@ -474,12 +544,19 @@ const DB = (() => {
             <span class="spec-chip">Isc ${p.Isc}A</span>
             <span class="spec-chip">Imp ${p.Imp}A</span>
             <span class="spec-chip">NOCT ${p.NOCT}&deg;C</span>
+            <span class="spec-chip">NMOT ${p.NMOT}&deg;C</span>
+            <span class="spec-chip">Max ${p.maxSystemV}V</span>
+            ${Number.isFinite(p.seriesFuseA) ? `<span class="spec-chip">Series Fuse ${p.seriesFuseA}A</span>` : ''}
+            ${(p.tolerancePlusPct || p.toleranceMinusPct) ? `<span class="spec-chip">Tol +${p.tolerancePlusPct}% / -${p.toleranceMinusPct}%</span>` : ''}
           </div>
           <div class="text-sm text-muted mt-4">
             &#945;Voc: ${(p.coeffVoc * 100).toFixed(3)}%/&deg;C &nbsp;
             &#945;Isc: +${(p.coeffIsc * 100).toFixed(3)}%/&deg;C &nbsp;
-            &#945;Pmax: ${(p.coeffPmax * 100).toFixed(3)}%/&deg;C
+            &#945;Pmax: ${(p.coeffPmax * 100).toFixed(3)}%/&deg;C &nbsp;
+            &#945;Vmp: ${(p.coeffVmp * 100).toFixed(3)}%/&deg;C &nbsp;
+            &#945;Imp: ${(p.coeffImp * 100).toFixed(3)}%/&deg;C
           </div>
+          ${p.datasheetUrl ? `<div class="text-sm text-muted mt-4">Datasheet: <a href="${_esc(p.datasheetUrl)}" target="_blank" rel="noopener noreferrer">${_esc(p.datasheetRev || p.datasheetUrl)}</a></div>` : ''}
         </div>
         <div class="panel-card-actions">
           <button class="btn btn-secondary btn-sm" data-edit="${_esc(p.id)}">Edit</button>
@@ -506,7 +583,13 @@ const DB = (() => {
     const isNew = !panel;
     const p = panel || {
       id: '', manufacturer: '', model: '', Pmax: '', Voc: '', Vmp: '', Isc: '', Imp: '',
-      coeffVoc: -0.0026, coeffIsc: 0.00048, coeffPmax: -0.0030, NOCT: 43, cells: 72, note: '', preloaded: false
+      coeffVoc: -0.0026, coeffIsc: 0.00048, coeffPmax: -0.0030,
+      coeffVmp: -0.0026, coeffImp: 0.00048,
+      NOCT: 43, NMOT: 43,
+      seriesFuseA: '', maxSystemV: 1500,
+      tolerancePlusPct: 0, toleranceMinusPct: 0,
+      datasheetUrl: '', datasheetRev: '',
+      cells: 72, note: '', preloaded: false
     };
     const safeTitle = isNew ? 'Add Panel' : `Edit: ${p.manufacturer} ${p.model}`;
 
@@ -546,6 +629,18 @@ const DB = (() => {
           <label class="form-label">NOCT (&deg;C)</label>
           <input class="form-input" id="pf-noct" type="number" value="${p.NOCT}" />
         </div>
+        <div class="form-group">
+          <label class="form-label">NMOT (&deg;C)</label>
+          <input class="form-input" id="pf-nmot" type="number" value="${p.NMOT}" />
+        </div>
+        <div class="form-group">
+          <label class="form-label">Series Fuse (A)</label>
+          <input class="form-input" id="pf-fuse" type="number" step="0.1" value="${p.seriesFuseA}" />
+        </div>
+        <div class="form-group">
+          <label class="form-label">Max System Voltage (V)</label>
+          <input class="form-input" id="pf-maxv" type="number" step="1" value="${p.maxSystemV}" />
+        </div>
       </div>
       <div class="section-title">Temperature Coefficients</div>
       <div class="info-box">Enter as %/&deg;C (e.g. -0.26). Stored internally as decimal.</div>
@@ -561,6 +656,33 @@ const DB = (() => {
         <div class="form-group">
           <label class="form-label">&#945;Pmax (%/&deg;C)</label>
           <input class="form-input" id="pf-cpmax" type="number" step="0.001" value="${(p.coeffPmax * 100).toFixed(3)}" />
+        </div>
+        <div class="form-group">
+          <label class="form-label">&#945;Vmp (%/&deg;C)</label>
+          <input class="form-input" id="pf-cvmp" type="number" step="0.001" value="${(p.coeffVmp * 100).toFixed(3)}" />
+        </div>
+        <div class="form-group">
+          <label class="form-label">&#945;Imp (%/&deg;C)</label>
+          <input class="form-input" id="pf-cimp" type="number" step="0.001" value="${(p.coeffImp * 100).toFixed(3)}" />
+        </div>
+      </div>
+      <div class="section-title">Datasheet and Tolerance</div>
+      <div class="form-row cols-2">
+        <div class="form-group">
+          <label class="form-label">Datasheet URL</label>
+          <input class="form-input" id="pf-durl" value="${_esc(p.datasheetUrl || '')}" placeholder="https://..." />
+        </div>
+        <div class="form-group">
+          <label class="form-label">Datasheet Revision</label>
+          <input class="form-input" id="pf-drev" value="${_esc(p.datasheetRev || '')}" placeholder="e.g. Rev 2025-01" />
+        </div>
+        <div class="form-group">
+          <label class="form-label">Power Tolerance + (%)</label>
+          <input class="form-input" id="pf-tolp" type="number" step="0.1" min="0" value="${p.tolerancePlusPct}" />
+        </div>
+        <div class="form-group">
+          <label class="form-label">Power Tolerance - (%)</label>
+          <input class="form-input" id="pf-tolm" type="number" step="0.1" min="0" value="${p.toleranceMinusPct}" />
         </div>
       </div>
       <div class="form-group">
@@ -585,9 +707,18 @@ const DB = (() => {
             Isc: parseFloat(document.getElementById('pf-isc').value),
             Imp: parseFloat(document.getElementById('pf-imp').value),
             NOCT: parseFloat(document.getElementById('pf-noct').value),
+            NMOT: parseFloat(document.getElementById('pf-nmot').value),
+            seriesFuseA: parseFloat(document.getElementById('pf-fuse').value),
+            maxSystemV: parseFloat(document.getElementById('pf-maxv').value),
             coeffVoc: parseFloat(document.getElementById('pf-cvoc').value) / 100,
             coeffIsc: parseFloat(document.getElementById('pf-cisc').value) / 100,
             coeffPmax: parseFloat(document.getElementById('pf-cpmax').value) / 100,
+            coeffVmp: parseFloat(document.getElementById('pf-cvmp').value) / 100,
+            coeffImp: parseFloat(document.getElementById('pf-cimp').value) / 100,
+            datasheetUrl: document.getElementById('pf-durl').value.trim(),
+            datasheetRev: document.getElementById('pf-drev').value.trim(),
+            tolerancePlusPct: parseFloat(document.getElementById('pf-tolp').value),
+            toleranceMinusPct: parseFloat(document.getElementById('pf-tolm').value),
             note: document.getElementById('pf-note').value.trim(),
             preloaded: isNew ? false : !!p.preloaded
           };

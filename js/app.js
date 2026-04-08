@@ -397,6 +397,19 @@ const App = (() => {
     const safeName = escapeHTML(settings.inspectorName || '');
     const safeCompany = escapeHTML(settings.company || 'Heshan Engineering Solution');
     const safePhone = escapeHTML(settings.phone || '');
+    const hybridCatalog = (typeof HybridSetup !== 'undefined' && HybridSetup && typeof HybridSetup.getCatalogSummary === 'function')
+      ? HybridSetup.getCatalogSummary()
+      : null;
+    const hybridCatalogSummary = hybridCatalog
+      ? (hybridCatalog.loading
+        ? 'Loading hybrid catalog...'
+        : (hybridCatalog.loaded
+          ? `${hybridCatalog.inverterCount} inverters, ${hybridCatalog.batteryCount} batteries`
+          : 'Not loaded yet'))
+      : 'Hybrid catalog module unavailable';
+    const hybridCatalogVersion = hybridCatalog && (hybridCatalog.inverterVersion || hybridCatalog.batteryVersion)
+      ? `Inverter v${hybridCatalog.inverterVersion || '-'} / Battery v${hybridCatalog.batteryVersion || '-'}`
+      : '';
 
     container.innerHTML = `
       <div class="page">
@@ -424,6 +437,22 @@ const App = (() => {
           <div class="btn-group">
             <button class="btn btn-secondary btn-sm" id="set-clear-sessions">Clear All Inspections</button>
             <button class="btn btn-danger btn-sm" id="set-reset-db">Reset Panel DB to Defaults</button>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-title">Utility Approval Data</div>
+          <div class="text-sm">
+            <div><strong>Hybrid Catalog:</strong> ${escapeHTML(hybridCatalogSummary)}</div>
+            ${hybridCatalogVersion ? `<div class="text-muted mt-4">${escapeHTML(hybridCatalogVersion)}</div>` : ''}
+            <div class="text-muted mt-4">Export-mode hybrid checks use strict CEB/LECO listed tags from catalog + local overrides.</div>
+            <div class="text-muted mt-4">Import CSV columns: <code>id,ceb_2025,leco_2025,ceb_source,leco_source</code></div>
+            <div class="text-muted mt-4">Reference portals: <a href="https://www.ceb.lk/standard-spec/en" target="_blank" rel="noopener noreferrer">CEB standards/spec</a> | <a href="https://www.leco.lk/index_e.php" target="_blank" rel="noopener noreferrer">LECO</a></div>
+            <div class="text-muted mt-4">Profile docs: <a href="https://www.ceb.lk/front_img/img_reports/1742277909Solar_Inverter_settings.pdf" target="_blank" rel="noopener noreferrer">CEB inverter settings (2025-02-25)</a> | <a href="https://www.ceb.lk/front_img/img_reports/1723552921Grid_Connection_Code_for_publishing_in_CEB_web.pdf" target="_blank" rel="noopener noreferrer">Grid Connection Code (2024)</a> | <a href="https://www.pucsl.gov.lk/wp-content/uploads/2020/11/Supply-Services-Code-LECO-E.pdf" target="_blank" rel="noopener noreferrer">LECO Supply Services Code</a></div>
+          </div>
+          <div class="btn-group mt-8">
+            <button class="btn btn-secondary btn-sm" id="set-open-utility-manager">Open Utility List Manager</button>
+            <button class="btn btn-secondary btn-sm" id="set-export-utility-template">Download CSV Template</button>
           </div>
         </div>
 
@@ -465,6 +494,36 @@ const App = (() => {
       DB.init();
       toast('Panel database reset to defaults', 'success');
     });
+
+    const openUtilityBtn = container.querySelector('#set-open-utility-manager');
+    if (openUtilityBtn) {
+      openUtilityBtn.addEventListener('click', () => {
+        navigate('hybrid');
+        setTimeout(() => {
+          if (typeof HybridSetup !== 'undefined' && HybridSetup && typeof HybridSetup.openUtilityManager === 'function') {
+            HybridSetup.openUtilityManager(document.getElementById('main-content'));
+          } else {
+            toast('Utility manager unavailable', 'warning');
+          }
+        }, 60);
+      });
+    }
+
+    const exportTemplateBtn = container.querySelector('#set-export-utility-template');
+    if (exportTemplateBtn) {
+      exportTemplateBtn.addEventListener('click', () => {
+        const csv = 'id,ceb_2025,leco_2025,ceb_source,leco_source\n';
+        const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = 'utility_list_template.csv';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(a.href);
+        toast('Utility CSV template downloaded', 'success');
+      });
+    }
   }
 
   // -----------------------------------------------------------------------

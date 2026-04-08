@@ -10,6 +10,8 @@ const LOCAL_ASSETS = [
   './manifest.json',
   './css/style.css',
   './css/style.css?v=2',
+  './data/hybrid-inverters.json',
+  './data/hybrid-batteries.json',
   './js/db.js',
   './js/pv-calc.js',
   './js/standards-calc.js',

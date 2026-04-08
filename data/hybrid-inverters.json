@@ -1,0 +1,122 @@
+{
+  "version": "2026-04-08",
+  "source": "Project-maintained CEB/LECO approved inverter mapping (sync with latest utility accepted-model circulars before release)",
+  "inverters": [
+    {
+      "id": "deye_sun_5k_sg04lp1_eu",
+      "manufacturer": "Deye",
+      "model": "SUN-5K-SG04LP1-EU",
+      "acRated_kW": 5.0,
+      "surge_kW": 10.0,
+      "surge_s": 10.0,
+      "batteryBus_V": 48,
+      "maxCharge_A": 120,
+      "maxDischarge_A": 120,
+      "maxPv_kW": 6.5,
+      "mpptMin_V": 150,
+      "mpptMax_V": 425,
+      "maxDcVoc_V": 500,
+      "mpptCount": 2,
+      "maxCurrentPerMppt_A": 13,
+      "supportedProfiles": ["offgrid", "ceb_2025", "leco_2025"],
+      "utilityListed": {
+        "ceb_2025": true,
+        "leco_2025": true
+      },
+      "listingSource": {
+        "ceb_2025": "Project approved-list snapshot 2026-04-08",
+        "leco_2025": "Project approved-list snapshot 2026-04-08"
+      },
+      "datasheetRev": "Hybrid LP1 (engineering reference)",
+      "datasheetUrl": "",
+      "note": "Low-voltage hybrid inverter."
+    },
+    {
+      "id": "deye_sun_8k_sg01lp1",
+      "manufacturer": "Deye",
+      "model": "SUN-8K-SG01LP1",
+      "acRated_kW": 8.0,
+      "surge_kW": 16.0,
+      "surge_s": 10.0,
+      "batteryBus_V": 48,
+      "maxCharge_A": 190,
+      "maxDischarge_A": 190,
+      "maxPv_kW": 10.4,
+      "mpptMin_V": 150,
+      "mpptMax_V": 425,
+      "maxDcVoc_V": 500,
+      "mpptCount": 2,
+      "maxCurrentPerMppt_A": 18,
+      "supportedProfiles": ["offgrid", "ceb_2025", "leco_2025"],
+      "utilityListed": {
+        "ceb_2025": true,
+        "leco_2025": true
+      },
+      "listingSource": {
+        "ceb_2025": "Project approved-list snapshot 2026-04-08",
+        "leco_2025": "Project approved-list snapshot 2026-04-08"
+      },
+      "datasheetRev": "Hybrid LP1 (engineering reference)",
+      "datasheetUrl": "",
+      "note": "Higher current class low-voltage hybrid inverter."
+    },
+    {
+      "id": "goodwe_gw5048_em",
+      "manufacturer": "GoodWe",
+      "model": "GW5048-EM",
+      "acRated_kW": 4.6,
+      "surge_kW": 6.9,
+      "surge_s": 10.0,
+      "batteryBus_V": 48,
+      "maxCharge_A": 100,
+      "maxDischarge_A": 100,
+      "maxPv_kW": 6.5,
+      "mpptMin_V": 125,
+      "mpptMax_V": 550,
+      "maxDcVoc_V": 550,
+      "mpptCount": 2,
+      "maxCurrentPerMppt_A": 12.5,
+      "supportedProfiles": ["offgrid", "ceb_2025", "leco_2025"],
+      "utilityListed": {
+        "ceb_2025": true,
+        "leco_2025": true
+      },
+      "listingSource": {
+        "ceb_2025": "Project approved-list snapshot 2026-04-08",
+        "leco_2025": "Project approved-list snapshot 2026-04-08"
+      },
+      "datasheetRev": "EM series (engineering reference)",
+      "datasheetUrl": "",
+      "note": "Single-phase hybrid inverter class."
+    },
+    {
+      "id": "victron_multiplus_ii_48_5000",
+      "manufacturer": "Victron",
+      "model": "MultiPlus-II 48/5000",
+      "acRated_kW": 4.0,
+      "surge_kW": 9.0,
+      "surge_s": 5.0,
+      "batteryBus_V": 48,
+      "maxCharge_A": 70,
+      "maxDischarge_A": 110,
+      "maxPv_kW": 0.0,
+      "mpptMin_V": 0.0,
+      "mpptMax_V": 0.0,
+      "maxDcVoc_V": 0.0,
+      "mpptCount": 0,
+      "maxCurrentPerMppt_A": 0.0,
+      "supportedProfiles": ["offgrid", "ceb_2025", "leco_2025"],
+      "utilityListed": {
+        "ceb_2025": false,
+        "leco_2025": false
+      },
+      "listingSource": {
+        "ceb_2025": "Not present in project approved-list snapshot 2026-04-08",
+        "leco_2025": "Not present in project approved-list snapshot 2026-04-08"
+      },
+      "datasheetRev": "48/5000 (engineering reference)",
+      "datasheetUrl": "",
+      "note": "Inverter-charger; MPPT checks only apply with external MPPT data."
+    }
+  ]
+}

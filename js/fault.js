@@ -233,7 +233,8 @@ const FaultChecker = (() => {
       Voc_exp,
       Isc_exp,
       date: (container.querySelector('#fc-date') && container.querySelector('#fc-date').value) || _localDateISO(),
-      results
+      results,
+      qualityBadges: ['Heuristic', 'Datasheet-backed']
     };
 
     const resultsDiv = container.querySelector('#fc-results');
@@ -300,6 +301,7 @@ const FaultChecker = (() => {
           <button class="btn btn-secondary btn-sm" id="fc-print-btn">&#128424; Print</button>
           <button class="btn btn-secondary btn-sm" id="fc-csv-btn">&#128190; Export CSV</button>
           <button class="btn btn-success btn-sm" id="fc-pdf-btn">&#128196; Export PDF</button>
+          <button class="btn btn-secondary btn-sm" id="fc-docx-btn">Export DOCX</button>
         </div>
       </div>
     `;
@@ -327,6 +329,17 @@ const FaultChecker = (() => {
       }
       Reports.generateFault(App.state.faultCheckResults);
     });
+
+    const docxBtn = resultsDiv.querySelector('#fc-docx-btn');
+    if (docxBtn) {
+      docxBtn.addEventListener('click', () => {
+        if (typeof Reports === 'undefined' || typeof Reports.generateFaultDOCX !== 'function') {
+          App.toast('DOCX export not available', 'error');
+          return;
+        }
+        Reports.generateFaultDOCX(App.state.faultCheckResults);
+      });
+    }
 
     resultsDiv.scrollIntoView({ behavior: 'smooth', block: 'start' });
   }

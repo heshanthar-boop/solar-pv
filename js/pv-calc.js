@@ -10,15 +10,48 @@ const PVCalc = (() => {
 
   // --- THRESHOLDS (fault detection) ---
   const THRESH = {
-    open_circuit_voc_ratio: 0.05,       // Voc < 5% of expected → open circuit
-    short_circuit_voc_ratio: 0.15,      // Voc < 15% of expected → possible short
-    bypass_diode_tolerance: 0.05,       // ±5% match for bypass diode pattern
-    shading_voc_low: 0.80,              // Voc 80–95% → possible shading
+    open_circuit_voc_ratio: 0.05,       // Voc < 5% of expected -> open circuit
+    short_circuit_voc_ratio: 0.15,      // Voc < 15% of expected -> possible short
+    bypass_diode_tolerance: 0.05,       // +/-5% match for bypass diode pattern
+    shading_voc_low: 0.80,              // Voc 80-95% -> possible shading
     shading_voc_high: 0.96,
-    mismatch_isc_ratio: 0.90,           // Isc < 90% while Voc is normal → mismatch
-    pass_voc_tol: 0.03,                 // ±3% Voc for pass/fail
-    pass_isc_tol: 0.05,                 // ±5% Isc for pass/fail
+    mismatch_isc_ratio: 0.90,           // Isc < 90% while Voc is normal -> mismatch
   };
+
+  const FIELD_TEST_PROFILES = {
+    iec62446_2016: {
+      id: 'iec62446_2016',
+      label: 'IEC 62446-1:2016',
+      vocTolPct: 2,
+      iscTolPct: 5,
+      note: 'Voc checked after temperature correction. Isc checked after irradiance and temperature correction.',
+    },
+    legacy_3_5: {
+      id: 'legacy_3_5',
+      label: 'Legacy profile (Voc +/-3%, Isc +/-5%)',
+      vocTolPct: 3,
+      iscTolPct: 5,
+      note: 'Legacy tolerance retained for backward compatibility.',
+    },
+  };
+
+  function getFieldTestProfile(profile) {
+    if (profile && typeof profile === 'object') {
+      const vocTolPct = Number(profile.vocTolPct);
+      const iscTolPct = Number(profile.iscTolPct);
+      if (Number.isFinite(vocTolPct) && Number.isFinite(iscTolPct) && vocTolPct > 0 && iscTolPct > 0) {
+        return {
+          id: String(profile.id || 'custom'),
+          label: String(profile.label || 'Custom profile'),
+          vocTolPct,
+          iscTolPct,
+          note: String(profile.note || 'User-defined field-test acceptance profile.'),
+        };
+      }
+    }
+    const key = String(profile || 'iec62446_2016');
+    return FIELD_TEST_PROFILES[key] || FIELD_TEST_PROFILES.iec62446_2016;
+  }
 
   // -----------------------------------------------------------------------
   // TEMPERATURE & IRRADIANCE CORRECTIONS
@@ -126,16 +159,18 @@ const PVCalc = (() => {
    */
   function arrayParams(panel, n_mod, n_str, n_mppt, T_cell) {
     T_cell = T_cell || 25;
+    const coeffVmp = Number.isFinite(panel.coeffVmp) ? panel.coeffVmp : panel.coeffVoc;
+    const coeffImp = Number.isFinite(panel.coeffImp) ? panel.coeffImp : panel.coeffIsc;
     const strings_total = n_str * n_mppt;
     return {
       string_Voc: vocAtTemp(panel.Voc, panel.coeffVoc, T_cell) * n_mod,
-      string_Vmp: vmpAtTemp(panel.Vmp, panel.coeffVoc, T_cell) * n_mod,
+      string_Vmp: vmpAtTemp(panel.Vmp, coeffVmp, T_cell) * n_mod,
       string_Isc: iscAtTemp(panel.Isc, panel.coeffIsc, T_cell),
-      string_Imp: iscAtTemp(panel.Imp, panel.coeffIsc, T_cell), // Imp scales same as Isc approximately
+      string_Imp: iscAtTemp(panel.Imp, coeffImp, T_cell),
       array_Voc: vocAtTemp(panel.Voc, panel.coeffVoc, T_cell) * n_mod,         // parallel strings don't add V
-      array_Vmp: vmpAtTemp(panel.Vmp, panel.coeffVoc, T_cell) * n_mod,
+      array_Vmp: vmpAtTemp(panel.Vmp, coeffVmp, T_cell) * n_mod,
       array_Isc: iscAtTemp(panel.Isc, panel.coeffIsc, T_cell) * strings_total,
-      array_Imp: iscAtTemp(panel.Imp, panel.coeffIsc, T_cell) * strings_total,
+      array_Imp: iscAtTemp(panel.Imp, coeffImp, T_cell) * strings_total,
       array_Pmax_kW: (pmaxAtTemp(panel.Pmax, panel.coeffPmax, T_cell) * n_mod * strings_total) / 1000,
       total_modules: n_mod * strings_total,
     };
@@ -147,9 +182,10 @@ const PVCalc = (() => {
    */
   function checkSizingLimits(panel, n_mod, n_str, T_min, T_max_cell, inv) {
     const violations = [];
+    const coeffVmp = Number.isFinite(panel.coeffVmp) ? panel.coeffVmp : panel.coeffVoc;
     const Voc_worst = vocAtTemp(panel.Voc, panel.coeffVoc, T_min) * n_mod;
-    const Vmp_hot   = vmpAtTemp(panel.Vmp, panel.coeffVoc, T_max_cell) * n_mod;
-    const Vmp_cold  = vmpAtTemp(panel.Vmp, panel.coeffVoc, T_min) * n_mod;
+    const Vmp_hot   = vmpAtTemp(panel.Vmp, coeffVmp, T_max_cell) * n_mod;
+    const Vmp_cold  = vmpAtTemp(panel.Vmp, coeffVmp, T_min) * n_mod;
     const Isc_worst = iscAtTemp(panel.Isc, panel.coeffIsc, T_max_cell) * n_str;
 
     if (Voc_worst > inv.V_max) {
@@ -165,7 +201,7 @@ const PVCalc = (() => {
         param: 'String Vmp at T_max',
         value: Vmp_hot.toFixed(1) + ' V',
         limit: inv.V_mppt_min + ' V (MPPT min)',
-        msg: `String Vmp at ${T_max_cell.toFixed(0)}°C cell = ${Vmp_hot.toFixed(1)} V is below MPPT minimum ${inv.V_mppt_min} V. Increase to min ${Math.ceil(inv.V_mppt_min / vmpAtTemp(panel.Vmp, panel.coeffVoc, T_max_cell))} modules.`
+        msg: `String Vmp at ${T_max_cell.toFixed(0)}°C cell = ${Vmp_hot.toFixed(1)} V is below MPPT minimum ${inv.V_mppt_min} V. Increase to min ${Math.ceil(inv.V_mppt_min / vmpAtTemp(panel.Vmp, coeffVmp, T_max_cell))} modules.`
       });
     }
     if (Vmp_cold > inv.V_mppt_max) {
@@ -197,12 +233,14 @@ const PVCalc = (() => {
    */
   function tempCorrectionTable(panel, T_min, T_max, G_Wm2) {
     G_Wm2 = G_Wm2 || 1000;
+    const coeffVmp = Number.isFinite(panel.coeffVmp) ? panel.coeffVmp : panel.coeffVoc;
+    const coeffImp = Number.isFinite(panel.coeffImp) ? panel.coeffImp : panel.coeffIsc;
     function row(T) {
       const Voc = vocAtTemp(panel.Voc, panel.coeffVoc, T);
-      const Vmp = vmpAtTemp(panel.Vmp, panel.coeffVoc, T);
+      const Vmp = vmpAtTemp(panel.Vmp, coeffVmp, T);
       const Isc = iscCorrected(panel.Isc, panel.coeffIsc, T, G_Wm2);
       const Pmax = pmaxAtTemp(panel.Pmax, panel.coeffPmax, T) * (G_Wm2 / 1000);
-      const Imp = iscAtTemp(panel.Imp, panel.coeffIsc, T) * (G_Wm2 / 1000);
+      const Imp = iscAtTemp(panel.Imp, coeffImp, T) * (G_Wm2 / 1000);
       return {
         T, Voc, Vmp, Isc, Imp, Pmax,
         devVoc:  pct(Voc,  panel.Voc),
@@ -247,7 +285,8 @@ const PVCalc = (() => {
    * @param {number} n_modules      - modules in string
    * @returns {object}
    */
-  function fieldTestString(panel, V_meas, I_meas, T_module, G_Wm2, n_modules) {
+  function fieldTestString(panel, V_meas, I_meas, T_module, G_Wm2, n_modules, options) {
+    const profile = getFieldTestProfile(options && (options.profileId || options.profile) ? (options.profileId || options.profile) : options);
     const Voc_corrected = correctVocToSTC(V_meas, panel.coeffVoc, T_module);
     const Isc_corrected = correctIscToSTC(I_meas, panel.coeffIsc, T_module, G_Wm2);
 
@@ -266,8 +305,12 @@ const PVCalc = (() => {
       Isc_expected,
       devVoc,
       devIsc,
-      passVoc: Math.abs(devVoc) <= THRESH.pass_voc_tol * 100,
-      passIsc: Math.abs(devIsc) <= THRESH.pass_isc_tol * 100,
+      profileId: profile.id,
+      profileLabel: profile.label,
+      vocTolerancePct: profile.vocTolPct,
+      iscTolerancePct: profile.iscTolPct,
+      passVoc: Math.abs(devVoc) <= profile.vocTolPct,
+      passIsc: Math.abs(devIsc) <= profile.iscTolPct,
     };
   }
 
@@ -511,6 +554,8 @@ const PVCalc = (() => {
     performanceRatio, expectedPower, irTestResult,
     batteryCapacity, batteryAhAtVoltage, hybridPVCapacity, hybridInverterCapacity, hybridChargeCurrent,
     round2, round1, pctStr,
-    THRESH
+    THRESH,
+    FIELD_TEST_PROFILES,
+    getFieldTestProfile
   };
 })();
