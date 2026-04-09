@@ -264,6 +264,302 @@ const PVInspector = (() => {
   }
 
   // =========================================================================
+  // RULE-BASED FAULT PREDICTION (STRING LEVEL)
+  // =========================================================================
+
+  const FAULT_LIMITS = {
+    vocPct: 3,
+    iscPct: 5,
+    pmppPct: 5,
+    irMOhm: 1,
+  };
+
+  function _predictionBadgeClass(severity) {
+    if (severity === 'critical' || severity === 'fault') return 'badge-fail';
+    if (severity === 'warn') return 'badge-warn';
+    return 'badge-pass';
+  }
+
+  function _ensurePredictions(session) {
+    if (!session || !Array.isArray(session.rows)) return [];
+    const key = `${session.rows.length}|${session.refPanel ? session.refPanel.id : 'none'}`;
+    if (session._predictionKey === key && Array.isArray(session.predictions)) return session.predictions;
+
+    const preds = session.rows.map(row => {
+      const dbCheck = session.refPanel ? checkVsDB(row, session.refPanel) : null;
+      return _predictRowFaults(row, dbCheck);
+    });
+    session.predictions = preds;
+    session._predictionKey = key;
+    session.faultSummary = _summarizePredictions(preds);
+    return preds;
+  }
+
+  function _summarizePredictions(preds) {
+    const out = {
+      critical: 0,
+      fault: 0,
+      warn: 0,
+      info: 0,
+      ok: 0,
+      affected: 0,
+      top: [],
+    };
+    const byName = {};
+    (preds || []).forEach(p => {
+      if (!p || !p.primary) return;
+      const sev = p.primary.severity || 'info';
+      out[sev] = (out[sev] || 0) + 1;
+      if (sev === 'critical' || sev === 'fault' || sev === 'warn') out.affected++;
+      if (p.primary.id === 'healthy' || p.primary.id === 'low_irradiance_data_quality') return;
+      byName[p.primary.label] = (byName[p.primary.label] || 0) + 1;
+    });
+    out.top = Object.entries(byName)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 6)
+      .map(([label, count]) => ({ label, count }));
+    return out;
+  }
+
+  function _predictRowFaults(row, dbCheck) {
+    const candidates = {};
+    const evidence = [];
+
+    const dVoc = row.dUoc;
+    const dIsc = row.dIsc;
+    const dPmpp = row.dPmpp;
+    const ffPct = row.FF_n !== null && row.FF_n !== undefined ? row.FF_n : row.FF_m;
+    const lowIrr = row.irr !== null && row.irr < 300;
+    const highTemp = row.tcell !== null && row.tcell >= 70;
+    const irPosFail = row.Roc_pos !== null && row.Roc_pos < FAULT_LIMITS.irMOhm;
+    const irNegFail = row.Roc_neg !== null && row.Roc_neg < FAULT_LIMITS.irMOhm;
+
+    function addEvidence(msg) {
+      if (msg && !evidence.includes(msg)) evidence.push(msg);
+    }
+
+    function addCandidate(id, label, severity, confidence, reason, action) {
+      if (!Number.isFinite(confidence) || confidence <= 0) return;
+      const conf = Math.max(5, Math.min(98, confidence));
+      const prev = candidates[id];
+      if (!prev || conf > prev.confidence) {
+        candidates[id] = { id, label, severity, confidence: conf, reason, action };
+      }
+    }
+
+    if (irPosFail || irNegFail) {
+      addCandidate(
+        'earth_fault',
+        'Earth Fault / Insulation Failure',
+        'critical',
+        97,
+        'Insulation resistance below IEC 62446-1 minimum (1 MOhm at 500V).',
+        'Isolate immediately. Perform DC+ and DC- to earth isolation tracing and repair damaged cable/connector/module.'
+      );
+      if (irPosFail) addEvidence(`Roc+ ${row.Roc_pos.toFixed(2)} MOhm < 1 MOhm`);
+      if (irNegFail) addEvidence(`Roc- ${row.Roc_neg.toFixed(2)} MOhm < 1 MOhm`);
+    }
+
+    if (dVoc !== null && dVoc <= -12 && (dIsc === null || Math.abs(dIsc) <= 5)) {
+      addCandidate(
+        'open_string_or_missing_module',
+        'Open String / Missing Module',
+        'fault',
+        86,
+        'Large Voc drop with near-normal Isc indicates missing modules, open connector, or incorrect string configuration.',
+        'Verify string module count, check MC4 polarity/continuity, and inspect combiner/string fuses.'
+      );
+      addEvidence(`Delta Voc ${dVoc.toFixed(2)}% with Isc near expected`);
+    }
+
+    if (dVoc !== null && dVoc <= -22 && dVoc >= -45 && (dIsc === null || Math.abs(dIsc) <= 8)) {
+      addCandidate(
+        'bypass_diode_or_substring_loss',
+        'Bypass Diode / Substring Loss',
+        'fault',
+        84,
+        'Voc reduction around one-substring range with modest Isc change suggests bypass diode conduction/failure.',
+        'Run module-level Voc scan and thermal inspection; replace faulty module/diode junction box.'
+      );
+      addEvidence(`Voc signature in substring-loss region (${dVoc.toFixed(2)}%)`);
+    }
+
+    if (dIsc !== null && dIsc <= -8 && (dVoc === null || Math.abs(dVoc) <= 5)) {
+      const conf = dIsc <= -15 ? 86 : 74;
+      addCandidate(
+        'shading_or_soiling',
+        dIsc <= -15 ? 'Severe Shading / Heavy Soiling' : 'Shading / Soiling',
+        'warn',
+        conf,
+        'Current is reduced while voltage remains near normal, typical of shading or uniform soiling.',
+        'Inspect for shade objects/string mismatch and clean modules; retest during stable irradiance.'
+      );
+      addEvidence(`Delta Isc ${dIsc.toFixed(2)}% with Voc near expected`);
+    }
+
+    if (dPmpp !== null && dPmpp <= -10 && ffPct !== null && ffPct < 70) {
+      addCandidate(
+        'hotspot_or_cell_damage',
+        'Hotspot / Cell Damage Risk',
+        'fault',
+        88,
+        'Strong Pmpp loss with low fill factor indicates resistive/cell-level damage or hotspot behavior.',
+        'Perform IR thermal scan and module I-V curve comparison; replace affected modules.'
+      );
+      addEvidence(`Delta Pmpp ${dPmpp.toFixed(2)}%, FF ${ffPct.toFixed(1)}%`);
+    }
+
+    if (ffPct !== null && ffPct < 68 && (dVoc === null || Math.abs(dVoc) <= 4) && (dIsc === null || Math.abs(dIsc) <= 6)) {
+      addCandidate(
+        'series_resistance',
+        'High Series Resistance / Connector Heating',
+        'warn',
+        76,
+        'Low fill factor with mostly normal Voc/Isc points to series resistance in connectors, terminations, or conductors.',
+        'Torque-check terminals, inspect connectors for heat marks, measure connector/contact resistance.'
+      );
+      addEvidence(`Low fill factor (${ffPct.toFixed(1)}%) with near-normal Voc/Isc`);
+    }
+
+    if (row.nStr !== null && row.nStr > 1 && dIsc !== null && dIsc <= -5 && dIsc > -18 && (dVoc === null || Math.abs(dVoc) <= 5)) {
+      addCandidate(
+        'parallel_string_imbalance',
+        'Parallel String Imbalance',
+        'warn',
+        72,
+        'In multi-string configuration, reduced current with normal voltage may indicate one weak/offline branch.',
+        'Compare branch currents in combiner, inspect branch fuses and connectors.'
+      );
+      addEvidence(`nStr=${row.nStr}, current deficit indicates branch mismatch`);
+    }
+
+    if (highTemp && dPmpp !== null && dPmpp <= -8) {
+      addCandidate(
+        'thermal_derating_or_hot_surface',
+        'Thermal Derating / Overheating',
+        'warn',
+        69,
+        'High module temperature plus power loss suggests thermal derating or local overheating.',
+        'Inspect ventilation, mounting clearance, and hotspot locations; retest at lower module temperature.'
+      );
+      addEvidence(`Tcell ${row.tcell.toFixed(1)}C with Delta Pmpp ${dPmpp.toFixed(2)}%`);
+    }
+
+    if (dVoc !== null && dIsc !== null && dVoc < -5 && dIsc < -5 && dPmpp !== null && dPmpp < -8) {
+      addCandidate(
+        'pid_or_degradation',
+        'PID / Accelerated Degradation Pattern',
+        'warn',
+        66,
+        'Concurrent voltage/current/power drop pattern can match PID or advanced aging behavior.',
+        'Trend against historical baselines, check grounding strategy and humidity exposure.'
+      );
+      addEvidence(`Combined losses: dVoc ${dVoc.toFixed(2)}%, dIsc ${dIsc.toFixed(2)}%, dPmpp ${dPmpp.toFixed(2)}%`);
+    }
+
+    if (dbCheck && (!dbCheck.passVoc || !dbCheck.passIsc)) {
+      addCandidate(
+        'datasheet_mismatch',
+        'Datasheet Mismatch vs Panel DB',
+        'warn',
+        64,
+        'Normalized measurements exceed accepted tolerance against selected panel datasheet.',
+        'Verify module type mapping, string module count, and STC normalization inputs.'
+      );
+      addEvidence(`DB check: dVoc ${dbCheck.devVoc.toFixed(2)}%, dIsc ${dbCheck.devIsc.toFixed(2)}%`);
+    }
+
+    if (lowIrr) {
+      addCandidate(
+        'low_irradiance_data_quality',
+        'Low-Irradiance Data Quality Warning',
+        'info',
+        52,
+        'Test performed at low irradiance; normalized comparisons are less reliable.',
+        'Repeat test above 600 W/m2 irradiance for stronger diagnostics.'
+      );
+      addEvidence(`Irradiance ${row.irr.toFixed(0)} W/m2 (<300 W/m2)`);
+    }
+
+    const all = Object.values(candidates).sort((a, b) => b.confidence - a.confidence);
+    const vocOk = dVoc === null || Math.abs(dVoc) <= FAULT_LIMITS.vocPct;
+    const iscOk = dIsc === null || Math.abs(dIsc) <= FAULT_LIMITS.iscPct;
+    const pmppOk = dPmpp === null || Math.abs(dPmpp) <= FAULT_LIMITS.pmppPct;
+    const irOk = !irPosFail && !irNegFail;
+
+    if (!all.length && vocOk && iscOk && pmppOk && irOk) {
+      all.push({
+        id: 'healthy',
+        label: 'Healthy String',
+        severity: 'ok',
+        confidence: 90,
+        reason: 'All available metrics are within expected tolerance bands.',
+        action: 'No corrective action needed. Keep periodic monitoring.',
+      });
+      addEvidence('Voc, Isc, Pmpp and insulation within limits');
+    }
+
+    if (!all.length) {
+      all.push({
+        id: 'inconclusive',
+        label: 'Inconclusive (Need More Data)',
+        severity: 'info',
+        confidence: 45,
+        reason: 'Insufficient or conflicting metrics for a specific fault signature.',
+        action: 'Capture additional data: irradiance, temperature, Voc/Isc normalization, insulation, and module-level I-V.',
+      });
+    }
+
+    const primary = { ...all[0] };
+    if (lowIrr && primary.id !== 'earth_fault') primary.confidence = Math.max(35, primary.confidence - 10);
+
+    return {
+      primary,
+      secondary: all.slice(1, 4),
+      all,
+      evidence,
+    };
+  }
+
+  function _renderFaultOverview(session) {
+    const preds = _ensurePredictions(session);
+    const summary = session.faultSummary || _summarizePredictions(preds);
+    const affectedPct = preds.length ? (summary.affected / preds.length) * 100 : 0;
+
+    return `
+    <div class="card">
+      <div class="card-title">&#129514; Predicted Fault Overview</div>
+      <div class="result-grid" style="grid-template-columns:repeat(4,1fr);margin-top:8px">
+        <div class="result-box ${summary.critical ? 'alert-unsafe' : ''}">
+          <div class="result-value">${summary.critical}</div>
+          <div class="result-label">Critical</div>
+          <div class="result-unit">Immediate isolation</div>
+        </div>
+        <div class="result-box ${summary.fault ? 'alert-warn' : ''}">
+          <div class="result-value">${summary.fault}</div>
+          <div class="result-label">Major Faults</div>
+          <div class="result-unit">Repair required</div>
+        </div>
+        <div class="result-box ${summary.warn ? 'alert-warn' : ''}">
+          <div class="result-value">${summary.warn}</div>
+          <div class="result-label">Warnings</div>
+          <div class="result-unit">Investigate</div>
+        </div>
+        <div class="result-box ${affectedPct > 20 ? 'alert-warn' : 'alert-safe'}">
+          <div class="result-value">${affectedPct.toFixed(0)}%</div>
+          <div class="result-label">Affected Strings</div>
+          <div class="result-unit">${summary.affected} of ${preds.length}</div>
+        </div>
+      </div>
+      <div style="margin-top:8px;font-size:0.80rem;color:var(--text-secondary)">
+        ${summary.top.length
+          ? summary.top.map(x => `${App.escapeHTML(x.label)} (${x.count})`).join(' &bull; ')
+          : 'No recurring fault signature detected across strings.'}
+      </div>
+    </div>`;
+  }
+
+  // =========================================================================
   // RENDER — MAIN
   // =========================================================================
 
@@ -422,6 +718,7 @@ const PVInspector = (() => {
     const s = _session;
     const res = container.querySelector('#insp-results');
     res.classList.remove('hidden');
+    _ensurePredictions(s);
 
     const hasStrings = s.rows.length > 0;
     const hasIV      = s.ivRows.length > 0;
@@ -429,6 +726,7 @@ const PVInspector = (() => {
 
     res.innerHTML = `
       ${hasStrings ? _renderSummaryCards(stats, s) : ''}
+      ${hasStrings ? _renderFaultOverview(s) : ''}
       ${hasStrings ? _renderStatusBreakdown(s) : ''}
       ${hasStrings ? _renderStringTable(s) : ''}
       ${hasIV      ? _renderModuleTestSection(s) : ''}
@@ -606,6 +904,7 @@ const PVInspector = (() => {
 
   function _renderStringTable(s) {
     const hasMpp = s.rows.some(r => r.hasMpp);
+    const preds = _ensurePredictions(s);
     const rows = s.rows.map((r, i) => {
       const sc = r.status.toLowerCase() === 'pass' ? 'status-ok' :
                  r.status.toLowerCase() === 'fail' ? 'status-fault' : 'status-warning';
@@ -627,6 +926,14 @@ const PVInspector = (() => {
            </td>`
         : '<td>—</td>';
 
+      const pred = preds[i] || _predictRowFaults(r, dbCheck);
+      const p = pred.primary || { label: '—', severity: 'info', confidence: 0 };
+      const pBadge = _predictionBadgeClass(p.severity);
+      const predCell = `<td>
+        <span class="status-badge ${pBadge}">${App.escapeHTML(p.label)}</span>
+        <div style="font-size:0.70rem;color:var(--text-muted);margin-top:2px">${p.confidence}%</div>
+      </td>`;
+
       return `<tr class="${sc}">
         <td><strong>${App.escapeHTML(r.stringId)}</strong><br><small style="color:var(--text-muted)">${App.escapeHTML(r.inverter)}</small></td>
         <td>${badge}</td>
@@ -639,6 +946,7 @@ const PVInspector = (() => {
         ${hasMpp ? `<td>${r.dPmpp !== null ? r.dPmpp.toFixed(2)+'%' : '—'}</td>` : ''}
         <td ${!rocOk ? 'style="color:var(--danger)"' : ''}>${r.Roc_pos !== null ? r.Roc_pos.toFixed(1) : '—'} / ${r.Roc_neg !== null ? r.Roc_neg.toFixed(1) : '—'}</td>
         ${dbCell}
+        ${predCell}
         <td><button class="btn btn-secondary btn-sm insp-row-detail-btn" data-idx="${i}">Detail</button></td>
       </tr>`;
     }).join('');
@@ -661,6 +969,7 @@ const PVInspector = (() => {
               ${hasMpp ? '<th>ΔPmpp<br><small>%</small></th>' : ''}
               <th>Roc+/−<br><small>MΩ</small></th>
               <th>${s.refPanel ? 'vs DB' : 'vs DB'}</th>
+              <th>Predicted Fault</th>
               <th></th>
             </tr>
           </thead>
@@ -689,6 +998,7 @@ const PVInspector = (() => {
     detailDiv.classList.remove('hidden');
 
     const dbCheck = refPanel ? checkVsDB(row, refPanel) : null;
+    const pred = _predictRowFaults(row, dbCheck);
     const rocOk   = (row.Roc_pos === null || row.Roc_pos >= 1) && (row.Roc_neg === null || row.Roc_neg >= 1);
 
     detailDiv.innerHTML = `
@@ -768,38 +1078,47 @@ const PVInspector = (() => {
           ${dbCheck.passVoc && dbCheck.passIsc ? '&#10003; Both within limits.' : '&#9888; One or more deviations exceed limits — investigate.'}
         </div>` : ''}
 
-        ${_faultHint(row)}
+        ${_renderPredictionDetail(pred)}
       </div>`;
   }
 
   // =========================================================================
-  // AUTO FAULT HINT
+  // PREDICTED FAULT DETAIL
   // =========================================================================
 
-  function _faultHint(row) {
-    const hints = [];
+  function _renderPredictionDetail(pred) {
+    if (!pred || !pred.primary) return '';
+    const p = pred.primary;
+    const css = p.severity === 'critical' || p.severity === 'fault'
+      ? 'danger-box'
+      : p.severity === 'warn'
+        ? 'warn-box'
+        : 'info-box';
+    const badgeCls = _predictionBadgeClass(p.severity);
 
-    if (row.dUoc !== null && row.dIsc !== null) {
-      const aVoc = Math.abs(row.dUoc), aIsc = Math.abs(row.dIsc);
-
-      if (row.dUoc < -5 && aIsc < 3)
-        hints.push({ sev: 'fault', msg: 'Voc significantly low, Isc normal → possible module open-circuit or reduced string count.' });
-      if (row.dIsc < -8)
-        hints.push({ sev: 'warn', msg: `ΔIsc = ${row.dIsc.toFixed(1)}% → possible shading, soiling, or module mismatch. Check individual modules.` });
-      if (aVoc < 2 && aIsc < 2)
-        hints.push({ sev: 'ok', msg: 'Both Voc and Isc within ±2% — excellent string health.' });
-      if (row.Roc_pos !== null && row.Roc_pos < 1)
-        hints.push({ sev: 'fault', msg: `Roc+ = ${row.Roc_pos.toFixed(2)} MΩ < 1 MΩ — earth fault on DC+ rail. Do not energise.` });
-      if (row.Roc_neg !== null && row.Roc_neg < 1)
-        hints.push({ sev: 'fault', msg: `Roc− = ${row.Roc_neg.toFixed(2)} MΩ < 1 MΩ — earth fault on DC− rail. Do not energise.` });
-      if (row.irr !== null && row.irr < 300)
-        hints.push({ sev: 'warn', msg: `Irradiance ${row.irr.toFixed(0)} W/m² — below 300 W/m². Low-irradiance test; normalised values less reliable.` });
-    }
-
-    if (!hints.length) return '';
-
-    return `<div class="section-title" style="margin-top:10px">Automatic Fault Hints</div>
-      ${hints.map(h => `<div class="${h.sev === 'fault' ? 'danger-box' : h.sev === 'warn' ? 'warn-box' : 'info-box'}" style="margin-bottom:6px">${h.msg}</div>`).join('')}`;
+    return `
+      <div class="section-title" style="margin-top:10px">Predicted Fault Analysis</div>
+      <div class="${css}" style="margin-bottom:8px">
+        <div style="display:flex;justify-content:space-between;align-items:center;gap:10px">
+          <span class="status-badge ${badgeCls}">${App.escapeHTML(p.label)}</span>
+          <span style="font-weight:700">${p.confidence}% confidence</span>
+        </div>
+        <div style="margin-top:6px"><strong>Reason:</strong> ${App.escapeHTML(p.reason || '—')}</div>
+        <div style="margin-top:4px"><strong>Action:</strong> ${App.escapeHTML(p.action || '—')}</div>
+      </div>
+      ${pred.secondary && pred.secondary.length ? `
+        <div class="info-box" style="margin-bottom:8px">
+          <strong>Secondary possibilities:</strong><br>
+          ${pred.secondary.map(x => `• ${App.escapeHTML(x.label)} (${x.confidence}%)`).join('<br>')}
+        </div>
+      ` : ''}
+      ${pred.evidence && pred.evidence.length ? `
+        <div class="info-box" style="font-size:0.78rem">
+          <strong>Evidence:</strong><br>
+          ${pred.evidence.map(x => `• ${App.escapeHTML(x)}`).join('<br>')}
+        </div>
+      ` : ''}
+    `;
   }
 
   // =========================================================================
@@ -944,12 +1263,15 @@ const PVInspector = (() => {
 
   function _exportCSV(s) {
     if (!s.rows.length) { App.toast('No string data to export', 'warning'); return; }
+    const preds = _ensurePredictions(s);
     const headers = ['String ID','Path','Status','DateTime','Irr(W/m2)','Tcell(degC)',
       'Voc_m(V)','Isc_m(A)','Voc_n(V)','Isc_n(V)','dVoc(%)','dIsc(%)',
       'Pmpp_m(W)','Pmpp_n(W)','dPmpp(%)','FF_m(%)','FF_n(%)',
-      'Roc+(MOhm)','Roc-(MOhm)','Modules/String'];
+      'Roc+(MOhm)','Roc-(MOhm)','Modules/String',
+      'Predicted Fault','Fault Severity','Fault Confidence(%)'];
     const lines = [headers.join(',')];
-    s.rows.forEach(r => {
+    s.rows.forEach((r, i) => {
+      const p = preds[i] && preds[i].primary ? preds[i].primary : { label: '', severity: '', confidence: '' };
       lines.push([
         r.stringId, r.path, r.status, r.datetime,
         r.irr ?? '', r.tcell ?? '',
@@ -958,6 +1280,7 @@ const PVInspector = (() => {
         r.Pmpp_m ?? '', r.Pmpp_n ?? '', r.dPmpp ?? '',
         r.FF_m ?? '', r.FF_n ?? '',
         r.Roc_pos ?? '', r.Roc_neg ?? '', r.nMod ?? '',
+        p.label ?? '', p.severity ?? '', p.confidence ?? '',
       ].map(v => `"${String(v).replace(/"/g, '""')}"`).join(','));
     });
     const blob = new Blob([lines.join('\r\n')], { type: 'text/csv;charset=utf-8' });
