@@ -1933,6 +1933,7 @@ const HybridSetup = (() => {
           <button class="btn btn-secondary btn-sm" id="hy-pack-print-btn">Print Project Pack</button>
           <button class="btn btn-secondary btn-sm" id="hy-pack-pdf-btn">Export Project Pack PDF</button>
           <button class="btn btn-secondary btn-sm" id="hy-pack-docx-btn">Export Project Pack DOCX</button>
+          <button class="btn btn-secondary btn-sm" id="hy-pack-zip-btn">Export Project Pack ZIP</button>
           <button class="btn btn-secondary btn-sm" id="hy-pack-json-btn">Export Project Pack JSON</button>
         </div>
       </div>
@@ -1964,6 +1965,9 @@ const HybridSetup = (() => {
 
     const packDocxBtn = out.querySelector('#hy-pack-docx-btn');
     if (packDocxBtn) packDocxBtn.addEventListener('click', () => _exportProjectPackDOCX(r));
+
+    const packZipBtn = out.querySelector('#hy-pack-zip-btn');
+    if (packZipBtn) packZipBtn.addEventListener('click', () => _exportProjectPackBundleZIP(r));
 
     const packJsonBtn = out.querySelector('#hy-pack-json-btn');
     if (packJsonBtn) packJsonBtn.addEventListener('click', () => _exportProjectPackJSON(r));
@@ -2887,6 +2891,268 @@ const HybridSetup = (() => {
     App.toast(`Project pack PDF saved: ${filename}`, 'success');
   }
 
+  function _csvCell(value) {
+    const s = String(value ?? '');
+    if (/[",\n]/.test(s)) return `"${s.replace(/"/g, '""')}"`;
+    return s;
+  }
+
+  function _csvFromRows(headers, rows) {
+    const out = [];
+    out.push(headers.map(_csvCell).join(','));
+    (rows || []).forEach(row => {
+      out.push((row || []).map(_csvCell).join(','));
+    });
+    return `${out.join('\n')}\n`;
+  }
+
+  function _projectPackCsvFiles(pack, baseName) {
+    const base = String(baseName || 'project_pack');
+    const summaryRows = Object.entries(pack.summary || {})
+      .map(([k, v]) => [k, typeof v === 'object' ? JSON.stringify(v) : String(v)]);
+    const bomRows = (pack.bom || []).map(row => [row.item, row.qty, row.spec, row.note, row.source]);
+    const settingsRows = (pack.settingsSheet || []).map(row => [row[0], row[1]]);
+    const complianceRows = (pack.complianceChecklist || []).map(row => [row.area, row.requirement, row.status, row.evidence, row.note]);
+    return {
+      [`${base}_summary.csv`]: _csvFromRows(['Item', 'Value'], summaryRows),
+      [`${base}_bom.csv`]: _csvFromRows(['Item', 'Qty', 'Specification', 'Design note', 'Source'], bomRows),
+      [`${base}_settings.csv`]: _csvFromRows(['Setting', 'Value'], settingsRows),
+      [`${base}_compliance.csv`]: _csvFromRows(['Area', 'Requirement', 'Status', 'Evidence', 'Action/Note'], complianceRows),
+    };
+  }
+
+  function _downloadProjectPackCsvFiles(pack, baseName) {
+    const files = _projectPackCsvFiles(pack, baseName);
+    Object.keys(files).forEach(file => {
+      _downloadBlob(file, new Blob([files[file]], { type: 'text/csv;charset=utf-8' }));
+    });
+  }
+
+  async function _buildProjectPackDOCXBlob(pack) {
+    if (!window.docx) throw new Error('DOCX library not loaded');
+    const {
+      Document, Packer, Paragraph, HeadingLevel, TextRun, Table, TableRow, TableCell, WidthType, AlignmentType
+    } = window.docx;
+
+    function p(text, opts) {
+      return new Paragraph({ children: [new TextRun(String(text || ''))], ...(opts || {}) });
+    }
+
+    function heading(text, level) {
+      return new Paragraph({ text, heading: level || HeadingLevel.HEADING_2, spacing: { before: 220, after: 100 } });
+    }
+
+    function table(headers, rows) {
+      const headRow = new TableRow({
+        children: headers.map(h => new TableCell({
+          children: [new Paragraph({ children: [new TextRun({ text: String(h), bold: true })] })]
+        }))
+      });
+      const bodyRows = rows.map(row => new TableRow({
+        children: row.map(cell => new TableCell({ children: [p(String(cell ?? ''))] }))
+      }));
+      return new Table({
+        width: { size: 100, type: WidthType.PERCENTAGE },
+        rows: [headRow, ...bodyRows]
+      });
+    }
+
+    const summaryRows = Object.entries(pack.summary || {})
+      .map(([k, v]) => [k, typeof v === 'object' ? JSON.stringify(v) : String(v)]);
+    const bomRows = (pack.bom || [])
+      .map(row => [row.item, row.qty, row.spec, row.note, row.source]);
+    const settingsRows = (pack.settingsSheet || [])
+      .map(row => [row[0], row[1]]);
+    const complianceRows = (pack.complianceChecklist || [])
+      .map(row => [row.area, row.requirement, row.status, row.evidence, row.note]);
+    const sldRows = [
+      ['Title', pack.sld && pack.sld.title ? pack.sld.title : 'Single-Line Diagram'],
+      ['Topology', pack.sld && pack.sld.topology ? pack.sld.topology : 'N/A'],
+      ['Mermaid (pre-design)', pack.sld && pack.sld.mermaid ? pack.sld.mermaid : 'N/A'],
+    ];
+    const sldNoteRows = (pack.sld && Array.isArray(pack.sld.notes) ? pack.sld.notes : [])
+      .map((note, idx) => [`Note ${idx + 1}`, note]);
+
+    const content = [];
+    content.push(new Paragraph({
+      text: 'Hybrid Project Pack',
+      heading: HeadingLevel.HEADING_1,
+      alignment: AlignmentType.LEFT
+    }));
+    content.push(p(`Generated: ${pack.meta.generatedAt} | Date tag: ${pack.meta.dateTag} | Rules: ${pack.meta.standardsRulesVersion}`));
+    content.push(p(`Standards profile: ${pack.meta.standardsProfileLabel} [${pack.meta.standardsProfileId}]`));
+
+    content.push(heading('Summary'));
+    content.push(table(['Item', 'Value'], summaryRows));
+    content.push(heading('Single-Line Diagram (Pre-Design)'));
+    content.push(table(['Field', 'Value'], sldRows));
+    if (sldNoteRows.length) content.push(table(['SLD note', 'Detail'], sldNoteRows));
+    content.push(heading('Bill of Materials (Preliminary)'));
+    content.push(table(['Item', 'Qty', 'Specification', 'Design note', 'Source'], bomRows));
+    content.push(heading('Settings Sheet'));
+    content.push(table(['Setting', 'Value'], settingsRows));
+    content.push(heading('Compliance Checklist'));
+    content.push(table(['Area', 'Requirement', 'Status', 'Evidence', 'Action/Note'], complianceRows));
+    content.push(p('Project-pack note: this output is pre-design guidance and must be finalized with project drawings, protection coordination, and utility-approved documentation.'));
+
+    const doc = new Document({ sections: [{ children: content }] });
+    return Packer.toBlob(doc);
+  }
+
+  function _buildProjectPackPDFBlob(pack) {
+    if (!window.jspdf) throw new Error('PDF library not loaded');
+    const doc = new window.jspdf.jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+    const margin = 12;
+    const pageW = 210;
+    let y = 14;
+    const autoTable = typeof doc.autoTable === 'function' ? doc.autoTable.bind(doc) : null;
+    if (!autoTable) throw new Error('PDF table plugin not loaded');
+
+    function section(title) {
+      doc.setFillColor(245, 245, 245);
+      doc.rect(margin, y, pageW - margin * 2, 6, 'F');
+      doc.setFontSize(8.5);
+      doc.setTextColor(217, 119, 6);
+      doc.setFont('helvetica', 'bold');
+      doc.text(title.toUpperCase(), margin + 2, y + 4);
+      y += 8;
+      doc.setTextColor(17, 24, 39);
+    }
+
+    doc.setFillColor(217, 119, 6);
+    doc.rect(0, 0, pageW, 16, 'F');
+    doc.setTextColor(255, 255, 255);
+    doc.setFontSize(12);
+    doc.setFont('helvetica', 'bold');
+    doc.text('Hybrid Project Pack', margin, 10);
+    doc.setFontSize(8);
+    doc.setFont('helvetica', 'normal');
+    doc.text('SolarPV Field Tool', pageW - margin, 10, { align: 'right' });
+
+    doc.setTextColor(17, 24, 39);
+    doc.setFontSize(8.5);
+    doc.text(`Generated: ${pack.meta.generatedAt} | Date tag: ${pack.meta.dateTag} | Rules: ${pack.meta.standardsRulesVersion}`, margin, 22);
+    const profileLine = `Standards profile: ${pack.meta.standardsProfileLabel} [${pack.meta.standardsProfileId}]`;
+    const profileLines = doc.splitTextToSize(profileLine, pageW - (margin * 2));
+    doc.text(profileLines, margin, 26);
+    y = 26 + (profileLines.length * 4) + 1;
+
+    const summaryRows = Object.entries(pack.summary || {})
+      .map(([k, v]) => [k, typeof v === 'object' ? JSON.stringify(v) : String(v)]);
+    const sldRows = [
+      ['Title', pack.sld && pack.sld.title ? pack.sld.title : 'Single-Line Diagram'],
+      ['Topology', pack.sld && pack.sld.topology ? pack.sld.topology : 'N/A'],
+      ['Mermaid (pre-design)', pack.sld && pack.sld.mermaid ? pack.sld.mermaid : 'N/A'],
+    ];
+    const sldNoteRows = (pack.sld && Array.isArray(pack.sld.notes) ? pack.sld.notes : [])
+      .map((note, idx) => [`Note ${idx + 1}`, note]);
+    const bomRows = (pack.bom || [])
+      .map(row => [row.item, String(row.qty ?? ''), row.spec, row.note, row.source]);
+    const settingsRows = (pack.settingsSheet || [])
+      .map(row => [String(row[0] ?? ''), String(row[1] ?? '')]);
+    const complianceRows = (pack.complianceChecklist || [])
+      .map(row => [row.area, row.requirement, row.status, row.evidence, row.note]);
+
+    section('Summary');
+    autoTable({
+      startY: y, margin: { left: margin, right: margin },
+      head: [['Item', 'Value']],
+      body: summaryRows,
+      styles: { fontSize: 7.2, cellPadding: 1.8 },
+      headStyles: { fillColor: [217, 119, 6], textColor: [255, 255, 255], fontSize: 8 }
+    });
+    y = doc.lastAutoTable.finalY + 4;
+
+    section('Single-Line Diagram (Pre-Design)');
+    autoTable({
+      startY: y, margin: { left: margin, right: margin },
+      head: [['Field', 'Value']],
+      body: sldRows,
+      styles: { fontSize: 7.0, cellPadding: 1.8 },
+      headStyles: { fillColor: [217, 119, 6], textColor: [255, 255, 255], fontSize: 8 }
+    });
+    y = doc.lastAutoTable.finalY + 4;
+    if (sldNoteRows.length) {
+      autoTable({
+        startY: y, margin: { left: margin, right: margin },
+        head: [['SLD note', 'Detail']],
+        body: sldNoteRows,
+        styles: { fontSize: 7.0, cellPadding: 1.8 },
+        headStyles: { fillColor: [217, 119, 6], textColor: [255, 255, 255], fontSize: 8 }
+      });
+      y = doc.lastAutoTable.finalY + 4;
+    }
+
+    section('Bill of Materials (Preliminary)');
+    autoTable({
+      startY: y, margin: { left: margin, right: margin },
+      head: [['Item', 'Qty', 'Specification', 'Design note', 'Source']],
+      body: bomRows,
+      styles: { fontSize: 6.8, cellPadding: 1.5 },
+      headStyles: { fillColor: [217, 119, 6], textColor: [255, 255, 255], fontSize: 8 }
+    });
+    y = doc.lastAutoTable.finalY + 4;
+
+    section('Settings Sheet');
+    autoTable({
+      startY: y, margin: { left: margin, right: margin },
+      head: [['Setting', 'Value']],
+      body: settingsRows,
+      styles: { fontSize: 7.0, cellPadding: 1.8 },
+      headStyles: { fillColor: [217, 119, 6], textColor: [255, 255, 255], fontSize: 8 }
+    });
+    y = doc.lastAutoTable.finalY + 4;
+
+    section('Compliance Checklist');
+    autoTable({
+      startY: y, margin: { left: margin, right: margin },
+      head: [['Area', 'Requirement', 'Status', 'Evidence', 'Action/Note']],
+      body: complianceRows,
+      styles: { fontSize: 6.8, cellPadding: 1.5 },
+      headStyles: { fillColor: [217, 119, 6], textColor: [255, 255, 255], fontSize: 8 }
+    });
+    return doc.output('blob');
+  }
+
+  async function _exportProjectPackBundleZIP(r) {
+    const pack = _buildProjectPack(r);
+    const base = _projectPackBaseName(r);
+    if (!window.JSZip) {
+      _downloadBlob(`${base}.json`, new Blob([JSON.stringify(pack, null, 2)], { type: 'application/json' }));
+      _downloadProjectPackCsvFiles(pack, base);
+      _exportProjectPackPDF(r);
+      _exportProjectPackDOCX(r);
+      App.toast('ZIP runtime unavailable. Downloaded project-pack files individually.', 'warning');
+      return;
+    }
+
+    const zip = new window.JSZip();
+    zip.file(`${base}.json`, JSON.stringify(pack, null, 2));
+    zip.file(`${base}_sld.mmd`, String((pack.sld && pack.sld.mermaid) || ''));
+    const csvFiles = _projectPackCsvFiles(pack, base);
+    Object.keys(csvFiles).forEach(name => zip.file(name, csvFiles[name]));
+
+    const notes = [];
+    try {
+      const pdfBlob = _buildProjectPackPDFBlob(pack);
+      zip.file(`${base}.pdf`, pdfBlob);
+    } catch (err) {
+      notes.push(`PDF not attached: ${err && err.message ? err.message : 'unknown error'}`);
+    }
+    try {
+      const docxBlob = await _buildProjectPackDOCXBlob(pack);
+      zip.file(`${base}.docx`, docxBlob);
+    } catch (err) {
+      notes.push(`DOCX not attached: ${err && err.message ? err.message : 'unknown error'}`);
+    }
+    if (notes.length) zip.file(`${base}_bundle_notes.txt`, notes.join('\n'));
+
+    const zipBlob = await zip.generateAsync({ type: 'blob' });
+    const zipName = `${base}_bundle.zip`;
+    _downloadBlob(zipName, zipBlob);
+    App.toast(`Project pack ZIP saved: ${zipName}`, 'success');
+  }
+
   function _standardsAuditMeta() {
     const requestedProfileId = (typeof App !== 'undefined' && App && App.state && App.state.fieldTestProfileId)
       ? String(App.state.fieldTestProfileId)
@@ -3387,6 +3653,7 @@ const HybridSetup = (() => {
     __test: {
       evaluateUtilitySubmission: _evaluateUtilitySubmission,
       buildProjectPack: _buildProjectPack,
+      projectPackCsvFiles: _projectPackCsvFiles,
     }
   };
 })();

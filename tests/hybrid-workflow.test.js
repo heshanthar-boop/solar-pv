@@ -163,3 +163,56 @@ test('project pack includes SLD, BOM, settings sheet, and compliance checklist',
   assert.ok(Array.isArray(pack.settingsSheet) && pack.settingsSheet.some((row) => row[0] === 'Utility profile'));
   assert.ok(Array.isArray(pack.complianceChecklist) && pack.complianceChecklist.length >= 2);
 });
+
+test('project pack CSV export set includes summary/BOM/settings/compliance files', () => {
+  const buildPack = HybridSetup.__test.buildProjectPack;
+  const csvFilesFn = HybridSetup.__test.projectPackCsvFiles;
+  const pack = buildPack({
+    date: '2026-04-09',
+    chemistryLabel: 'LiFePO4',
+    badges: ['Catalogue-backed'],
+    battery: { requiredNominal_kWh: 12, requiredUsable_kWh: 9, totalEfficiency: 0.8 },
+    batteryAh: 250,
+    pv: { recommended_kWp: 4.5 },
+    inverter: { requiredContinuous_kW: 4.0, requiredSurge_kW: 6.0 },
+    charge: { current_A: 95 },
+    inputs: {
+      exportMode: 'no_export',
+      utilityProfile: 'offgrid',
+      batteryVoltage_V: 48,
+      dailyEnergy_kWh: 12,
+      autonomyDays: 1,
+      psh: 4.8,
+      systemPR: 0.75,
+      pvOversize: 1.15,
+      inverterSafetyFactor: 1.2,
+      chargeMargin: 1.2,
+      modulesPerString: 0,
+      stringsPerMppt: 1,
+      batteryParallel: 1,
+      utilityDocSld: false,
+      utilityDocProtectionSettings: false,
+      utilityDocEquipmentApprovals: false,
+      utilityDocCommissioningReport: false,
+      utilityDocInterconnectionForm: false,
+      utilityMeterReady: false,
+      utilityIsolationAccessible: false,
+      utilitySettingsMatched: false,
+      utilityFinalAcceptance: false,
+    },
+    warnings: [],
+    catalogue: {
+      summary: { pass: 1, warn: 0, fail: 0 },
+      checks: [],
+      profile: { id: 'offgrid', label: 'No Export / Off-Grid', exportEnabled: false, utility: 'N/A', voltageWindow: 'N/A', frequencyWindow: 'N/A', reconnect_s: 0 },
+      utilitySubmission: { applicable: false, checks: [], missingDocuments: [], gateBlockers: [], blockers: [], strictPass: true, docProvided: 0, docTotal: 5 },
+    }
+  });
+  const files = csvFilesFn(pack, 'PackBase');
+  assert.equal(typeof files['PackBase_summary.csv'], 'string');
+  assert.equal(typeof files['PackBase_bom.csv'], 'string');
+  assert.equal(typeof files['PackBase_settings.csv'], 'string');
+  assert.equal(typeof files['PackBase_compliance.csv'], 'string');
+  assert.ok(files['PackBase_summary.csv'].includes('Item,Value'));
+  assert.ok(files['PackBase_compliance.csv'].includes('Area,Requirement,Status,Evidence,Action/Note'));
+});
