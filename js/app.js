@@ -229,6 +229,81 @@ const App = (() => {
     return `${entry.added || 0} added / ${entry.updated || 0} updated / ${entry.rejected || 0} rejected`;
   }
 
+  function _downloadTextFile(filename, content, mimeType) {
+    const blob = new Blob([String(content ?? '')], { type: mimeType || 'text/plain;charset=utf-8' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(a.href);
+  }
+
+  function _historyFileStamp() {
+    const now = new Date();
+    const d = localDateISO(now).replace(/-/g, '');
+    const hh = String(now.getHours()).padStart(2, '0');
+    const mm = String(now.getMinutes()).padStart(2, '0');
+    const ss = String(now.getSeconds()).padStart(2, '0');
+    return `${d}_${hh}${mm}${ss}`;
+  }
+
+  function _historyCSV(history) {
+    const header = [
+      'ts',
+      'source',
+      'fileName',
+      'sourceFormat',
+      'format',
+      'schemaVersion',
+      'exportedAt',
+      'ok',
+      'total',
+      'added',
+      'updated',
+      'rejected',
+      'records',
+      'standardsProfileId',
+      'standardsProfileLabel',
+      'standardsRulesetVersion',
+      'error'
+    ];
+    const rows = (Array.isArray(history) ? history : []).map((h) => {
+      const a = h && h.standardsAudit ? h.standardsAudit : {};
+      return [
+        h && h.ts ? h.ts : '',
+        h && h.source ? h.source : '',
+        h && h.fileName ? h.fileName : '',
+        h && h.sourceFormat ? h.sourceFormat : '',
+        h && h.format ? h.format : '',
+        h && h.schemaVersion ? h.schemaVersion : '',
+        h && h.exportedAt ? h.exportedAt : '',
+        h && h.ok ? 'true' : 'false',
+        h && Number.isFinite(Number(h.total)) ? Number(h.total) : 0,
+        h && Number.isFinite(Number(h.added)) ? Number(h.added) : 0,
+        h && Number.isFinite(Number(h.updated)) ? Number(h.updated) : 0,
+        h && Number.isFinite(Number(h.rejected)) ? Number(h.rejected) : 0,
+        h && Number.isFinite(Number(h.records)) ? Number(h.records) : 0,
+        a && a.profileId ? a.profileId : '',
+        a && a.profileLabel ? a.profileLabel : '',
+        a && a.rulesetVersion ? a.rulesetVersion : '',
+        h && h.error ? h.error : ''
+      ];
+    });
+    const csvCell = (v) => `"${String(v ?? '').replace(/"/g, '""')}"`;
+    return [header, ...rows].map((r) => r.map(csvCell).join(',')).join('\n');
+  }
+
+  function _historyJSON(history) {
+    return JSON.stringify({
+      format: 'solarpv.import.history',
+      schemaVersion: '2026.04.09',
+      exportedAt: new Date().toISOString(),
+      items: Array.isArray(history) ? history : []
+    }, null, 2);
+  }
+
   async function copyText(text) {
     const value = String(text ?? '');
     if (!value) {
@@ -568,6 +643,8 @@ const App = (() => {
           </div>
           <div class="btn-group mt-8">
             <button class="btn btn-secondary btn-sm" id="set-import-history-view">View Full History</button>
+            <button class="btn btn-secondary btn-sm" id="set-import-history-export-csv">Export CSV</button>
+            <button class="btn btn-secondary btn-sm" id="set-import-history-export-json">Export JSON</button>
             <button class="btn btn-danger btn-sm" id="set-import-history-clear">Clear History</button>
           </div>
         </div>
@@ -709,6 +786,34 @@ const App = (() => {
           </div>
         `;
         showModal('Import Details History', bodyHtml, [{ label: 'Close', cls: 'btn-secondary', action: 'close' }]);
+      });
+    }
+
+    const exportImportHistoryCsvBtn = container.querySelector('#set-import-history-export-csv');
+    if (exportImportHistoryCsvBtn) {
+      exportImportHistoryCsvBtn.addEventListener('click', () => {
+        const history = getImportHistory();
+        if (!history.length) {
+          toast('No import history to export', 'warning');
+          return;
+        }
+        const file = `solarpv_import_history_${_historyFileStamp()}.csv`;
+        _downloadTextFile(file, _historyCSV(history), 'text/csv;charset=utf-8');
+        toast(`Import history exported: ${file}`, 'success');
+      });
+    }
+
+    const exportImportHistoryJsonBtn = container.querySelector('#set-import-history-export-json');
+    if (exportImportHistoryJsonBtn) {
+      exportImportHistoryJsonBtn.addEventListener('click', () => {
+        const history = getImportHistory();
+        if (!history.length) {
+          toast('No import history to export', 'warning');
+          return;
+        }
+        const file = `solarpv_import_history_${_historyFileStamp()}.json`;
+        _downloadTextFile(file, _historyJSON(history), 'application/json');
+        toast(`Import history exported: ${file}`, 'success');
       });
     }
 
