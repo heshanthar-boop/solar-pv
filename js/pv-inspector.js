@@ -1338,14 +1338,36 @@ const PVInspector = (() => {
   // CSV EXPORT
   // =========================================================================
 
+  function _csvAuditMeta() {
+    const requestedProfileId = (typeof App !== 'undefined' && App && App.state && App.state.fieldTestProfileId)
+      ? String(App.state.fieldTestProfileId)
+      : undefined;
+    const profile = _activeFieldProfile();
+    const rulesVersion = (typeof StandardsRules !== 'undefined' && StandardsRules && typeof StandardsRules.getRulesVersion === 'function')
+      ? String(StandardsRules.getRulesVersion())
+      : (
+          typeof StandardsRules !== 'undefined' && StandardsRules && StandardsRules.RULESET_VERSION
+            ? String(StandardsRules.RULESET_VERSION)
+            : 'legacy'
+        );
+    return {
+      profileId: String((profile && profile.id) || requestedProfileId || 'default'),
+      profileLabel: String((profile && profile.label) || 'IEC 62446-1 profile'),
+      rulesVersion,
+      exportedAt: new Date().toISOString()
+    };
+  }
+
   function _exportCSV(s) {
     if (!s.rows.length) { App.toast('No string data to export', 'warning'); return; }
     const preds = _ensurePredictions(s);
+    const audit = _csvAuditMeta();
     const headers = ['String ID','Path','Status','DateTime','Irr(W/m2)','Tcell(degC)',
       'Voc_m(V)','Isc_m(A)','Voc_n(V)','Isc_n(V)','dVoc(%)','dIsc(%)',
       'Pmpp_m(W)','Pmpp_n(W)','dPmpp(%)','FF_m(%)','FF_n(%)',
       'Roc+(MOhm)','Roc-(MOhm)','Modules/String',
-      'Predicted Fault','Fault Severity','Fault Confidence(%)'];
+      'Predicted Fault','Fault Severity','Fault Confidence(%)',
+      'Standards_profile_id','Standards_profile_label','Standards_ruleset_version','Exported_at'];
     const lines = [headers.join(',')];
     s.rows.forEach((r, i) => {
       const p = preds[i] && preds[i].primary ? preds[i].primary : { label: '', severity: '', confidence: '' };
@@ -1358,6 +1380,7 @@ const PVInspector = (() => {
         r.FF_m ?? '', r.FF_n ?? '',
         r.Roc_pos ?? '', r.Roc_neg ?? '', r.nMod ?? '',
         p.label ?? '', p.severity ?? '', p.confidence ?? '',
+        audit.profileId, audit.profileLabel, audit.rulesVersion, audit.exportedAt
       ].map(v => `"${String(v).replace(/"/g, '""')}"`).join(','));
     });
     const blob = new Blob([lines.join('\r\n')], { type: 'text/csv;charset=utf-8' });

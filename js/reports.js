@@ -424,6 +424,8 @@ const Reports = (() => {
       return;
     }
 
+    const audit = _standardsAuditMeta({ profileId: data.profileId });
+    const exportedAt = new Date().toISOString();
     const header = [
       'String',
       'Voc_measured_V',
@@ -436,6 +438,10 @@ const Reports = (() => {
       'Isc_expected_STC_A',
       'Isc_deviation_percent',
       'Isc_status',
+      'Standards_profile_id',
+      'Standards_profile_label',
+      'Standards_ruleset_version',
+      'Exported_at',
     ];
 
     const rows = data.results.map(r => ([
@@ -450,6 +456,10 @@ const Reports = (() => {
       _fmt(r.Isc_expected, 2),
       _fmt(r.devIsc, 2),
       r.passIsc ? 'PASS' : 'FAIL',
+      audit.profileId,
+      audit.profileLabel,
+      audit.rulesVersion,
+      exportedAt,
     ]));
 
     const csv = [header, ...rows]
@@ -466,6 +476,8 @@ const Reports = (() => {
       return;
     }
 
+    const audit = _standardsAuditMeta();
+    const exportedAt = new Date().toISOString();
     const header = [
       'String',
       'Voc_measured_V',
@@ -475,10 +487,14 @@ const Reports = (() => {
       'Severity',
       'Fault',
       'Detail',
+      'Standards_profile_id',
+      'Standards_profile_label',
+      'Standards_ruleset_version',
+      'Exported_at',
     ];
 
     const rows = data.results.map(r => {
-      if (r.skipped) return [r.label, '', '', '', '', 'SKIPPED', 'No Data', 'No measurement entered'];
+      if (r.skipped) return [r.label, '', '', '', '', 'SKIPPED', 'No Data', 'No measurement entered', audit.profileId, audit.profileLabel, audit.rulesVersion, exportedAt];
       const vPct = data.Voc_exp > 0 ? (r.Voc / data.Voc_exp) * 100 : null;
       const iPct = data.Isc_exp > 0 ? (r.Isc / data.Isc_exp) * 100 : null;
       return [
@@ -490,6 +506,10 @@ const Reports = (() => {
         (r.severity || '').toUpperCase(),
         r.fault || '',
         r.detail || '',
+        audit.profileId,
+        audit.profileLabel,
+        audit.rulesVersion,
+        exportedAt,
       ];
     });
 
@@ -646,6 +666,8 @@ const Reports = (() => {
       return;
     }
 
+    const audit = _standardsAuditMeta();
+    const exportedAt = new Date().toISOString();
     const header = [
       'Month',
       'GHI_kWh_m2_day',
@@ -655,6 +677,10 @@ const Reports = (() => {
       'PR_percent',
       'DailyEnergy_kWh',
       'MonthlyEnergy_kWh',
+      'Standards_profile_id',
+      'Standards_profile_label',
+      'Standards_ruleset_version',
+      'Exported_at',
     ];
 
     const rows = data.monthly.map(m => ([
@@ -666,6 +692,10 @@ const Reports = (() => {
       _fmt((m.PR || 0) * 100, 1),
       _fmt(m.E_day, 2),
       _fmt(m.E_mon, 0),
+      audit.profileId,
+      audit.profileLabel,
+      audit.rulesVersion,
+      exportedAt,
     ]));
 
     const summary = data.summary || {};
@@ -678,6 +708,10 @@ const Reports = (() => {
       _fmt((summary.PR_avg || 0) * 100, 1),
       _fmt((summary.E_annual || 0) / 365, 2),
       _fmt(summary.E_annual, 0),
+      audit.profileId,
+      audit.profileLabel,
+      audit.rulesVersion,
+      exportedAt,
     ]);
 
     const csv = [header, ...rows]
