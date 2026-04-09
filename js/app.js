@@ -122,6 +122,7 @@ const App = (() => {
 
   const main = document.getElementById('main-content');
   const IMPORT_HISTORY_KEY = 'solarpv_import_history_v1';
+  const IMPORT_HISTORY_MODAL_PREFS_KEY = 'solarpv_import_history_modal_prefs_v1';
   const IMPORT_HISTORY_MAX = 60;
 
   function escapeHTML(value) {
@@ -251,6 +252,94 @@ const App = (() => {
       `Standards: ${_historyAuditText(e)}`,
       `Error: ${e.error || '-'}`,
     ].join('\n');
+  }
+
+  function _defaultHistoryModalPrefs() {
+    return {
+      search: '',
+      source: '',
+      status: '',
+      from: '',
+      to: '',
+      sortBy: 'ts',
+      sortDir: 'desc'
+    };
+  }
+
+  function _normalizeHistoryModalPrefs(raw) {
+    const d = _defaultHistoryModalPrefs();
+    const src = raw && typeof raw === 'object' ? raw : {};
+    const sortByRaw = _cleanHistoryText(src.sortBy || '', 24).toLowerCase();
+    const sortBy = ['ts', 'source', 'status', 'counts'].includes(sortByRaw) ? sortByRaw : d.sortBy;
+    const sortDirRaw = _cleanHistoryText(src.sortDir || '', 8).toLowerCase();
+    const sortDir = sortDirRaw === 'asc' || sortDirRaw === 'desc' ? sortDirRaw : d.sortDir;
+    const fmtDate = (v) => (/^\d{4}-\d{2}-\d{2}$/.test(String(v || '').trim()) ? String(v).trim() : '');
+    const statusRaw = _cleanHistoryText(src.status || '', 12).toLowerCase();
+    const status = ['ok', 'fail', ''].includes(statusRaw) ? statusRaw : '';
+    return {
+      search: _cleanHistoryText(src.search || '', 120),
+      source: _cleanHistoryText(src.source || '', 120),
+      status,
+      from: fmtDate(src.from),
+      to: fmtDate(src.to),
+      sortBy,
+      sortDir
+    };
+  }
+
+  function _loadHistoryModalPrefs() {
+    try {
+      const raw = localStorage.getItem(IMPORT_HISTORY_MODAL_PREFS_KEY);
+      if (!raw) return _defaultHistoryModalPrefs();
+      return _normalizeHistoryModalPrefs(JSON.parse(raw));
+    } catch (_) {
+      return _defaultHistoryModalPrefs();
+    }
+  }
+
+  function _saveHistoryModalPrefs(prefs) {
+    localStorage.setItem(IMPORT_HISTORY_MODAL_PREFS_KEY, JSON.stringify(_normalizeHistoryModalPrefs(prefs)));
+  }
+
+  function _historyCountMetric(entry) {
+    const e = entry && typeof entry === 'object' ? entry : {};
+    if (Number(e.records || 0) > 0) return Number(e.records || 0);
+    return Number(e.added || 0) + Number(e.updated || 0) + Number(e.rejected || 0);
+  }
+
+  function _historySortValue(entry, key) {
+    const e = entry && typeof entry === 'object' ? entry : {};
+    if (key === 'ts') {
+      const ms = Date.parse(String(e.ts || ''));
+      return Number.isFinite(ms) ? ms : 0;
+    }
+    if (key === 'source') return String(e.source || '').toLowerCase();
+    if (key === 'status') return e.ok ? 1 : 0;
+    if (key === 'counts') return _historyCountMetric(e);
+    return '';
+  }
+
+  function _sortHistoryRows(rows, sortBy, sortDir) {
+    const key = ['ts', 'source', 'status', 'counts'].includes(String(sortBy || '').toLowerCase())
+      ? String(sortBy || '').toLowerCase()
+      : 'ts';
+    const dir = String(sortDir || '').toLowerCase() === 'asc' ? 'asc' : 'desc';
+    const mul = dir === 'asc' ? 1 : -1;
+    return (Array.isArray(rows) ? rows : [])
+      .map((item, idx) => ({ item, idx }))
+      .sort((a, b) => {
+        const va = _historySortValue(a.item, key);
+        const vb = _historySortValue(b.item, key);
+        if (typeof va === 'string' || typeof vb === 'string') {
+          const cmp = String(va).localeCompare(String(vb));
+          if (cmp !== 0) return cmp * mul;
+          return a.idx - b.idx;
+        }
+        if (va < vb) return -1 * mul;
+        if (va > vb) return 1 * mul;
+        return a.idx - b.idx;
+      })
+      .map(x => x.item);
   }
 
   function _downloadTextFile(filename, content, mimeType) {
@@ -783,8 +872,11 @@ const App = (() => {
       viewImportHistoryBtn.addEventListener('click', () => {
         const allHistory = getImportHistory();
         const sourceOptions = Array.from(new Set(allHistory.map((h) => String(h.source || '').trim()).filter(Boolean))).sort();
+        let prefs = _loadHistoryModalPrefs();
+        let sortBy = prefs.sortBy;
+        let sortDir = prefs.sortDir;
         const bodyHtml = `
-          <div class="text-muted mb-8">Stored locally on this device. Newest first.</div>
+          <div class="text-muted mb-8">Stored locally on this device. Newest first by default. Use header buttons to sort.</div>
           <div class="form-row cols-3" style="margin-bottom:8px">
             <div class="form-group">
               <label class="form-label">Search</label>
@@ -827,7 +919,18 @@ const App = (() => {
             <table class="status-table">
               <thead>
                 <tr>
-                  <th>When</th><th>Source</th><th>File</th><th>Source Format</th><th>Format</th><th>Schema</th><th>Exported At</th><th>Status</th><th>Counts</th><th>Standards</th><th>Error</th><th>Copy</th>
+                  <th><button class="btn btn-secondary btn-sm" data-ih-sort="ts">When</button></th>
+                  <th><button class="btn btn-secondary btn-sm" data-ih-sort="source">Source</button></th>
+                  <th>File</th>
+                  <th>Source Format</th>
+                  <th>Format</th>
+                  <th>Schema</th>
+                  <th>Exported At</th>
+                  <th><button class="btn btn-secondary btn-sm" data-ih-sort="status">Status</button></th>
+                  <th><button class="btn btn-secondary btn-sm" data-ih-sort="counts">Counts</button></th>
+                  <th>Standards</th>
+                  <th>Error</th>
+                  <th>Copy</th>
                 </tr>
               </thead>
               <tbody id="set-ih-tbody">${allHistory.length ? '' : '<tr><td colspan="12" class="text-muted">No imports recorded.</td></tr>'}</tbody>
@@ -846,9 +949,30 @@ const App = (() => {
         const clearBtn = modalBody.querySelector('#set-ih-clear-filters');
         const countEl = modalBody.querySelector('#set-ih-count');
         const tbody = modalBody.querySelector('#set-ih-tbody');
-        if (!searchInput || !sourceInput || !statusInput || !fromInput || !toInput || !clearBtn || !countEl || !tbody) return;
+        const sortBtns = Array.from(modalBody.querySelectorAll('[data-ih-sort]'));
+        if (!searchInput || !sourceInput || !statusInput || !fromInput || !toInput || !clearBtn || !countEl || !tbody || !sortBtns.length) return;
+
+        const sourceSet = new Set(sourceOptions);
+        searchInput.value = prefs.search || '';
+        sourceInput.value = sourceSet.has(prefs.source) ? prefs.source : '';
+        statusInput.value = (prefs.status === 'ok' || prefs.status === 'fail') ? prefs.status : '';
+        fromInput.value = prefs.from || '';
+        toInput.value = prefs.to || '';
 
         let filteredRows = allHistory.slice();
+        const sortLabelMap = { ts: 'When', source: 'Source', status: 'Status', counts: 'Counts' };
+
+        const renderSortButtons = () => {
+          sortBtns.forEach((btn) => {
+            const key = String(btn.getAttribute('data-ih-sort') || '');
+            const base = sortLabelMap[key] || key;
+            if (key === sortBy) {
+              btn.textContent = `${base}${sortDir === 'asc' ? ' [ASC]' : ' [DESC]'}`;
+            } else {
+              btn.textContent = base;
+            }
+          });
+        };
 
         const renderRows = () => {
           if (!filteredRows.length) {
@@ -871,7 +995,8 @@ const App = (() => {
               </tr>
             `).join('');
           }
-          countEl.textContent = `${filteredRows.length} of ${allHistory.length} record(s)`;
+          countEl.textContent = `${filteredRows.length} of ${allHistory.length} record(s) | Sort: ${(sortLabelMap[sortBy] || sortBy)} ${sortDir.toUpperCase()}`;
+          renderSortButtons();
         };
 
         const applyFilters = () => {
@@ -899,6 +1024,17 @@ const App = (() => {
             return hay.includes(q);
           });
 
+          filteredRows = _sortHistoryRows(filteredRows, sortBy, sortDir);
+          prefs = {
+            search: String(searchInput.value || ''),
+            source,
+            status,
+            from,
+            to,
+            sortBy,
+            sortDir
+          };
+          _saveHistoryModalPrefs(prefs);
           renderRows();
         };
 
@@ -908,6 +1044,20 @@ const App = (() => {
           const idx = Number(btn.getAttribute('data-ih-copy'));
           if (!Number.isFinite(idx) || idx < 0 || idx >= filteredRows.length) return;
           copyText(_historyRowCopyText(filteredRows[idx]));
+        });
+
+        sortBtns.forEach((btn) => {
+          btn.addEventListener('click', () => {
+            const key = String(btn.getAttribute('data-ih-sort') || '').toLowerCase();
+            if (!['ts', 'source', 'status', 'counts'].includes(key)) return;
+            if (sortBy === key) {
+              sortDir = sortDir === 'asc' ? 'desc' : 'asc';
+            } else {
+              sortBy = key;
+              sortDir = key === 'ts' ? 'desc' : 'asc';
+            }
+            applyFilters();
+          });
         });
 
         [searchInput, sourceInput, statusInput, fromInput, toInput].forEach((el) => {
@@ -923,7 +1073,7 @@ const App = (() => {
           applyFilters();
         });
 
-        renderRows();
+        applyFilters();
       });
     }
 
