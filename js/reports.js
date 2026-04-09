@@ -35,11 +35,45 @@ const Reports = (() => {
     return { minMOhm: 1.0 };
   }
 
+  function _standardsAuditMeta(options) {
+    const requestedProfileId = (options && options.profileId)
+      ? String(options.profileId)
+      : (
+          typeof App !== 'undefined' && App && App.state && App.state.fieldTestProfileId
+            ? String(App.state.fieldTestProfileId)
+            : undefined
+        );
+
+    let profile = null;
+    if (typeof StandardsRules !== 'undefined' && StandardsRules && typeof StandardsRules.getFieldTestProfile === 'function') {
+      profile = StandardsRules.getFieldTestProfile(requestedProfileId);
+    } else if (typeof PVCalc !== 'undefined' && PVCalc && typeof PVCalc.getFieldTestProfile === 'function') {
+      profile = PVCalc.getFieldTestProfile(requestedProfileId);
+    }
+    if (!profile || typeof profile !== 'object') {
+      profile = { id: 'iec62446_2016', label: 'IEC 62446-1:2016 + AMD1:2018' };
+    }
+
+    const rulesVersion = (typeof StandardsRules !== 'undefined' && StandardsRules && typeof StandardsRules.getRulesVersion === 'function')
+      ? String(StandardsRules.getRulesVersion())
+      : (
+          typeof StandardsRules !== 'undefined' && StandardsRules && StandardsRules.RULESET_VERSION
+            ? String(StandardsRules.RULESET_VERSION)
+            : 'legacy'
+        );
+
+    return {
+      profileId: String(profile.id || requestedProfileId || 'default'),
+      profileLabel: String(profile.label || 'IEC 62446-1 profile'),
+      rulesVersion,
+    };
+  }
+
   function _doc() {
     return new window.jspdf.jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
   }
 
-  function _addHeader(doc, title, subtitle) {
+  function _addHeader(doc, title, subtitle, auditMeta) {
     // Color bar
     doc.setFillColor(...PRIMARY);
     doc.rect(0, 0, PAGE_W, 18, 'F');
@@ -66,12 +100,24 @@ const Reports = (() => {
       doc.text(subtitle, MARGIN, 31);
     }
 
+    const audit = auditMeta || _standardsAuditMeta();
+    let dividerY = 34;
+    if (audit && audit.profileLabel) {
+      const auditLine = `Standards profile: ${audit.profileLabel} [${audit.profileId}] | Ruleset version: ${audit.rulesVersion}`;
+      const auditLines = doc.splitTextToSize(auditLine, CONTENT_W);
+      doc.setFontSize(7.5);
+      doc.setFont('helvetica', 'normal');
+      doc.setTextColor(...MUTED);
+      doc.text(auditLines, MARGIN, 35);
+      dividerY = 35 + (auditLines.length * 3.2);
+    }
+
     // Divider
     doc.setDrawColor(...PRIMARY);
     doc.setLineWidth(0.5);
-    doc.line(MARGIN, 34, PAGE_W - MARGIN, 34);
+    doc.line(MARGIN, dividerY, PAGE_W - MARGIN, dividerY);
 
-    return 38; // return y cursor
+    return dividerY + 4; // return y cursor
   }
 
   function _addFooter(doc) {
@@ -468,7 +514,7 @@ const Reports = (() => {
     const doc = _doc();
     const panelName = data.panel ? `${data.panel.manufacturer} ${data.panel.model}` : 'Unknown panel';
     const subtitle = `Date: ${data.date || '-'} | Panel: ${panelName} | Company: ${_projectLabel() || '-'}`;
-    let y = _addHeader(doc, 'Field Test vs STC', subtitle);
+    let y = _addHeader(doc, 'Field Test vs STC', subtitle, _standardsAuditMeta({ profileId: data.profileId }));
 
     y = _sectionTitle(doc, y, 'Test Conditions');
     y = _kv(doc, y, 'Modules per String', data.n_mod);

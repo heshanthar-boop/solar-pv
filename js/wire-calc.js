@@ -519,6 +519,7 @@ const WireCalc = (() => {
 
   function _buildReportHTML(r) {
     const s = r.selector;
+    const audit = _standardsAuditMeta();
     const steps = _stepLines(r).map((x) => `<div>${_esc(x)}</div>`).join('');
     const standardsRows = r.standards.map((x) =>
       `<tr><td>${_esc(x.code)}</td><td>${_esc(x.title)}</td><td>${_esc(x.checks)}</td></tr>`
@@ -528,6 +529,7 @@ const WireCalc = (() => {
       <div class="card">
         <div class="card-title">Wire Calculation Report</div>
         <div class="info-box">Generated: ${_esc(r.timestamp)} | Purpose: ${_esc(r.purposeLabel)}</div>
+        <div class="info-box">Standards profile: ${_esc(audit.profileLabel)} [${_esc(audit.profileId)}] | Ruleset version: ${_esc(audit.rulesVersion)}</div>
         <table class="status-table">
           <thead><tr><th>Item</th><th>Value</th></tr></thead>
           <tbody>
@@ -567,6 +569,36 @@ const WireCalc = (() => {
     `;
   }
 
+  function _standardsAuditMeta() {
+    const requestedProfileId = (typeof App !== 'undefined' && App && App.state && App.state.fieldTestProfileId)
+      ? String(App.state.fieldTestProfileId)
+      : undefined;
+
+    let profile = null;
+    if (typeof StandardsRules !== 'undefined' && StandardsRules && typeof StandardsRules.getFieldTestProfile === 'function') {
+      profile = StandardsRules.getFieldTestProfile(requestedProfileId);
+    } else if (typeof PVCalc !== 'undefined' && PVCalc && typeof PVCalc.getFieldTestProfile === 'function') {
+      profile = PVCalc.getFieldTestProfile(requestedProfileId);
+    }
+    if (!profile || typeof profile !== 'object') {
+      profile = { id: 'iec62446_2016', label: 'IEC 62446-1:2016 + AMD1:2018' };
+    }
+
+    const rulesVersion = (typeof StandardsRules !== 'undefined' && StandardsRules && typeof StandardsRules.getRulesVersion === 'function')
+      ? String(StandardsRules.getRulesVersion())
+      : (
+          typeof StandardsRules !== 'undefined' && StandardsRules && StandardsRules.RULESET_VERSION
+            ? String(StandardsRules.RULESET_VERSION)
+            : 'legacy'
+        );
+
+    return {
+      profileId: String(profile.id || requestedProfileId || 'default'),
+      profileLabel: String(profile.label || 'IEC 62446-1 profile'),
+      rulesVersion
+    };
+  }
+
   function _printReport(r) {
     App.printHTML('Wire Calculation Report', _buildReportHTML(r), {
       meta: `Purpose: ${r.purposeLabel} | Date: ${r.date}`
@@ -585,6 +617,7 @@ const WireCalc = (() => {
     }
 
     const s = r.selector;
+    const audit = _standardsAuditMeta();
     const margin = 12;
     const pageW = 210;
 
@@ -599,9 +632,14 @@ const WireCalc = (() => {
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(9);
     doc.text(`Generated: ${r.timestamp} | Purpose: ${r.purposeLabel}`, margin, 22);
+    const auditLine = `Standards profile: ${audit.profileLabel} [${audit.profileId}] | Ruleset version: ${audit.rulesVersion}`;
+    const auditLines = doc.splitTextToSize(auditLine, pageW - (margin * 2));
+    doc.setFontSize(8);
+    doc.text(auditLines, margin, 26);
+    const firstTableY = 26 + (auditLines.length * 4) + 2;
 
     doc.autoTable({
-      startY: 28,
+      startY: firstTableY,
       margin: { left: margin, right: margin },
       head: [['Item', 'Value']],
       body: [
@@ -660,6 +698,7 @@ const WireCalc = (() => {
     }
 
     const s = r.selector;
+    const audit = _standardsAuditMeta();
     const { Document, Packer, Paragraph, HeadingLevel, TextRun, Table, TableRow, TableCell, WidthType } = window.docx;
 
     function p(text, bold) {
@@ -685,6 +724,7 @@ const WireCalc = (() => {
     blocks.push(new Paragraph({ text: 'Wire Calculation Report', heading: HeadingLevel.HEADING_1 }));
     blocks.push(p(`Generated: ${r.timestamp}`));
     blocks.push(p(`Purpose: ${r.purposeLabel}`));
+    blocks.push(p(`Standards profile: ${audit.profileLabel} [${audit.profileId}] | Ruleset version: ${audit.rulesVersion}`));
 
     blocks.push(new Paragraph({ text: 'Summary', heading: HeadingLevel.HEADING_2 }));
     blocks.push(table(['Item', 'Value'], [

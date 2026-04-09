@@ -1920,6 +1920,36 @@ const HybridSetup = (() => {
     return `SolarPV_HybridLearning_${_safePart(r.chemistryLabel, 'Hybrid')}_${_safePart(r.date, 'date')}`;
   }
 
+  function _standardsAuditMeta() {
+    const requestedProfileId = (typeof App !== 'undefined' && App && App.state && App.state.fieldTestProfileId)
+      ? String(App.state.fieldTestProfileId)
+      : undefined;
+
+    let profile = null;
+    if (typeof StandardsRules !== 'undefined' && StandardsRules && typeof StandardsRules.getFieldTestProfile === 'function') {
+      profile = StandardsRules.getFieldTestProfile(requestedProfileId);
+    } else if (typeof PVCalc !== 'undefined' && PVCalc && typeof PVCalc.getFieldTestProfile === 'function') {
+      profile = PVCalc.getFieldTestProfile(requestedProfileId);
+    }
+    if (!profile || typeof profile !== 'object') {
+      profile = { id: 'iec62446_2016', label: 'IEC 62446-1:2016 + AMD1:2018' };
+    }
+
+    const rulesVersion = (typeof StandardsRules !== 'undefined' && StandardsRules && typeof StandardsRules.getRulesVersion === 'function')
+      ? String(StandardsRules.getRulesVersion())
+      : (
+          typeof StandardsRules !== 'undefined' && StandardsRules && StandardsRules.RULESET_VERSION
+            ? String(StandardsRules.RULESET_VERSION)
+            : 'legacy'
+        );
+
+    return {
+      profileId: String(profile.id || requestedProfileId || 'default'),
+      profileLabel: String(profile.label || 'IEC 62446-1 profile'),
+      rulesVersion
+    };
+  }
+
   function _downloadBlob(filename, blob) {
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
@@ -1934,6 +1964,7 @@ const HybridSetup = (() => {
   function _buildLearningHTML(r) {
     const c = _learningContext(r);
     const cat = r.catalogue || { summary: { pass: 0, warn: 0, fail: 0 } };
+    const audit = _standardsAuditMeta();
     const invName = cat.inverterModel ? `${cat.inverterModel.manufacturer} ${cat.inverterModel.model}` : 'Not selected';
     const batName = cat.batteryModel ? `${cat.batteryModel.manufacturer} ${cat.batteryModel.model}` : 'Not selected';
     const panName = cat.panelModel ? `${cat.panelModel.manufacturer} ${cat.panelModel.model}` : 'Not selected';
@@ -1970,6 +2001,7 @@ const HybridSetup = (() => {
 <body>
   <h1>Hybrid Setup Learning Report</h1>
   <div class="meta">Generated: ${_esc(new Date().toLocaleString())} | Date tag: ${_esc(r.date)} | Chemistry: ${_esc(r.chemistryLabel)}</div>
+  <div class="meta">Standards profile: ${_esc(audit.profileLabel)} [${_esc(audit.profileId)}] | Ruleset version: ${_esc(audit.rulesVersion)}</div>
 
   <h2>Summary Results</h2>
   <table>
@@ -2065,6 +2097,7 @@ const HybridSetup = (() => {
 
     const ctx = _learningContext(r);
     const cat = r.catalogue || { summary: { pass: 0, warn: 0, fail: 0 } };
+    const audit = _standardsAuditMeta();
     const invName = cat.inverterModel ? `${cat.inverterModel.manufacturer} ${cat.inverterModel.model}` : 'Not selected';
     const batName = cat.batteryModel ? `${cat.batteryModel.manufacturer} ${cat.batteryModel.model}` : 'Not selected';
     const panName = cat.panelModel ? `${cat.panelModel.manufacturer} ${cat.panelModel.model}` : 'Not selected';
@@ -2102,6 +2135,7 @@ const HybridSetup = (() => {
       alignment: AlignmentType.LEFT
     }));
     content.push(p(`Generated: ${new Date().toLocaleString()} | Date tag: ${r.date} | Chemistry: ${r.chemistryLabel}`));
+    content.push(p(`Standards profile: ${audit.profileLabel} [${audit.profileId}] | Ruleset version: ${audit.rulesVersion}`));
 
     content.push(heading('Summary Results'));
     content.push(table(
@@ -2173,6 +2207,7 @@ const HybridSetup = (() => {
     }
     const ctx = _learningContext(r);
     const cat = r.catalogue || { summary: { pass: 0, warn: 0, fail: 0 } };
+    const audit = _standardsAuditMeta();
     const invName = cat.inverterModel ? `${cat.inverterModel.manufacturer} ${cat.inverterModel.model}` : 'Not selected';
     const batName = cat.batteryModel ? `${cat.batteryModel.manufacturer} ${cat.batteryModel.model}` : 'Not selected';
     const panName = cat.panelModel ? `${cat.panelModel.manufacturer} ${cat.panelModel.model}` : 'Not selected';
@@ -2194,7 +2229,11 @@ const HybridSetup = (() => {
     doc.setTextColor(17, 24, 39);
     doc.setFontSize(9);
     doc.text(`Generated: ${new Date().toLocaleString()} | Date tag: ${r.date} | Chemistry: ${r.chemistryLabel}`, margin, 22);
-    y = 27;
+    const auditLine = `Standards profile: ${audit.profileLabel} [${audit.profileId}] | Ruleset version: ${audit.rulesVersion}`;
+    const auditLines = doc.splitTextToSize(auditLine, pageW - (margin * 2));
+    doc.setFontSize(8);
+    doc.text(auditLines, margin, 26);
+    y = 26 + (auditLines.length * 4) + 1;
 
     function section(title) {
       doc.setFillColor(245, 245, 245);
