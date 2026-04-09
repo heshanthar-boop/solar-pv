@@ -189,6 +189,85 @@ const DB = (() => {
     return value.replace(/[\u0000-\u001F\u007F]/g, '').trim().slice(0, maxLen || 120);
   }
 
+  function _currentStandardsAudit() {
+    const requestedProfileId = (typeof App !== 'undefined' && App && App.state && App.state.fieldTestProfileId)
+      ? String(App.state.fieldTestProfileId)
+      : undefined;
+
+    let profile = null;
+    if (typeof StandardsRules !== 'undefined' && StandardsRules && typeof StandardsRules.getFieldTestProfile === 'function') {
+      profile = StandardsRules.getFieldTestProfile(requestedProfileId);
+    } else if (typeof PVCalc !== 'undefined' && PVCalc && typeof PVCalc.getFieldTestProfile === 'function') {
+      profile = PVCalc.getFieldTestProfile(requestedProfileId);
+    }
+    if (!profile || typeof profile !== 'object') {
+      profile = { id: 'iec62446_2016', label: 'IEC 62446-1:2016 + AMD1:2018' };
+    }
+
+    const rulesetVersion = (typeof StandardsRules !== 'undefined' && StandardsRules && typeof StandardsRules.getRulesVersion === 'function')
+      ? String(StandardsRules.getRulesVersion())
+      : (
+          typeof StandardsRules !== 'undefined' && StandardsRules && StandardsRules.RULESET_VERSION
+            ? String(StandardsRules.RULESET_VERSION)
+            : 'legacy'
+        );
+
+    return {
+      profileId: _cleanText(profile.id || requestedProfileId || 'default', 64),
+      profileLabel: _cleanText(profile.label || 'IEC 62446-1 profile', 160),
+      rulesetVersion: _cleanText(rulesetVersion, 64)
+    };
+  }
+
+  function _normalizeStandardsAudit(raw) {
+    if (!raw || typeof raw !== 'object') return null;
+    const profileId = _cleanText(raw.profileId || raw.profile || '', 64);
+    const profileLabel = _cleanText(raw.profileLabel || raw.profileName || '', 160);
+    const rulesetVersion = _cleanText(raw.rulesetVersion || raw.rulesVersion || '', 64);
+    if (!profileId && !profileLabel && !rulesetVersion) return null;
+    return { profileId, profileLabel, rulesetVersion };
+  }
+
+  function _extractImportEnvelope(parsed) {
+    if (Array.isArray(parsed)) {
+      return { items: parsed, sourceFormat: 'array', meta: null };
+    }
+    if (!parsed || typeof parsed !== 'object') {
+      throw new Error('JSON root must be an array or object with items[]');
+    }
+    const items = Array.isArray(parsed.items)
+      ? parsed.items
+      : (
+          Array.isArray(parsed.panels)
+            ? parsed.panels
+            : (Array.isArray(parsed.modules) ? parsed.modules : null)
+        );
+    if (!Array.isArray(items)) {
+      throw new Error('JSON root must be an array or object with items[]');
+    }
+    return {
+      items,
+      sourceFormat: 'envelope',
+      meta: {
+        format: _cleanText(parsed.format || '', 64),
+        schemaVersion: _cleanText(parsed.schemaVersion || parsed.version || '', 64),
+        exportedAt: _cleanText(parsed.exportedAt || '', 64),
+        standardsAudit: _normalizeStandardsAudit(parsed.standardsAudit || (parsed.meta && parsed.meta.standardsAudit))
+      }
+    };
+  }
+
+  function _importAuditSuffix(report) {
+    if (!report || !report.standardsAudit) return '';
+    const a = report.standardsAudit;
+    const profile = a.profileLabel || a.profileId;
+    const rule = a.rulesetVersion;
+    if (profile && rule) return ` | Std: ${profile} @ ${rule}`;
+    if (profile) return ` | Std: ${profile}`;
+    if (rule) return ` | Ruleset: ${rule}`;
+    return '';
+  }
+
   function _toFiniteNumber(value) {
     const n = typeof value === 'number' ? value : parseFloat(value);
     return Number.isFinite(n) ? n : NaN;
@@ -418,15 +497,42 @@ const DB = (() => {
   }
 
   function exportJSON() {
-    return JSON.stringify(getAll(), null, 2);
+    const payload = {
+      format: 'solarpv.catalog.panels',
+      schemaVersion: '2026.04.09',
+      exportedAt: new Date().toISOString(),
+      standardsAudit: _currentStandardsAudit(),
+      items: getAll(),
+    };
+    return JSON.stringify(payload, null, 2);
   }
 
   function importJSON(json) {
-    const report = { ok: false, total: 0, added: 0, updated: 0, rejected: 0, error: '' };
+    const report = {
+      ok: false,
+      total: 0,
+      added: 0,
+      updated: 0,
+      rejected: 0,
+      error: '',
+      sourceFormat: '',
+      format: '',
+      schemaVersion: '',
+      exportedAt: '',
+      standardsAudit: null
+    };
     _lastImportReport = report;
     try {
-      const incoming = JSON.parse(json);
-      if (!Array.isArray(incoming)) throw new Error('JSON root must be an array');
+      const parsed = JSON.parse(json);
+      const envelope = _extractImportEnvelope(parsed);
+      const incoming = envelope.items;
+      report.sourceFormat = envelope.sourceFormat;
+      if (envelope.meta) {
+        report.format = envelope.meta.format || '';
+        report.schemaVersion = envelope.meta.schemaVersion || '';
+        report.exportedAt = envelope.meta.exportedAt || '';
+        report.standardsAudit = envelope.meta.standardsAudit || null;
+      }
       if (incoming.length > MAX_IMPORT_PANELS) throw new Error(`Too many panels in one import (max ${MAX_IMPORT_PANELS})`);
 
       const existing = _load() || [];
@@ -737,7 +843,7 @@ const DB = (() => {
         _pickJSONFile(text => {
           const report = store.importInvertersJSON(text);
           if (report && report.ok) {
-            App.toast(`Inverters imported (${report.added} added, ${report.updated} updated${report.rejected ? `, ${report.rejected} rejected` : ''})`, report.rejected ? 'warning' : 'success');
+            App.toast(`Inverters imported (${report.added} added, ${report.updated} updated${report.rejected ? `, ${report.rejected} rejected` : ''})${_importAuditSuffix(report)}`, report.rejected ? 'warning' : 'success');
             renderPage(document.getElementById('main-content'));
           } else {
             App.toast(report && report.error ? report.error : 'Invalid JSON file', 'error');
@@ -766,7 +872,7 @@ const DB = (() => {
       _pickJSONFile(text => {
         const report = store.importBatteriesJSON(text);
         if (report && report.ok) {
-          App.toast(`Batteries imported (${report.added} added, ${report.updated} updated${report.rejected ? `, ${report.rejected} rejected` : ''})`, report.rejected ? 'warning' : 'success');
+          App.toast(`Batteries imported (${report.added} added, ${report.updated} updated${report.rejected ? `, ${report.rejected} rejected` : ''})${_importAuditSuffix(report)}`, report.rejected ? 'warning' : 'success');
           renderPage(document.getElementById('main-content'));
         } else {
           App.toast(report && report.error ? report.error : 'Invalid JSON file', 'error');
@@ -1380,7 +1486,7 @@ const DB = (() => {
         const result = importJSON(ev.target.result);
         if (result && result.ok) {
           renderPage(document.getElementById('main-content'));
-          const msg = `Panels imported (${result.added} added, ${result.updated} updated${result.rejected ? `, ${result.rejected} rejected` : ''})`;
+          const msg = `Panels imported (${result.added} added, ${result.updated} updated${result.rejected ? `, ${result.rejected} rejected` : ''})${_importAuditSuffix(result)}`;
           App.toast(msg, result.rejected ? 'warning' : 'success');
         } else {
           const msg = result && result.error ? result.error : 'Invalid JSON file';

@@ -54,6 +54,71 @@ const CatalogStore = (() => {
     return Number.isFinite(n) ? n : fallback;
   }
 
+  function _currentStandardsAudit() {
+    const requestedProfileId = (typeof App !== 'undefined' && App && App.state && App.state.fieldTestProfileId)
+      ? String(App.state.fieldTestProfileId)
+      : undefined;
+
+    let profile = null;
+    if (typeof StandardsRules !== 'undefined' && StandardsRules && typeof StandardsRules.getFieldTestProfile === 'function') {
+      profile = StandardsRules.getFieldTestProfile(requestedProfileId);
+    } else if (typeof PVCalc !== 'undefined' && PVCalc && typeof PVCalc.getFieldTestProfile === 'function') {
+      profile = PVCalc.getFieldTestProfile(requestedProfileId);
+    }
+    if (!profile || typeof profile !== 'object') {
+      profile = { id: 'iec62446_2016', label: 'IEC 62446-1:2016 + AMD1:2018' };
+    }
+
+    const rulesetVersion = (typeof StandardsRules !== 'undefined' && StandardsRules && typeof StandardsRules.getRulesVersion === 'function')
+      ? String(StandardsRules.getRulesVersion())
+      : (
+          typeof StandardsRules !== 'undefined' && StandardsRules && StandardsRules.RULESET_VERSION
+            ? String(StandardsRules.RULESET_VERSION)
+            : 'legacy'
+        );
+
+    return {
+      profileId: _cleanText(profile.id || requestedProfileId || 'default', 64),
+      profileLabel: _cleanText(profile.label || 'IEC 62446-1 profile', 160),
+      rulesetVersion: _cleanText(rulesetVersion, 64),
+    };
+  }
+
+  function _normalizeStandardsAudit(raw) {
+    if (!raw || typeof raw !== 'object') return null;
+    const profileId = _cleanText(raw.profileId || raw.profile || '', 64);
+    const profileLabel = _cleanText(raw.profileLabel || raw.profileName || '', 160);
+    const rulesetVersion = _cleanText(raw.rulesetVersion || raw.rulesVersion || '', 64);
+    if (!profileId && !profileLabel && !rulesetVersion) return null;
+    return { profileId, profileLabel, rulesetVersion };
+  }
+
+  function _extractImportEnvelope(parsed, kind) {
+    const fallbackKey = kind === 'batteries' ? 'batteries' : 'inverters';
+    if (Array.isArray(parsed)) {
+      return { items: parsed, sourceFormat: 'array', meta: null };
+    }
+    if (!parsed || typeof parsed !== 'object') {
+      throw new Error('JSON root must be an array or object with items[]');
+    }
+    const items = Array.isArray(parsed.items)
+      ? parsed.items
+      : (Array.isArray(parsed[fallbackKey]) ? parsed[fallbackKey] : null);
+    if (!Array.isArray(items)) {
+      throw new Error('JSON root must be an array or object with items[]');
+    }
+    return {
+      items,
+      sourceFormat: 'envelope',
+      meta: {
+        format: _cleanText(parsed.format || '', 64),
+        schemaVersion: _cleanText(parsed.schemaVersion || parsed.version || '', 64),
+        exportedAt: _cleanText(parsed.exportedAt || '', 64),
+        standardsAudit: _normalizeStandardsAudit(parsed.standardsAudit || (parsed.meta && parsed.meta.standardsAudit)),
+      }
+    };
+  }
+
   function _normalizeInverter(raw) {
     if (!raw || typeof raw !== 'object') return null;
     const manufacturer = _cleanText(raw.manufacturer, 80);
@@ -427,18 +492,52 @@ const CatalogStore = (() => {
   }
 
   function exportInvertersJSON() {
-    return JSON.stringify(state.inverters, null, 2);
+    const payload = {
+      format: 'solarpv.catalog.inverters',
+      schemaVersion: '2026.04.09',
+      exportedAt: new Date().toISOString(),
+      standardsAudit: _currentStandardsAudit(),
+      items: state.inverters,
+    };
+    return JSON.stringify(payload, null, 2);
   }
 
   function exportBatteriesJSON() {
-    return JSON.stringify(state.batteries, null, 2);
+    const payload = {
+      format: 'solarpv.catalog.batteries',
+      schemaVersion: '2026.04.09',
+      exportedAt: new Date().toISOString(),
+      standardsAudit: _currentStandardsAudit(),
+      items: state.batteries,
+    };
+    return JSON.stringify(payload, null, 2);
   }
 
   function importInvertersJSON(text) {
-    const report = { ok: false, total: 0, added: 0, updated: 0, rejected: 0, error: '' };
+    const report = {
+      ok: false,
+      total: 0,
+      added: 0,
+      updated: 0,
+      rejected: 0,
+      error: '',
+      sourceFormat: '',
+      format: '',
+      schemaVersion: '',
+      exportedAt: '',
+      standardsAudit: null
+    };
     try {
-      const arr = JSON.parse(String(text || ''));
-      if (!Array.isArray(arr)) throw new Error('JSON root must be an array');
+      const parsed = JSON.parse(String(text || ''));
+      const env = _extractImportEnvelope(parsed, 'inverters');
+      const arr = env.items;
+      report.sourceFormat = env.sourceFormat;
+      if (env.meta) {
+        report.format = env.meta.format || '';
+        report.schemaVersion = env.meta.schemaVersion || '';
+        report.exportedAt = env.meta.exportedAt || '';
+        report.standardsAudit = env.meta.standardsAudit || null;
+      }
       report.total = arr.length;
       const map = {};
       state.inverters.forEach(x => { map[x.id] = x; });
@@ -464,10 +563,30 @@ const CatalogStore = (() => {
   }
 
   function importBatteriesJSON(text) {
-    const report = { ok: false, total: 0, added: 0, updated: 0, rejected: 0, error: '' };
+    const report = {
+      ok: false,
+      total: 0,
+      added: 0,
+      updated: 0,
+      rejected: 0,
+      error: '',
+      sourceFormat: '',
+      format: '',
+      schemaVersion: '',
+      exportedAt: '',
+      standardsAudit: null
+    };
     try {
-      const arr = JSON.parse(String(text || ''));
-      if (!Array.isArray(arr)) throw new Error('JSON root must be an array');
+      const parsed = JSON.parse(String(text || ''));
+      const env = _extractImportEnvelope(parsed, 'batteries');
+      const arr = env.items;
+      report.sourceFormat = env.sourceFormat;
+      if (env.meta) {
+        report.format = env.meta.format || '';
+        report.schemaVersion = env.meta.schemaVersion || '';
+        report.exportedAt = env.meta.exportedAt || '';
+        report.standardsAudit = env.meta.standardsAudit || null;
+      }
       report.total = arr.length;
       const map = {};
       state.batteries.forEach(x => { map[x.id] = x; });

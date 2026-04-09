@@ -572,6 +572,50 @@ const HybridSetup = (() => {
     return out;
   }
 
+  function _normalizeStandardsAudit(raw) {
+    if (!raw || typeof raw !== 'object') return null;
+    const profileId = _cleanText(raw.profileId || raw.profile || '', 64);
+    const profileLabel = _cleanText(raw.profileLabel || raw.profileName || '', 160);
+    const rulesetVersion = _cleanText(raw.rulesetVersion || raw.rulesVersion || '', 64);
+    if (!profileId && !profileLabel && !rulesetVersion) return null;
+    return { profileId, profileLabel, rulesetVersion };
+  }
+
+  function _utilityOverrideRecordCount(overrides) {
+    const ids = new Set();
+    const safe = overrides && typeof overrides === 'object' ? overrides : {};
+    Object.keys(safe.utilityListed || {}).forEach(id => ids.add(id));
+    Object.keys(safe.listingSource || {}).forEach(id => ids.add(id));
+    return ids.size;
+  }
+
+  function _utilityImportReport(meta, overrides) {
+    const m = meta && typeof meta === 'object' ? meta : {};
+    return {
+      sourceFormat: _cleanText(m.sourceFormat || '', 24) || 'unknown',
+      format: _cleanText(m.format || '', 64),
+      schemaVersion: _cleanText(m.schemaVersion || m.version || '', 64),
+      exportedAt: _cleanText(m.exportedAt || '', 64),
+      standardsAudit: _normalizeStandardsAudit(m.standardsAudit),
+      records: _utilityOverrideRecordCount(overrides),
+    };
+  }
+
+  function _utilityImportReportSuffix(report) {
+    if (!report || typeof report !== 'object') return '';
+    const parts = [];
+    if (report.records > 0) parts.push(`${report.records} records`);
+    if (report.standardsAudit) {
+      const a = report.standardsAudit;
+      const profile = a.profileLabel || a.profileId;
+      const rule = a.rulesetVersion;
+      if (profile && rule) parts.push(`Std: ${profile} @ ${rule}`);
+      else if (profile) parts.push(`Std: ${profile}`);
+      else if (rule) parts.push(`Ruleset: ${rule}`);
+    }
+    return parts.length ? ` (${parts.join(' | ')})` : '';
+  }
+
   function _applyOverridesToCatalog() {
     const overrides = _loadCatalogOverrides();
     const inverters = (catalogState.baseInverters || []).map(_cloneInverter);
@@ -1073,8 +1117,11 @@ const HybridSetup = (() => {
       exportBtn.addEventListener('click', () => {
         const snap = _collectUtilityManagerState();
         const payload = {
+          format: 'solarpv.utility.overrides',
+          schemaVersion: '2026.04.09',
           version: '2026-04-08',
           exportedAt: new Date().toISOString(),
+          standardsAudit: _standardsAuditMeta(),
           utilityListed: snap.utilityListed,
           listingSource: snap.listingSource,
           inverters: _catalogInverters().map(inv => ({
@@ -1104,13 +1151,27 @@ const HybridSetup = (() => {
           reader.onload = ev => {
             try {
               const text = String(ev.target && ev.target.result ? ev.target.result : '');
-              const imported = file.name.toLowerCase().endsWith('.csv')
-                ? _parseOverrideCSV(text)
-                : _normalizeOverridesInput(JSON.parse(text));
+              const isCsv = file.name.toLowerCase().endsWith('.csv');
+              let imported = null;
+              let importReport = null;
+              if (isCsv) {
+                imported = _parseOverrideCSV(text);
+                importReport = _utilityImportReport({ sourceFormat: 'csv' }, imported);
+              } else {
+                const parsed = JSON.parse(text);
+                imported = _normalizeOverridesInput(parsed);
+                importReport = _utilityImportReport({
+                  sourceFormat: Array.isArray(parsed) ? 'array' : 'envelope',
+                  format: parsed && typeof parsed === 'object' ? parsed.format : '',
+                  schemaVersion: parsed && typeof parsed === 'object' ? (parsed.schemaVersion || parsed.version) : '',
+                  exportedAt: parsed && typeof parsed === 'object' ? parsed.exportedAt : '',
+                  standardsAudit: parsed && typeof parsed === 'object' ? parsed.standardsAudit : null
+                }, imported);
+              }
               const merged = _mergeOverrides(_loadCatalogOverrides(), imported);
               _saveCatalogOverrides(merged);
               _applyOverridesToCatalog();
-              App.toast('Utility list import applied', 'success');
+              App.toast(`Utility list import applied${_utilityImportReportSuffix(importReport)}`, 'success');
               App.closeModal();
               _openUtilityListManager(container);
               render(container);
