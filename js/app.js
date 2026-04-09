@@ -37,6 +37,7 @@ const App = (() => {
     inverter:    { title: 'Inverter Performance',       render: (c) => InverterPerf.render(c) },
     shading:     { title: 'Shading & Loss',             render: (c) => ShadingLoss.render(c) },
     yield:       { title: 'Yield Estimator',            render: (c) => YieldEstimator.render(c) },
+    inspector:   { title: 'PV Inspection Analyzer',    render: (c) => PVInspector.render(c) },
     faultai:     { title: 'Fault Detection',            render: (c) => FaultAI.render(c) },
     settings:    { title: 'Settings',                   render: (c) => _renderSettings(c) },
   };
@@ -48,11 +49,11 @@ const App = (() => {
     },
     gridTie: {
       label: 'Grid-Tie System',
-      pages: ['database', 'sizing', 'wirecalc', 'temp', 'fieldtest', 'fault', 'inspection', 'pr', 'inverter', 'shading', 'yield', 'standards', 'settings'],
+      pages: ['database', 'sizing', 'wirecalc', 'temp', 'fieldtest', 'fault', 'inspection', 'pr', 'inverter', 'shading', 'yield', 'inspector', 'standards', 'settings'],
     },
     gridTieHybrid: {
       label: 'Grid-Tie Hybrid System',
-      pages: ['database', 'sizing', 'wirecalc', 'hybrid', 'temp', 'fieldtest', 'fault', 'inspection', 'pr', 'inverter', 'shading', 'yield', 'degradation', 'fieldanalysis', 'diagnostics', 'faultai', 'standards', 'settings'],
+      pages: ['database', 'sizing', 'wirecalc', 'hybrid', 'temp', 'fieldtest', 'fault', 'inspection', 'pr', 'inverter', 'shading', 'yield', 'inspector', 'degradation', 'fieldanalysis', 'diagnostics', 'faultai', 'standards', 'settings'],
     },
     fullyHybrid: {
       label: 'Fully Hybrid System',
@@ -60,7 +61,7 @@ const App = (() => {
     },
     groundMount: {
       label: 'Ground Mount Solar System',
-      pages: ['database', 'sizing', 'wirecalc', 'temp', 'fieldtest', 'fault', 'inspection', 'pr', 'inverter', 'shading', 'yield', 'fieldanalysis', 'diagnostics', 'standards', 'settings'],
+      pages: ['database', 'sizing', 'wirecalc', 'temp', 'fieldtest', 'fault', 'inspection', 'pr', 'inverter', 'shading', 'yield', 'inspector', 'fieldanalysis', 'diagnostics', 'standards', 'settings'],
     },
     battery: {
       label: 'Battery Focus',
@@ -86,6 +87,7 @@ const App = (() => {
         { page: 'wirecalc',    icon: '&#128268;', label: 'Wire Calculation',     desc: 'Cable sizing & losses' },
         { page: 'hybrid',      icon: '&#128267;', label: 'Hybrid Setup',         desc: 'Battery & inverter check' },
         { page: 'yield',       icon: '&#9728;',   label: 'Yield Estimator',      desc: 'Monthly kWh simulation' },
+        { page: 'inspector',   icon: '&#128202;', label: 'PV Inspection Analyzer', desc: 'Metrel Excel import & analysis' },
         { page: 'shading',     icon: '&#127774;', label: 'Shading & Loss',       desc: 'AOI & irradiance loss' },
       ]
     },

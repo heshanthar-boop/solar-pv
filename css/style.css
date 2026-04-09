@@ -342,6 +342,23 @@ button { cursor: pointer; border: none; background: none; }
 .warn-box { background: #fffbeb; border: 1px solid #fde68a; border-radius: var(--radius); padding: 10px 14px; font-size: 0.82rem; color: #92400e; margin-bottom: 12px; }
 .danger-box { background: #fef2f2; border: 1px solid #fecaca; border-radius: var(--radius); padding: 10px 14px; font-size: 0.82rem; color: #991b1b; margin-bottom: 12px; }
 
+/* ===== PV INSPECTOR ===== */
+.insp-drop-zone {
+  border: 2px dashed var(--border); border-radius: var(--radius-lg);
+  padding: 28px 20px; text-align: center; cursor: pointer;
+  transition: border-color var(--transition), background var(--transition);
+  background: var(--bg-2);
+}
+.insp-drop-zone:hover, .insp-drop-zone.drag-over {
+  border-color: var(--primary); background: var(--primary-bg);
+}
+.insp-drop-icon { font-size: 2.2rem; line-height: 1; margin-bottom: 8px; }
+.insp-drop-title { font-weight: 700; font-size: 0.95rem; color: var(--text); }
+.insp-drop-sub { font-size: 0.78rem; color: var(--text-muted); margin-top: 4px; }
+.insp-summary-meta {
+  font-size: 0.78rem; color: var(--text-secondary); margin-bottom: 4px; line-height: 1.6;
+}
+
 /* ===== RESPONSIVE ===== */
 @media (min-width: 600px) {
   .form-row.cols-2 { grid-template-columns: 1fr 1fr; }
