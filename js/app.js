@@ -337,6 +337,55 @@ const App = (() => {
     ].join('\n');
   }
 
+  function _historyStats(history) {
+    const rows = Array.isArray(history) ? history : [];
+    const total = rows.length;
+    const failed = rows.filter(r => !(r && r.ok)).length;
+    const success = total - failed;
+    const nowMs = Date.now();
+    const ms7d = 7 * 24 * 60 * 60 * 1000;
+    const start7d = nowMs - ms7d;
+
+    const sourceMap = {};
+    let latest = null;
+
+    const recent = rows.filter((r) => {
+      const tsMs = Date.parse(String(r && r.ts ? r.ts : ''));
+      const src = String(r && r.source ? r.source : 'Unknown');
+      sourceMap[src] = (sourceMap[src] || 0) + 1;
+      if (Number.isFinite(tsMs)) {
+        if (!latest || tsMs > latest.ms) latest = { ms: tsMs, ts: String(r.ts) };
+        return tsMs >= start7d;
+      }
+      return false;
+    });
+
+    const recentTotal = recent.length;
+    const recentFailed = recent.filter(r => !(r && r.ok)).length;
+    const recentSuccess = recentTotal - recentFailed;
+
+    const topSource = Object.keys(sourceMap)
+      .map((k) => ({ name: k, count: sourceMap[k] }))
+      .sort((a, b) => {
+        if (b.count !== a.count) return b.count - a.count;
+        return String(a.name).localeCompare(String(b.name));
+      })[0] || null;
+
+    const pct = (a, b) => (b > 0 ? (a / b) * 100 : 0);
+    return {
+      total,
+      failed,
+      success,
+      failRatePct: pct(failed, total),
+      recentTotal,
+      recentFailed,
+      recentSuccess,
+      recentFailRatePct: pct(recentFailed, recentTotal),
+      topSource,
+      lastTs: latest ? latest.ts : ''
+    };
+  }
+
   function _defaultHistoryModalPrefs() {
     return {
       search: '',
@@ -767,7 +816,13 @@ const App = (() => {
     const hybridCatalogVersion = hybridCatalog && (hybridCatalog.inverterVersion || hybridCatalog.batteryVersion)
       ? `Inverter v${hybridCatalog.inverterVersion || '-'} / Battery v${hybridCatalog.batteryVersion || '-'}`
       : '';
-    const importHistory = getImportHistory(8);
+    const importHistoryAll = getImportHistory();
+    const importStats = _historyStats(importHistoryAll);
+    const importHistory = importHistoryAll.slice(0, 8);
+    const topSourceLabel = importStats.topSource
+      ? `${importStats.topSource.name} (${importStats.topSource.count})`
+      : '-';
+    const lastImportLabel = importStats.lastTs ? _historyWhen(importStats.lastTs) : '-';
     const importRows = importHistory.length
       ? importHistory.map((h) => `
             <tr>
@@ -843,6 +898,37 @@ const App = (() => {
             <button class="btn btn-secondary btn-sm" id="set-import-history-export-json">Export JSON</button>
             <button class="btn btn-danger btn-sm" id="set-import-history-clear">Clear History</button>
           </div>
+        </div>
+
+        <div class="card">
+          <div class="card-title">Import Health</div>
+          <div class="text-muted mt-4">Quick telemetry from local import history.</div>
+          <div class="result-grid mt-8" style="grid-template-columns:repeat(4,minmax(120px,1fr))">
+            <div class="result-box">
+              <div class="result-value">${importStats.total}</div>
+              <div class="result-label">Total Imports</div>
+            </div>
+            <div class="result-box ${importStats.failed > 0 ? 'alert-warn' : 'alert-safe'}">
+              <div class="result-value">${importStats.failed}</div>
+              <div class="result-label">Total Failed</div>
+            </div>
+            <div class="result-box ${importStats.failRatePct > 20 ? 'alert-warn' : 'alert-safe'}">
+              <div class="result-value">${importStats.failRatePct.toFixed(1)}%</div>
+              <div class="result-label">Overall Fail Rate</div>
+            </div>
+            <div class="result-box ${importStats.recentFailed > 0 ? 'alert-warn' : 'alert-safe'}">
+              <div class="result-value">${importStats.recentTotal}</div>
+              <div class="result-label">Imports (Last 7 Days)</div>
+            </div>
+          </div>
+          <table class="status-table mt-8">
+            <tbody>
+              <tr><td><strong>Last 7 days failures</strong></td><td>${importStats.recentFailed}</td></tr>
+              <tr><td><strong>Last 7 days fail rate</strong></td><td>${importStats.recentFailRatePct.toFixed(1)}%</td></tr>
+              <tr><td><strong>Top source</strong></td><td>${escapeHTML(topSourceLabel)}</td></tr>
+              <tr><td><strong>Last import</strong></td><td>${escapeHTML(lastImportLabel)}</td></tr>
+            </tbody>
+          </table>
         </div>
 
         <div class="card">
