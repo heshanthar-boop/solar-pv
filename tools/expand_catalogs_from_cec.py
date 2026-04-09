@@ -302,8 +302,7 @@ def expand_grid_inverters(grid_payload: Dict[str, Any]) -> Tuple[int, int]:
 
         mfr_raw, model_raw = name.split(':', 1)
         mfr_raw = clean_text(mfr_raw, 140)
-        if not any(k in mfr_raw.lower() for k in INVERTER_KEYWORDS):
-            continue
+        # Keep full CEC inverter coverage (all manufacturers), then normalize names.
 
         model = clean_text(model_raw, 180)
         model = re.sub(r'\s*\[[^\]]+\]\s*$', '', model).strip()
