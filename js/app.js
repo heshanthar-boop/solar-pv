@@ -76,6 +76,48 @@ const App = (() => {
     },
   };
 
+  // Home screen tile definitions — grouped, with project-type visibility
+  const HOME_TILES = [
+    {
+      group: 'Design & Sizing',
+      tiles: [
+        { page: 'database',    icon: '&#128230;', label: 'Panel Database',      desc: 'Module specs & DB' },
+        { page: 'sizing',      icon: '&#9889;',   label: 'String Sizing',        desc: 'Voltage & current limits' },
+        { page: 'wirecalc',    icon: '&#128268;', label: 'Wire Calculation',     desc: 'Cable sizing & losses' },
+        { page: 'hybrid',      icon: '&#128267;', label: 'Hybrid Setup',         desc: 'Battery & inverter check' },
+        { page: 'yield',       icon: '&#9728;',   label: 'Yield Estimator',      desc: 'Monthly kWh simulation' },
+        { page: 'shading',     icon: '&#127774;', label: 'Shading & Loss',       desc: 'AOI & irradiance loss' },
+      ]
+    },
+    {
+      group: 'Field Testing',
+      tiles: [
+        { page: 'fieldtest',   icon: '&#128202;', label: 'Field Test vs STC',    desc: 'Voc/Isc correction' },
+        { page: 'temp',        icon: '&#127777;', label: 'Temp Correction',      desc: 'Module temp derating' },
+        { page: 'fault',       icon: '&#9888;',   label: 'Fault Checker',        desc: 'String fault patterns' },
+        { page: 'pr',          icon: '&#128200;', label: 'PR & IR Test',         desc: 'IEC 61724 / 62446' },
+        { page: 'inspection',  icon: '&#128203;', label: 'Inspection Log',       desc: 'Site inspection record' },
+      ]
+    },
+    {
+      group: 'Analysis & Diagnostics',
+      tiles: [
+        { page: 'diagnostics',   icon: '&#128269;', label: 'PV Diagnostics',       desc: 'System health check' },
+        { page: 'inverter',      icon: '&#9889;',   label: 'Inverter Performance',  desc: 'Efficiency & AC/DC ratio' },
+        { page: 'fieldanalysis', icon: '&#128202;', label: 'Field Analysis',        desc: 'Trend & tracking' },
+        { page: 'degradation',   icon: '&#128200;', label: 'Module Degradation',    desc: 'Linear / compound model' },
+        { page: 'faultai',       icon: '&#129302;', label: 'Fault Detection',       desc: 'AI-assisted analysis' },
+      ]
+    },
+    {
+      group: 'Reference & Settings',
+      tiles: [
+        { page: 'standards', icon: '&#128218;', label: 'Standards Reference',  desc: 'IEC / SLS / PUCSL' },
+        { page: 'settings',  icon: '&#9881;',   label: 'Settings',             desc: 'Profile & data mgmt' },
+      ]
+    },
+  ];
+
   const main = document.getElementById('main-content');
 
   function escapeHTML(value) {
@@ -217,127 +259,79 @@ const App = (() => {
     return new Set((cfg && Array.isArray(cfg.pages) ? cfg.pages : Object.keys(PAGES)).filter(id => !!PAGES[id]));
   }
 
-  function _firstAllowedPage() {
-    return [..._allowedPages()][0] || 'database';
-  }
-
   function _isPageAllowed(pageId) {
     return _allowedPages().has(pageId);
   }
 
   function navigate(pageId) {
-    const targetPageId = _isPageAllowed(pageId) ? pageId : _firstAllowedPage();
-    const page = PAGES[targetPageId];
+    const homeBtn = document.getElementById('home-btn');
+    const titleEl = document.getElementById('page-title');
+
+    if (pageId === 'home') {
+      state.currentPage = 'home';
+      titleEl.textContent = 'Solar PV Field Tool';
+      homeBtn.classList.add('hidden');
+      main.scrollTop = 0;
+      _renderHome(main);
+      return;
+    }
+
+    if (!_isPageAllowed(pageId)) { navigate('home'); return; }
+    const page = PAGES[pageId];
     if (!page) return;
 
-    state.currentPage = targetPageId;
-
-    // Update header title
-    document.getElementById('page-title').textContent = page.title;
-
-    // Update bottom nav active state
-    document.querySelectorAll('.bnav-btn').forEach(btn => {
-      btn.classList.toggle('active', btn.dataset.page === targetPageId);
-    });
-
-    // Update sidebar nav active state
-    document.querySelectorAll('.nav-link').forEach(a => {
-      a.classList.toggle('active', a.dataset.page === targetPageId);
-    });
-
-    // Render page
+    state.currentPage = pageId;
+    titleEl.textContent = page.title;
+    homeBtn.classList.remove('hidden');
     main.scrollTop = 0;
     page.render(main);
   }
 
-  function _applyProjectTypeFilter(opts) {
+  // -----------------------------------------------------------------------
+  // HOME SCREEN
+  // -----------------------------------------------------------------------
+
+  function _renderHome(container) {
     const allowed = _allowedPages();
-    document.querySelectorAll('.nav-link').forEach(link => {
-      link.classList.toggle('hidden', !allowed.has(link.dataset.page));
-    });
-    document.querySelectorAll('.bnav-btn').forEach(btn => {
-      btn.classList.toggle('hidden', !allowed.has(btn.dataset.page));
-    });
+    const projectTypeOptions = Object.entries(PROJECT_TYPES).map(([k, v]) =>
+      `<option value="${k}" ${k === state.projectType ? 'selected' : ''}>${escapeHTML(v.label)}</option>`
+    ).join('');
 
-    const nav = document.querySelector('.sidebar-nav');
-    if (nav) {
-      const hasVisibleLink = (li) => {
-        const link = li && li.querySelector && li.querySelector('.nav-link');
-        return !!(link && !link.classList.contains('hidden'));
-      };
-      nav.querySelectorAll('.nav-divider').forEach(divider => {
-        let prev = divider.previousElementSibling;
-        while (prev && !hasVisibleLink(prev)) prev = prev.previousElementSibling;
-        let next = divider.nextElementSibling;
-        while (next && !hasVisibleLink(next)) next = next.nextElementSibling;
-        divider.classList.toggle('hidden', !(prev && next));
-      });
-    }
+    const groups = HOME_TILES.map(group => {
+      const visibleTiles = group.tiles.filter(t => allowed.has(t.page));
+      if (!visibleTiles.length) return '';
+      const tileHtml = visibleTiles.map(t => `
+        <button class="home-tile" data-page="${t.page}">
+          <span class="home-tile-icon">${t.icon}</span>
+          <span class="home-tile-label">${escapeHTML(t.label)}</span>
+          <span class="home-tile-desc">${escapeHTML(t.desc)}</span>
+        </button>`).join('');
+      return `
+        <div class="home-group">
+          <div class="home-group-title">${escapeHTML(group.group)}</div>
+          <div class="home-tile-grid">${tileHtml}</div>
+        </div>`;
+    }).join('');
 
-    const selector = document.getElementById('project-mode');
-    if (selector && selector.value !== state.projectType) {
-      selector.value = state.projectType;
-    }
+    container.innerHTML = `
+      <div class="home-screen">
+        <div class="home-filter">
+          <label class="home-filter-label">Project View</label>
+          <select class="form-select" id="home-project-mode">${projectTypeOptions}</select>
+        </div>
+        ${groups}
+        <div class="home-footer">v1.0 &bull; Heshan Engineering Solution</div>
+      </div>`;
 
-    if (!(opts && opts.skipNavigate) && !_isPageAllowed(state.currentPage)) {
-      navigate(_firstAllowedPage());
-    }
-  }
-
-  // -----------------------------------------------------------------------
-  // SIDEBAR
-  // -----------------------------------------------------------------------
-
-  function _initSidebar() {
-    const sidebar  = document.getElementById('sidebar');
-    const overlay  = document.getElementById('sidebar-overlay');
-    const menuBtn  = document.getElementById('menu-btn');
-    const closeBtn = document.getElementById('sidebar-close');
-
-    function open() {
-      sidebar.classList.remove('hidden');
-      sidebar.classList.add('open');
-      overlay.classList.remove('hidden');
-    }
-    function close() {
-      sidebar.classList.remove('open');
-      overlay.classList.add('hidden');
-      setTimeout(() => { if (!sidebar.classList.contains('open')) sidebar.classList.add('hidden'); }, 260);
-    }
-
-    menuBtn.addEventListener('click', open);
-    closeBtn.addEventListener('click', close);
-    overlay.addEventListener('click', close);
-
-    sidebar.querySelectorAll('.nav-link').forEach(a => {
-      a.addEventListener('click', e => {
-        e.preventDefault();
-        close();
-        navigate(a.dataset.page);
-      });
+    container.querySelector('#home-project-mode').addEventListener('change', e => {
+      const next = e.target.value;
+      if (!PROJECT_TYPES[next]) return;
+      state.projectType = next;
+      localStorage.setItem('solarpv_project_type', next);
+      _renderHome(container);
     });
 
-    const projectSelect = document.getElementById('project-mode');
-    if (projectSelect) {
-      const saved = localStorage.getItem('solarpv_project_type');
-      if (saved && PROJECT_TYPES[saved]) state.projectType = saved;
-      projectSelect.value = state.projectType;
-      projectSelect.addEventListener('change', () => {
-        const next = projectSelect.value;
-        if (!PROJECT_TYPES[next]) return;
-        state.projectType = next;
-        localStorage.setItem('solarpv_project_type', next);
-        _applyProjectTypeFilter();
-      });
-    }
-  }
-
-  // -----------------------------------------------------------------------
-  // BOTTOM NAV
-  // -----------------------------------------------------------------------
-
-  function _initBottomNav() {
-    document.querySelectorAll('.bnav-btn').forEach(btn => {
+    container.querySelectorAll('.home-tile').forEach(btn => {
       btn.addEventListener('click', () => navigate(btn.dataset.page));
     });
   }
@@ -552,22 +546,23 @@ const App = (() => {
 
   function init() {
     DB.init();
-    _initSidebar();
-    _initBottomNav();
     _initModalClose();
     _initSW();
-    _applyProjectTypeFilter({ skipNavigate: true });
 
-    // Firebase sync — render sign-in button in header, then init
+    // Restore saved project type
+    const savedType = localStorage.getItem('solarpv_project_type');
+    if (savedType && PROJECT_TYPES[savedType]) state.projectType = savedType;
+
+    // Home button → go back to home screen
+    document.getElementById('home-btn').addEventListener('click', () => navigate('home'));
+
+    // Firebase sync
     FirebaseSync.renderSignInButton(document.getElementById('header-right'));
     FirebaseSync.init(user => {
-      if (user) {
-        // Auto-sync on sign-in
-        FirebaseSync.syncAll();
-      }
+      if (user) FirebaseSync.syncAll();
     });
 
-    navigate('database');
+    navigate('home');
   }
 
   // Boot on DOM ready

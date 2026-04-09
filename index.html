@@ -14,57 +14,10 @@
 
 <!-- HEADER -->
 <header id="app-header">
-  <button id="menu-btn" class="icon-btn" aria-label="Menu">&#9776;</button>
+  <button id="home-btn" class="icon-btn hidden" aria-label="Home">&#8592;</button>
   <span id="page-title">Solar PV Field Tool</span>
   <div id="header-right"></div>
 </header>
-
-<!-- SIDEBAR OVERLAY -->
-<div id="sidebar-overlay" class="overlay hidden"></div>
-
-<!-- SIDEBAR -->
-<nav id="sidebar" class="sidebar hidden">
-  <div class="sidebar-header">
-    <span class="sidebar-title">SolarPV Tool</span>
-    <button id="sidebar-close" class="icon-btn">&#10005;</button>
-  </div>
-  <div class="sidebar-project">
-    <label class="form-label" for="project-mode">Project View</label>
-    <select class="form-select" id="project-mode">
-      <option value="all">All Modules</option>
-      <option value="gridTie">Grid-Tie System</option>
-      <option value="gridTieHybrid">Grid-Tie Hybrid System</option>
-      <option value="fullyHybrid">Fully Hybrid System</option>
-      <option value="groundMount">Ground Mount Solar System</option>
-      <option value="battery">Battery Focus</option>
-      <option value="standardsOnly">Standards</option>
-      <option value="pvAnalysis">PV Analysis</option>
-    </select>
-  </div>
-  <ul class="sidebar-nav">
-    <li><a href="#" data-page="database" class="nav-link">&#128230; Panel Database</a></li>
-    <li><a href="#" data-page="sizing" class="nav-link">&#9889; String Sizing</a></li>
-    <li><a href="#" data-page="wirecalc" class="nav-link">&#128268; Wire Calculation</a></li>
-    <li><a href="#" data-page="hybrid" class="nav-link">&#128267; Hybrid Setup</a></li>
-    <li><a href="#" data-page="temp" class="nav-link">&#127777; Temp Correction</a></li>
-    <li><a href="#" data-page="fieldtest" class="nav-link">&#128202; Field Test vs STC</a></li>
-    <li><a href="#" data-page="fault" class="nav-link">&#9888; Fault Checker</a></li>
-    <li><a href="#" data-page="inspection" class="nav-link">&#128203; Inspection Log</a></li>
-    <li><a href="#" data-page="pr" class="nav-link">&#128200; PR &amp; IR Test</a></li>
-    <li><a href="#" data-page="standards" class="nav-link">&#128218; Standards Reference</a></li>
-    <li class="nav-divider"></li>
-    <li><a href="#" data-page="degradation" class="nav-link">&#128200; Module Degradation</a></li>
-    <li><a href="#" data-page="fieldanalysis" class="nav-link">&#128202; Field Analysis</a></li>
-    <li><a href="#" data-page="diagnostics" class="nav-link">&#128269; PV Diagnostics</a></li>
-    <li><a href="#" data-page="inverter" class="nav-link">&#9889; Inverter Performance</a></li>
-    <li><a href="#" data-page="shading" class="nav-link">&#127774; Shading &amp; Loss</a></li>
-    <li><a href="#" data-page="yield" class="nav-link">&#9728; Yield Estimator</a></li>
-    <li><a href="#" data-page="faultai" class="nav-link">&#129302; Fault Detection</a></li>
-    <li class="nav-divider"></li>
-    <li><a href="#" data-page="settings" class="nav-link">&#9881; Settings</a></li>
-  </ul>
-  <div class="sidebar-footer">v1.0 &bull; Heshan Engineering Solution</div>
-</nav>
 
 <!-- MAIN CONTENT -->
 <main id="main-content">
@@ -73,30 +26,6 @@
     <div>Loading...</div>
   </div>
 </main>
-
-<!-- BOTTOM NAV -->
-<nav id="bottom-nav">
-  <button class="bnav-btn" data-page="database">
-    <span class="bnav-icon">&#128230;</span>
-    <span class="bnav-label">Panels</span>
-  </button>
-  <button class="bnav-btn" data-page="sizing">
-    <span class="bnav-icon">&#9889;</span>
-    <span class="bnav-label">Sizing</span>
-  </button>
-  <button class="bnav-btn" data-page="fieldtest">
-    <span class="bnav-icon">&#128202;</span>
-    <span class="bnav-label">Field Test</span>
-  </button>
-  <button class="bnav-btn" data-page="fault">
-    <span class="bnav-icon">&#9888;</span>
-    <span class="bnav-label">Faults</span>
-  </button>
-  <button class="bnav-btn" data-page="inspection">
-    <span class="bnav-icon">&#128203;</span>
-    <span class="bnav-label">Inspect</span>
-  </button>
-</nav>
 
 <!-- TOAST -->
 <div id="toast" class="toast hidden"></div>
