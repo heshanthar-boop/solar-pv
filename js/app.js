@@ -229,6 +229,30 @@ const App = (() => {
     return `${entry.added || 0} added / ${entry.updated || 0} updated / ${entry.rejected || 0} rejected`;
   }
 
+  function _historyDateOnly(isoText) {
+    if (!isoText) return '';
+    const ms = Date.parse(String(isoText));
+    if (!Number.isFinite(ms)) return '';
+    return localDateISO(new Date(ms));
+  }
+
+  function _historyRowCopyText(entry) {
+    const e = entry && typeof entry === 'object' ? entry : {};
+    return [
+      `When: ${_historyWhen(e.ts)}`,
+      `Source: ${e.source || '-'}`,
+      `File: ${e.fileName || '-'}`,
+      `Source Format: ${e.sourceFormat || '-'}`,
+      `Format: ${e.format || '-'}`,
+      `Schema: ${e.schemaVersion || '-'}`,
+      `Exported At: ${e.exportedAt ? _historyWhen(e.exportedAt) : '-'}`,
+      `Status: ${e.ok ? 'OK' : 'FAIL'}`,
+      `Counts: ${_historyCountsText(e)}`,
+      `Standards: ${_historyAuditText(e)}`,
+      `Error: ${e.error || '-'}`,
+    ].join('\n');
+  }
+
   function _downloadTextFile(filename, content, mimeType) {
     const blob = new Blob([String(content ?? '')], { type: mimeType || 'text/plain;charset=utf-8' });
     const a = document.createElement('a');
@@ -757,35 +781,149 @@ const App = (() => {
     const viewImportHistoryBtn = container.querySelector('#set-import-history-view');
     if (viewImportHistoryBtn) {
       viewImportHistoryBtn.addEventListener('click', () => {
-        const rows = getImportHistory().map((h) => `
-          <tr>
-            <td>${escapeHTML(_historyWhen(h.ts))}</td>
-            <td>${escapeHTML(h.source || '-')}</td>
-            <td>${escapeHTML(h.fileName || '-')}</td>
-            <td>${escapeHTML(h.sourceFormat || '-')}</td>
-            <td>${escapeHTML(h.format || '-')}</td>
-            <td>${escapeHTML(h.schemaVersion || '-')}</td>
-            <td>${escapeHTML(h.exportedAt ? _historyWhen(h.exportedAt) : '-')}</td>
-            <td>${escapeHTML(h.ok ? 'OK' : 'FAIL')}</td>
-            <td>${escapeHTML(_historyCountsText(h))}</td>
-            <td>${escapeHTML(_historyAuditText(h))}</td>
-            <td>${escapeHTML(h.error || '-')}</td>
-          </tr>
-        `).join('');
+        const allHistory = getImportHistory();
+        const sourceOptions = Array.from(new Set(allHistory.map((h) => String(h.source || '').trim()).filter(Boolean))).sort();
         const bodyHtml = `
           <div class="text-muted mb-8">Stored locally on this device. Newest first.</div>
+          <div class="form-row cols-3" style="margin-bottom:8px">
+            <div class="form-group">
+              <label class="form-label">Search</label>
+              <input class="form-input" id="set-ih-search" placeholder="Source, file, format, standards, error..." />
+            </div>
+            <div class="form-group">
+              <label class="form-label">Source</label>
+              <select class="form-select" id="set-ih-source">
+                <option value="">All sources</option>
+                ${sourceOptions.map((s) => `<option value="${escapeHTML(s)}">${escapeHTML(s)}</option>`).join('')}
+              </select>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Status</label>
+              <select class="form-select" id="set-ih-status">
+                <option value="">All</option>
+                <option value="ok">OK</option>
+                <option value="fail">FAIL</option>
+              </select>
+            </div>
+          </div>
+          <div class="form-row cols-3" style="margin-bottom:8px">
+            <div class="form-group">
+              <label class="form-label">From Date</label>
+              <input class="form-input" id="set-ih-from" type="date" />
+            </div>
+            <div class="form-group">
+              <label class="form-label">To Date</label>
+              <input class="form-input" id="set-ih-to" type="date" />
+            </div>
+            <div class="form-group">
+              <label class="form-label">Actions</label>
+              <div class="btn-group">
+                <button class="btn btn-secondary btn-sm" id="set-ih-clear-filters">Clear Filters</button>
+              </div>
+            </div>
+          </div>
+          <div class="text-muted mb-8" id="set-ih-count">-</div>
           <div style="overflow-x:auto;max-height:62vh">
             <table class="status-table">
               <thead>
                 <tr>
-                  <th>When</th><th>Source</th><th>File</th><th>Source Format</th><th>Format</th><th>Schema</th><th>Exported At</th><th>Status</th><th>Counts</th><th>Standards</th><th>Error</th>
+                  <th>When</th><th>Source</th><th>File</th><th>Source Format</th><th>Format</th><th>Schema</th><th>Exported At</th><th>Status</th><th>Counts</th><th>Standards</th><th>Error</th><th>Copy</th>
                 </tr>
               </thead>
-              <tbody>${rows || '<tr><td colspan="11" class="text-muted">No imports recorded.</td></tr>'}</tbody>
+              <tbody id="set-ih-tbody">${allHistory.length ? '' : '<tr><td colspan="12" class="text-muted">No imports recorded.</td></tr>'}</tbody>
             </table>
           </div>
         `;
         showModal('Import Details History', bodyHtml, [{ label: 'Close', cls: 'btn-secondary', action: 'close' }]);
+
+        const modalBody = document.getElementById('modal-body');
+        if (!modalBody) return;
+        const searchInput = modalBody.querySelector('#set-ih-search');
+        const sourceInput = modalBody.querySelector('#set-ih-source');
+        const statusInput = modalBody.querySelector('#set-ih-status');
+        const fromInput = modalBody.querySelector('#set-ih-from');
+        const toInput = modalBody.querySelector('#set-ih-to');
+        const clearBtn = modalBody.querySelector('#set-ih-clear-filters');
+        const countEl = modalBody.querySelector('#set-ih-count');
+        const tbody = modalBody.querySelector('#set-ih-tbody');
+        if (!searchInput || !sourceInput || !statusInput || !fromInput || !toInput || !clearBtn || !countEl || !tbody) return;
+
+        let filteredRows = allHistory.slice();
+
+        const renderRows = () => {
+          if (!filteredRows.length) {
+            tbody.innerHTML = '<tr><td colspan="12" class="text-muted">No matching records.</td></tr>';
+          } else {
+            tbody.innerHTML = filteredRows.map((h, idx) => `
+              <tr>
+                <td>${escapeHTML(_historyWhen(h.ts))}</td>
+                <td>${escapeHTML(h.source || '-')}</td>
+                <td>${escapeHTML(h.fileName || '-')}</td>
+                <td>${escapeHTML(h.sourceFormat || '-')}</td>
+                <td>${escapeHTML(h.format || '-')}</td>
+                <td>${escapeHTML(h.schemaVersion || '-')}</td>
+                <td>${escapeHTML(h.exportedAt ? _historyWhen(h.exportedAt) : '-')}</td>
+                <td>${escapeHTML(h.ok ? 'OK' : 'FAIL')}</td>
+                <td>${escapeHTML(_historyCountsText(h))}</td>
+                <td>${escapeHTML(_historyAuditText(h))}</td>
+                <td>${escapeHTML(h.error || '-')}</td>
+                <td><button class="btn btn-secondary btn-sm" data-ih-copy="${idx}">Copy</button></td>
+              </tr>
+            `).join('');
+          }
+          countEl.textContent = `${filteredRows.length} of ${allHistory.length} record(s)`;
+        };
+
+        const applyFilters = () => {
+          const q = String(searchInput.value || '').trim().toLowerCase();
+          const source = String(sourceInput.value || '').trim();
+          const status = String(statusInput.value || '').trim();
+          const from = String(fromInput.value || '').trim();
+          const to = String(toInput.value || '').trim();
+
+          filteredRows = allHistory.filter((h) => {
+            if (source && String(h.source || '') !== source) return false;
+            if (status === 'ok' && !h.ok) return false;
+            if (status === 'fail' && h.ok) return false;
+
+            const d = _historyDateOnly(h.ts);
+            if (from && d && d < from) return false;
+            if (to && d && d > to) return false;
+            if ((from || to) && !d) return false;
+
+            if (!q) return true;
+            const hay = [
+              h.source, h.fileName, h.sourceFormat, h.format, h.schemaVersion,
+              h.exportedAt, h.error, _historyAuditText(h), _historyCountsText(h)
+            ].map((x) => String(x || '').toLowerCase()).join(' ');
+            return hay.includes(q);
+          });
+
+          renderRows();
+        };
+
+        tbody.addEventListener('click', (evt) => {
+          const btn = evt.target && evt.target.closest ? evt.target.closest('[data-ih-copy]') : null;
+          if (!btn) return;
+          const idx = Number(btn.getAttribute('data-ih-copy'));
+          if (!Number.isFinite(idx) || idx < 0 || idx >= filteredRows.length) return;
+          copyText(_historyRowCopyText(filteredRows[idx]));
+        });
+
+        [searchInput, sourceInput, statusInput, fromInput, toInput].forEach((el) => {
+          const evt = el.tagName === 'INPUT' ? 'input' : 'change';
+          el.addEventListener(evt, applyFilters);
+        });
+        clearBtn.addEventListener('click', () => {
+          searchInput.value = '';
+          sourceInput.value = '';
+          statusInput.value = '';
+          fromInput.value = '';
+          toInput.value = '';
+          applyFilters();
+        });
+
+        renderRows();
       });
     }
 
