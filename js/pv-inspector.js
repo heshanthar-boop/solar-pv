@@ -559,6 +559,49 @@ const PVInspector = (() => {
     </div>`;
   }
 
+  function _renderRelatedCauseReference() {
+    const rows = [
+      ['Earth fault / insulation failure', 'Damaged DC cable insulation, water ingress in junction box/MC4, crushed or chafed cable, cracked backsheet, connector contamination, rodent damage'],
+      ['Open string or missing module', 'Unplugged MC4, blown string fuse, open isolator, broken conductor, loose terminal, incorrect series module count'],
+      ['Bypass diode / substring loss', 'Failed short/open bypass diode, burnt junction box, local cell damage forcing diode conduction, substring disconnection'],
+      ['Shading / soiling (including severe)', 'Tree/building shadow, antenna/pole shadow, bird droppings, dust or pollen layer, leaf accumulation, uneven cleaning'],
+      ['Hotspot / cell damage risk', 'Cracked cells, solder bond failure, partial shading stress, defective interconnects, prolonged mismatch heating'],
+      ['Series resistance / connector heating', 'Loose torque, oxidized terminals, poor crimp, undersized cable, overheated MC4 pair, corroded joints'],
+      ['Parallel string imbalance', 'Branch fuse blown, unequal string orientation/length, mixed module bins/ages, branch connector loss, uneven soiling'],
+      ['Thermal derating / overheating', 'Poor rear ventilation, high ambient temperature, dark roof heat buildup, inverter thermal derating, blocked airflow'],
+      ['PID / accelerated degradation pattern', 'High system voltage stress, humidity, weak insulation, nighttime leakage path, grounding strategy issues'],
+      ['Datasheet mismatch vs DB', 'Wrong module selected in DB, wrong string module count, incorrect STC normalization inputs, mixed module types in string'],
+      ['Low-irradiance data-quality warning', 'Test under cloud/transient irradiance, early/late-day low sun, unstable irradiance during measurement'],
+      ['Healthy / inconclusive outcomes', 'All values within tolerance (healthy), or insufficient/conflicting measurements (inconclusive)'],
+    ];
+
+    return `
+    <div class="card">
+      <div class="card-title">&#128218; Related Causes Reference</div>
+      <details>
+        <summary style="cursor:pointer;font-weight:600">Show related causes by predicted rule</summary>
+        <div style="overflow-x:auto;margin-top:10px">
+          <table class="status-table" style="font-size:0.78rem">
+            <thead>
+              <tr>
+                <th style="width:28%">Predicted Rule</th>
+                <th>Related Causes</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${rows.map(([rule, causes]) => `
+                <tr>
+                  <td><strong>${App.escapeHTML(rule)}</strong></td>
+                  <td>${App.escapeHTML(causes)}</td>
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+        </div>
+      </details>
+    </div>`;
+  }
+
   // =========================================================================
   // RENDER — MAIN
   // =========================================================================
@@ -727,6 +770,7 @@ const PVInspector = (() => {
     res.innerHTML = `
       ${hasStrings ? _renderSummaryCards(stats, s) : ''}
       ${hasStrings ? _renderFaultOverview(s) : ''}
+      ${hasStrings ? _renderRelatedCauseReference() : ''}
       ${hasStrings ? _renderStatusBreakdown(s) : ''}
       ${hasStrings ? _renderStringTable(s) : ''}
       ${hasIV      ? _renderModuleTestSection(s) : ''}
