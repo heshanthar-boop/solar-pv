@@ -33,6 +33,20 @@ const Inspection = (() => {
     return `${y}-${m}-${day}`;
   }
 
+  function _irRule() {
+    if (typeof StandardsRules !== 'undefined' && StandardsRules && typeof StandardsRules.getIRTestRule === 'function') {
+      return StandardsRules.getIRTestRule();
+    }
+    return { minMOhm: 1.0, testVoltageV: 500 };
+  }
+
+  function _earthingRule() {
+    if (typeof StandardsRules !== 'undefined' && StandardsRules && typeof StandardsRules.getEarthingRule === 'function') {
+      return StandardsRules.getEarthingRule();
+    }
+    return { targetOhm: 1.0 };
+  }
+
   // -----------------------------------------------------------------------
   // SESSION MANAGEMENT
   // -----------------------------------------------------------------------
@@ -144,6 +158,9 @@ const Inspection = (() => {
 
     const sc = _session.systemChecks;
     const si = _session.site;
+    const irMinMOhm = Number((_irRule().minMOhm || 1));
+    const irTestVolt = Number((_irRule().testVoltageV || 500));
+    const earthTargetOhm = Number((_earthingRule().targetOhm || 1));
     const siSafe = {
       projectName: _esc(si.projectName),
       siteLocation: _esc(si.siteLocation),
@@ -246,8 +263,8 @@ const Inspection = (() => {
           ${_scSelect('sc-earth-cont', 'Earthing Continuity', sc.earthing_cont, ['','Pass','Fail','N/A'])}
           <div class="form-group">
             <label class="form-label">Earth Resistance (Ω)</label>
-            <input class="form-input" id="sc-earth-res" type="number" step="0.1" value="${scSafe.earthing_resistance}" placeholder="&lt; 1Ω required" />
-            <div class="form-hint">IEC 60364: &lt;1Ω. Record measured value.</div>
+            <input class="form-input" id="sc-earth-res" type="number" step="0.1" value="${scSafe.earthing_resistance}" placeholder="&lt; ${_esc(earthTargetOhm)}Ω required" />
+            <div class="form-hint">IEC 60364: &lt;${_esc(earthTargetOhm)}Ω. Record measured value.</div>
           </div>
         </div>
 
@@ -275,8 +292,8 @@ const Inspection = (() => {
         <div class="form-row cols-2">
           <div class="form-group">
             <label class="form-label">Array IR Test (MΩ) — DC to Earth</label>
-            <input class="form-input" id="sc-ir-array" type="number" step="0.01" value="${scSafe.ir_array}" placeholder="&gt; 1 MΩ required" />
-            <div class="form-hint">IEC 62446-1: minimum 1 MΩ at 500V DC test voltage.</div>
+            <input class="form-input" id="sc-ir-array" type="number" step="0.01" value="${scSafe.ir_array}" placeholder="&gt; ${_esc(irMinMOhm)} MΩ required" />
+            <div class="form-hint">IEC 62446-1: minimum ${_esc(irMinMOhm)} MΩ at ${_esc(irTestVolt)}V DC test voltage.</div>
           </div>
           <div class="form-group">
             <label class="form-label">Measured Performance Ratio (%)</label>
@@ -359,14 +376,14 @@ const Inspection = (() => {
     if (commOk) commOk.addEventListener('change', () => { _session.systemChecks.commissioning_ok = commOk.checked; _debounceSave(); });
     if (pucslOk) pucslOk.addEventListener('change', () => { _session.systemChecks.pucsl_compliant = pucslOk.checked; _debounceSave(); });
 
-    _renderStrings(body);
+    _renderStrings(body, { irMinMOhm });
 
     body.querySelector('#insp-add-str-btn').addEventListener('click', () => {
-      _addStringEntry(); _renderStrings(body); _debounceSave();
+      _addStringEntry(); _renderStrings(body, { irMinMOhm }); _debounceSave();
     });
     body.querySelector('#insp-bulk-str-btn').addEventListener('click', () => {
       const n = parseInt(prompt('How many strings to add?', '12'));
-      if (!isNaN(n) && n > 0) { for (let i = 0; i < n; i++) _addStringEntry(); _renderStrings(body); _debounceSave(); }
+      if (!isNaN(n) && n > 0) { for (let i = 0; i < n; i++) _addStringEntry(); _renderStrings(body, { irMinMOhm }); _debounceSave(); }
     });
     body.querySelector('#insp-save-btn').addEventListener('click', () => {
       _saveSession(); App.state.lastSessionId = _session.id; App.toast('Inspection saved', 'success');
@@ -403,7 +420,8 @@ const Inspection = (() => {
       </div>`;
   }
 
-  function _renderStrings(body) {
+  function _renderStrings(body, options) {
+    const irMinMOhm = options && Number.isFinite(Number(options.irMinMOhm)) ? Number(options.irMinMOhm) : 1;
     const container = body.querySelector('#insp-strings');
     if (!_session.strings.length) {
       container.innerHTML = `<div class="text-muted text-sm">No strings added.</div>`;
@@ -427,7 +445,7 @@ const Inspection = (() => {
           </div>
           <div class="form-group" style="margin-bottom:8px">
             <label class="form-label">IR (MΩ)</label>
-            <input class="form-input" type="number" step="0.01" data-si="${i}" data-sfield="IR" value="${_esc(s.IR||'')}" placeholder="&gt;1 MΩ" />
+            <input class="form-input" type="number" step="0.01" data-si="${i}" data-sfield="IR" value="${_esc(s.IR||'')}" placeholder="&gt;${_esc(irMinMOhm)} MΩ" />
           </div>
         </div>
         <div class="form-label" style="margin-bottom:6px">Visual — IEC 61215/61730 (check = defect found)</div>
@@ -469,7 +487,7 @@ const Inspection = (() => {
     container.querySelectorAll('[data-sdel]').forEach(btn => {
       btn.addEventListener('click', () => {
         _session.strings.splice(parseInt(btn.dataset.sdel), 1);
-        _renderStrings(body); _debounceSave();
+        _renderStrings(body, { irMinMOhm }); _debounceSave();
       });
     });
   }

@@ -18,6 +18,23 @@ const Reports = (() => {
   const PAGE_W = 210;
   const CONTENT_W = PAGE_W - MARGIN * 2;
 
+  function _defaultFieldProfile() {
+    if (typeof StandardsRules !== 'undefined' && StandardsRules && typeof StandardsRules.getFieldTestProfile === 'function') {
+      return StandardsRules.getFieldTestProfile();
+    }
+    if (typeof PVCalc !== 'undefined' && PVCalc && typeof PVCalc.getFieldTestProfile === 'function') {
+      return PVCalc.getFieldTestProfile();
+    }
+    return { vocTolPct: 2, iscTolPct: 5, label: 'IEC 62446-1:2016 + AMD1:2018' };
+  }
+
+  function _irRule() {
+    if (typeof StandardsRules !== 'undefined' && StandardsRules && typeof StandardsRules.getIRTestRule === 'function') {
+      return StandardsRules.getIRTestRule();
+    }
+    return { minMOhm: 1.0 };
+  }
+
   function _doc() {
     return new window.jspdf.jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
   }
@@ -100,6 +117,7 @@ const Reports = (() => {
 
     const doc = _doc();
     const site = session.site;
+    const irMinMOhm = Number(_irRule().minMOhm || 1);
 
     const inspType = { commissioning: 'Commissioning (IEC 62446-1)', periodic: 'Periodic / Annual', fault: 'Fault Investigation' };
     let y = _addHeader(
@@ -161,7 +179,7 @@ const Reports = (() => {
       scRow('String / Combiner Labelling',              sc.string_labelling);
       scRow('Inverter Display / Alarms',                sc.inverter_display);
       scRow('Grid Connection Approval',                 sc.grid_connection);
-      if (sc.ir_array)    scRow('Array IR Test (DC to Earth)',  sc.ir_array + ' MΩ — ' + (parseFloat(sc.ir_array) >= 1 ? 'PASS' : 'FAIL < 1 MΩ'));
+      if (sc.ir_array)    scRow('Array IR Test (DC to Earth)',  sc.ir_array + ' MΩ — ' + (parseFloat(sc.ir_array) >= irMinMOhm ? 'PASS' : `FAIL < ${irMinMOhm} MΩ`));
       if (sc.pr_measured) scRow('Performance Ratio (Measured)', sc.pr_measured + '%');
       if (sc.pr_expected) scRow('Performance Ratio (Expected)', sc.pr_expected + '%');
 
@@ -180,13 +198,13 @@ const Reports = (() => {
       s.visual && (s.visual.hotspot || s.visual.crack || s.visual.connector || s.visual.earthing || s.visual.delamination || s.visual.jbox || s.visual.frame)
     ).length;
     const soiledStrings = session.strings.filter(s => s.visual && s.visual.soiling).length;
-    const irFails = session.strings.filter(s => s.IR !== '' && s.IR !== undefined && parseFloat(s.IR) < 1).length;
+    const irFails = session.strings.filter(s => s.IR !== '' && s.IR !== undefined && parseFloat(s.IR) < irMinMOhm).length;
 
     y = _sectionTitle(doc, y, 'Inspection Summary');
     y = _kv(doc, y, 'Total Strings Inspected', totalStrings);
     y = _kv(doc, y, 'Strings with Visual Defects', faultStrings + (faultStrings > 0 ? ' !' : ' OK'));
     y = _kv(doc, y, 'Strings with Heavy Soiling', soiledStrings);
-    if (irFails > 0) y = _kv(doc, y, 'Strings with IR < 1 MΩ (FAIL)', irFails + ' — DO NOT ENERGISE');
+    if (irFails > 0) y = _kv(doc, y, `Strings with IR < ${irMinMOhm} MΩ (FAIL)`, irFails + ' — DO NOT ENERGISE');
     y += 3;
 
     // --- STRING TABLE ---
@@ -209,7 +227,7 @@ const Reports = (() => {
         ].filter(Boolean).join(', ');
 
         const irVal = s.IR !== '' && s.IR !== undefined ? parseFloat(s.IR) : null;
-        const irFail = irVal !== null && irVal < 1;
+        const irFail = irVal !== null && irVal < irMinMOhm;
 
         return {
           label: s.label,
@@ -460,9 +478,12 @@ const Reports = (() => {
     y += 2;
 
     const failCount = data.results.filter(r => !r.passVoc || !r.passIsc).length;
+    const profile = _defaultFieldProfile();
+    const vocTol = Number(data.tolerances && Number.isFinite(Number(data.tolerances.vocPct)) ? data.tolerances.vocPct : profile.vocTolPct);
+    const iscTol = Number(data.tolerances && Number.isFinite(Number(data.tolerances.iscPct)) ? data.tolerances.iscPct : profile.iscTolPct);
     y = _sectionTitle(doc, y, 'Summary');
     y = _kv(doc, y, 'Overall Status', failCount === 0 ? 'PASS' : `${failCount} String(s) Fail`);
-    y = _kv(doc, y, 'Pass Criteria', 'Voc +/-3%, Isc +/-5%');
+    y = _kv(doc, y, 'Pass Criteria', `Voc +/-${vocTol.toFixed(1)}%, Isc +/-${iscTol.toFixed(1)}%`);
     y += 2;
 
     const rows = data.results.map(r => ({

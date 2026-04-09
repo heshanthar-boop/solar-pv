@@ -21,6 +21,39 @@ const PVInspector = (() => {
 
   let _session = null;   // { fileName, importedAt, rows[], ivRows[], projectName, stats }
 
+  function _activeFieldProfile() {
+    const requestedProfileId = (typeof App !== 'undefined' && App && App.state && App.state.fieldTestProfileId)
+      ? App.state.fieldTestProfileId
+      : undefined;
+
+    if (typeof StandardsRules !== 'undefined' && StandardsRules && typeof StandardsRules.getFieldTestProfile === 'function') {
+      return StandardsRules.getFieldTestProfile(requestedProfileId);
+    }
+    if (typeof PVCalc !== 'undefined' && PVCalc && typeof PVCalc.getFieldTestProfile === 'function') {
+      return PVCalc.getFieldTestProfile(requestedProfileId);
+    }
+    return {
+      id: 'iec62446_2016',
+      label: 'IEC 62446-1:2016 + AMD1:2018',
+      vocTolPct: 2,
+      iscTolPct: 5
+    };
+  }
+
+  function _activeLimits() {
+    const profile = _activeFieldProfile();
+    const irRule = (typeof StandardsRules !== 'undefined' && StandardsRules && typeof StandardsRules.getIRTestRule === 'function')
+      ? StandardsRules.getIRTestRule()
+      : { minMOhm: 1 };
+    return {
+      profileLabel: String(profile.label || 'IEC 62446-1 profile'),
+      vocPct: Number(profile.vocTolPct || 2),
+      iscPct: Number(profile.iscTolPct || 5),
+      pmppPct: 5,
+      irMOhm: Number(irRule.minMOhm || 1),
+    };
+  }
+
   // =========================================================================
   // UNIT PARSER
   // Metrel embeds units into cell text: "684 W/m2" → { val: 684, unit: 'W/m2' }
@@ -254,25 +287,19 @@ const PVInspector = (() => {
 
   function checkVsDB(row, panel) {
     if (!panel || !row.Uoc_n || !row.Isc_n) return null;
+    const limits = _activeLimits();
     const Voc_exp  = panel.Voc * (row.nMod || 1);
     const Isc_exp  = panel.Isc;
     const devVoc   = ((row.Uoc_n - Voc_exp) / Voc_exp) * 100;
     const devIsc   = ((row.Isc_n - Isc_exp) / Isc_exp) * 100;
-    const passVoc  = Math.abs(devVoc) <= 3;
-    const passIsc  = Math.abs(devIsc) <= 5;
+    const passVoc  = Math.abs(devVoc) <= limits.vocPct;
+    const passIsc  = Math.abs(devIsc) <= limits.iscPct;
     return { Voc_exp, Isc_exp, devVoc, devIsc, passVoc, passIsc };
   }
 
   // =========================================================================
   // RULE-BASED FAULT PREDICTION (STRING LEVEL)
   // =========================================================================
-
-  const FAULT_LIMITS = {
-    vocPct: 3,
-    iscPct: 5,
-    pmppPct: 5,
-    irMOhm: 1,
-  };
 
   function _predictionBadgeClass(severity) {
     if (severity === 'critical' || severity === 'fault') return 'badge-fail';
@@ -322,6 +349,7 @@ const PVInspector = (() => {
   }
 
   function _predictRowFaults(row, dbCheck) {
+    const limits = _activeLimits();
     const candidates = {};
     const evidence = [];
 
@@ -331,8 +359,8 @@ const PVInspector = (() => {
     const ffPct = row.FF_n !== null && row.FF_n !== undefined ? row.FF_n : row.FF_m;
     const lowIrr = row.irr !== null && row.irr < 300;
     const highTemp = row.tcell !== null && row.tcell >= 70;
-    const irPosFail = row.Roc_pos !== null && row.Roc_pos < FAULT_LIMITS.irMOhm;
-    const irNegFail = row.Roc_neg !== null && row.Roc_neg < FAULT_LIMITS.irMOhm;
+    const irPosFail = row.Roc_pos !== null && row.Roc_pos < limits.irMOhm;
+    const irNegFail = row.Roc_neg !== null && row.Roc_neg < limits.irMOhm;
 
     function addEvidence(msg) {
       if (msg && !evidence.includes(msg)) evidence.push(msg);
@@ -353,11 +381,11 @@ const PVInspector = (() => {
         'Earth Fault / Insulation Failure',
         'critical',
         97,
-        'Insulation resistance below IEC 62446-1 minimum (1 MOhm at 500V).',
+        `Insulation resistance below IEC 62446-1 minimum (${limits.irMOhm} MOhm at 500V).`,
         'Isolate immediately. Perform DC+ and DC- to earth isolation tracing and repair damaged cable/connector/module.'
       );
-      if (irPosFail) addEvidence(`Roc+ ${row.Roc_pos.toFixed(2)} MOhm < 1 MOhm`);
-      if (irNegFail) addEvidence(`Roc- ${row.Roc_neg.toFixed(2)} MOhm < 1 MOhm`);
+      if (irPosFail) addEvidence(`Roc+ ${row.Roc_pos.toFixed(2)} MOhm < ${limits.irMOhm} MOhm`);
+      if (irNegFail) addEvidence(`Roc- ${row.Roc_neg.toFixed(2)} MOhm < ${limits.irMOhm} MOhm`);
     }
 
     if (dVoc !== null && dVoc <= -12 && (dIsc === null || Math.abs(dIsc) <= 5)) {
@@ -482,9 +510,9 @@ const PVInspector = (() => {
     }
 
     const all = Object.values(candidates).sort((a, b) => b.confidence - a.confidence);
-    const vocOk = dVoc === null || Math.abs(dVoc) <= FAULT_LIMITS.vocPct;
-    const iscOk = dIsc === null || Math.abs(dIsc) <= FAULT_LIMITS.iscPct;
-    const pmppOk = dPmpp === null || Math.abs(dPmpp) <= FAULT_LIMITS.pmppPct;
+    const vocOk = dVoc === null || Math.abs(dVoc) <= limits.vocPct;
+    const iscOk = dIsc === null || Math.abs(dIsc) <= limits.iscPct;
+    const pmppOk = dPmpp === null || Math.abs(dPmpp) <= limits.pmppPct;
     const irOk = !irPosFail && !irNegFail;
 
     if (!all.length && vocOk && iscOk && pmppOk && irOk) {
@@ -818,9 +846,10 @@ const PVInspector = (() => {
   // =========================================================================
 
   function _renderSummaryCards(stats, s) {
+    const limits = _activeLimits();
     const prCls = stats.passRate >= 95 ? 'alert-safe' : stats.passRate >= 80 ? 'alert-warn' : 'alert-unsafe';
-    const rocOk = (stats.roc.minPos === null || stats.roc.minPos >= 1) &&
-                  (stats.roc.minNeg === null || stats.roc.minNeg >= 1);
+    const rocOk = (stats.roc.minPos === null || stats.roc.minPos >= limits.irMOhm) &&
+                  (stats.roc.minNeg === null || stats.roc.minNeg >= limits.irMOhm);
 
     return `
     <div class="card">
@@ -857,7 +886,7 @@ const PVInspector = (() => {
           <div class="result-label">Avg T_cell (°C)</div>
           <div class="result-unit">${stats.tcell.min?.toFixed(1)}–${stats.tcell.max?.toFixed(1)} °C</div>
         </div>
-        <div class="result-box ${stats.dUoc && Math.abs(stats.dUoc.avg||0) > 3 ? 'alert-warn' : ''}">
+        <div class="result-box ${stats.dUoc && Math.abs(stats.dUoc.avg||0) > limits.vocPct ? 'alert-warn' : ''}">
           <div class="result-value">${stats.dUoc.avg !== null ? stats.dUoc.avg.toFixed(1)+'%' : '—'}</div>
           <div class="result-label">Avg ΔVoc</div>
           <div class="result-unit">${stats.dUoc.min?.toFixed(1)}% to ${stats.dUoc.max?.toFixed(1)}%</div>
@@ -871,6 +900,7 @@ const PVInspector = (() => {
   // =========================================================================
 
   function _renderStatusBreakdown(s) {
+    const limits = _activeLimits();
     // ΔVoc histogram
     const dVocVals = s.rows.map(r => r.dUoc).filter(v => v !== null);
     const dIscVals = s.rows.map(r => r.dIsc).filter(v => v !== null);
@@ -881,16 +911,16 @@ const PVInspector = (() => {
       <div class="form-row cols-2" style="gap:16px">
         <div>
           <div class="section-title">ΔVoc (%) — all strings</div>
-          ${_miniHistogram(dVocVals, -10, 10, 20, '%', 3)}
+          ${_miniHistogram(dVocVals, -10, 10, 20, '%', limits.vocPct)}
         </div>
         <div>
           <div class="section-title">ΔIsc (%) — all strings</div>
-          ${_miniHistogram(dIscVals, -15, 5, 20, '%', 5)}
+          ${_miniHistogram(dIscVals, -15, 5, 20, '%', limits.iscPct)}
         </div>
       </div>
       ${s.stats.dPmpp.avg !== null ? `
       <div class="section-title" style="margin-top:10px">ΔPmpp (%) — power deviation at MPP</div>
-      ${_miniHistogram(s.rows.map(r=>r.dPmpp).filter(v=>v!==null), -15, 5, 20, '%', 5)}
+      ${_miniHistogram(s.rows.map(r=>r.dPmpp).filter(v=>v!==null), -15, 5, 20, '%', limits.pmppPct)}
       ` : ''}
     </div>`;
   }
@@ -947,6 +977,7 @@ const PVInspector = (() => {
   // =========================================================================
 
   function _renderStringTable(s) {
+    const limits = _activeLimits();
     const hasMpp = s.rows.some(r => r.hasMpp);
     const preds = _ensurePredictions(s);
     const rows = s.rows.map((r, i) => {
@@ -958,9 +989,9 @@ const PVInspector = (() => {
           ? '<span class="status-badge badge-fail">FAIL</span>'
           : `<span class="status-badge badge-warn">${App.escapeHTML(r.status)}</span>`;
 
-      const dVocCls = r.dUoc !== null && Math.abs(r.dUoc) > 3 ? 'style="color:var(--danger);font-weight:700"' : '';
-      const dIscCls = r.dIsc !== null && Math.abs(r.dIsc) > 5 ? 'style="color:var(--danger);font-weight:700"' : '';
-      const rocOk   = (r.Roc_pos === null || r.Roc_pos >= 1) && (r.Roc_neg === null || r.Roc_neg >= 1);
+      const dVocCls = r.dUoc !== null && Math.abs(r.dUoc) > limits.vocPct ? 'style="color:var(--danger);font-weight:700"' : '';
+      const dIscCls = r.dIsc !== null && Math.abs(r.dIsc) > limits.iscPct ? 'style="color:var(--danger);font-weight:700"' : '';
+      const rocOk   = (r.Roc_pos === null || r.Roc_pos >= limits.irMOhm) && (r.Roc_neg === null || r.Roc_neg >= limits.irMOhm);
 
       // DB comparison
       const dbCheck = s.refPanel ? checkVsDB(r, s.refPanel) : null;
@@ -1031,6 +1062,7 @@ const PVInspector = (() => {
   function _showStringDetail(row, refPanel, res, idx) {
     const detailDiv = res.querySelector('#insp-string-detail');
     if (!detailDiv) return;
+    const limits = _activeLimits();
 
     // Toggle off if same
     if (detailDiv.dataset.idx === String(idx) && !detailDiv.classList.contains('hidden')) {
@@ -1043,7 +1075,7 @@ const PVInspector = (() => {
 
     const dbCheck = refPanel ? checkVsDB(row, refPanel) : null;
     const pred = _predictRowFaults(row, dbCheck);
-    const rocOk   = (row.Roc_pos === null || row.Roc_pos >= 1) && (row.Roc_neg === null || row.Roc_neg >= 1);
+    const rocOk   = (row.Roc_pos === null || row.Roc_pos >= limits.irMOhm) && (row.Roc_neg === null || row.Roc_neg >= limits.irMOhm);
 
     detailDiv.innerHTML = `
       <div style="margin-top:12px;padding:14px;background:var(--bg-2);border-radius:var(--radius);border:1px solid var(--border)">
@@ -1067,8 +1099,8 @@ const PVInspector = (() => {
             ${_kv('Isc (measured)', row.Isc_m !== null ? row.Isc_m.toFixed(3)+' A' : '—')}
             ${_kv('Voc (STC norm)', row.Uoc_n !== null ? row.Uoc_n.toFixed(1)+' V' : '—')}
             ${_kv('Isc (STC norm)', row.Isc_n !== null ? row.Isc_n.toFixed(3)+' A' : '—')}
-            ${_kv('ΔVoc', row.dUoc !== null ? row.dUoc.toFixed(2)+'%' : '—', Math.abs(row.dUoc||0)>3)}
-            ${_kv('ΔIsc', row.dIsc !== null ? row.dIsc.toFixed(2)+'%' : '—', Math.abs(row.dIsc||0)>5)}
+            ${_kv('ΔVoc', row.dUoc !== null ? row.dUoc.toFixed(2)+'%' : '—', Math.abs(row.dUoc||0)>limits.vocPct)}
+            ${_kv('ΔIsc', row.dIsc !== null ? row.dIsc.toFixed(2)+'%' : '—', Math.abs(row.dIsc||0)>limits.iscPct)}
           </div>
         </div>
 
@@ -1082,7 +1114,7 @@ const PVInspector = (() => {
           </div>
           <div>
             ${_kv('Pmpp (STC norm)', row.Pmpp_n !== null ? row.Pmpp_n.toFixed(1)+' W' : '—')}
-            ${_kv('ΔPmpp', row.dPmpp !== null ? row.dPmpp.toFixed(2)+'%' : '—', Math.abs(row.dPmpp||0)>5)}
+            ${_kv('ΔPmpp', row.dPmpp !== null ? row.dPmpp.toFixed(2)+'%' : '—', Math.abs(row.dPmpp||0)>limits.pmppPct)}
             ${_kv('FF (measured)', row.FF_m !== null ? row.FF_m.toFixed(2)+'%' : '—')}
             ${_kv('FF (STC norm)', row.FF_n !== null ? row.FF_n.toFixed(2)+'%' : '—')}
           </div>
@@ -1091,14 +1123,14 @@ const PVInspector = (() => {
         <div class="section-title" style="margin-top:10px">Insulation Resistance (IEC 62446-1)</div>
         <div class="form-row cols-2">
           <div>
-            ${_kv('Roc+ (DC+ to Earth)', row.Roc_pos !== null ? row.Roc_pos.toFixed(1)+' MΩ' : '—', row.Roc_pos !== null && row.Roc_pos < 1)}
-            ${_kv('Roc− (DC− to Earth)', row.Roc_neg !== null ? row.Roc_neg.toFixed(1)+' MΩ' : '—', row.Roc_neg !== null && row.Roc_neg < 1)}
+            ${_kv('Roc+ (DC+ to Earth)', row.Roc_pos !== null ? row.Roc_pos.toFixed(1)+' MΩ' : '—', row.Roc_pos !== null && row.Roc_pos < limits.irMOhm)}
+            ${_kv('Roc− (DC− to Earth)', row.Roc_neg !== null ? row.Roc_neg.toFixed(1)+' MΩ' : '—', row.Roc_neg !== null && row.Roc_neg < limits.irMOhm)}
             ${_kv('Uiso (test voltage)', row.Uiso !== null ? row.Uiso.toFixed(0)+' V' : '—')}
           </div>
           <div>
             <div class="result-box ${rocOk ? 'alert-safe' : 'alert-unsafe'}" style="margin-top:4px">
               <div class="result-value" style="font-size:1.1rem">${rocOk ? '&#10003; IR PASS' : '&#9888; IR FAIL'}</div>
-              <div class="result-unit">Min IEC 62446-1: 1 MΩ at 500V</div>
+              <div class="result-unit">Min IEC 62446-1: ${limits.irMOhm.toFixed(1)} MΩ at 500V</div>
             </div>
           </div>
         </div>
@@ -1118,7 +1150,7 @@ const PVInspector = (() => {
           </div>
         </div>
         <div class="info-box" style="font-size:0.78rem;margin-top:6px">
-          IEC 62446-1: Voc tolerance ±3%, Isc tolerance ±5% vs STC datasheet.
+          ${App.escapeHTML(limits.profileLabel)}: Voc tolerance ±${limits.vocPct}%, Isc tolerance ±${limits.iscPct}% vs STC datasheet.
           ${dbCheck.passVoc && dbCheck.passIsc ? '&#10003; Both within limits.' : '&#9888; One or more deviations exceed limits — investigate.'}
         </div>` : ''}
 
@@ -1218,6 +1250,7 @@ const PVInspector = (() => {
   function _showIVDetail(row, res) {
     const detailDiv = res.querySelector('#insp-iv-detail');
     if (!detailDiv) return;
+    const limits = _activeLimits();
 
     if (!row.hasIV) {
       detailDiv.innerHTML = '<div class="info-box">No I/V curve data in this record.</div>';
@@ -1290,13 +1323,13 @@ const PVInspector = (() => {
         <div class="result-grid" style="grid-template-columns:repeat(4,1fr);margin-top:10px">
           ${_rbox(mpp.U.toFixed(2)+' V', 'Vmpp (meas.)')}
           ${_rbox(mpp.I.toFixed(3)+' A', 'Impp (meas.)')}
-          ${_rbox((mpp.U*mpp.I).toFixed(2)+' W', 'Pmpp (meas.)', Math.abs(((mpp.U*mpp.I)-(row.Pmpp_m||mpp.U*mpp.I))/(row.Pmpp_m||1)*100) > 5 ? 'alert-warn' : '')}
+          ${_rbox((mpp.U*mpp.I).toFixed(2)+' W', 'Pmpp (meas.)', Math.abs(((mpp.U*mpp.I)-(row.Pmpp_m||mpp.U*mpp.I))/(row.Pmpp_m||1)*100) > limits.pmppPct ? 'alert-warn' : '')}
           ${_rbox((row.FF_m||0).toFixed(1)+'%', 'Fill Factor', (row.FF_m||0) < 70 ? 'alert-warn' : '')}
         </div>
         ${row.dPmpp !== null ? `
-        <div class="${Math.abs(row.dPmpp)>5 ? 'warn-box' : 'info-box'}" style="margin-top:8px;font-size:0.80rem">
+        <div class="${Math.abs(row.dPmpp)>limits.pmppPct ? 'warn-box' : 'info-box'}" style="margin-top:8px;font-size:0.80rem">
           ΔPmpp = ${row.dPmpp.toFixed(2)}% vs STC normalised value.
-          ${Math.abs(row.dPmpp) > 5 ? '⚠ Exceeds ±5% — investigate module.' : '✓ Within acceptable range.'}
+          ${Math.abs(row.dPmpp) > limits.pmppPct ? '⚠ Exceeds ±'+limits.pmppPct+'% — investigate module.' : '✓ Within acceptable range.'}
         </div>` : ''}
       </div>`;
   }

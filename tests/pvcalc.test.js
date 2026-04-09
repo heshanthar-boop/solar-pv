@@ -3,6 +3,30 @@ const assert = require('node:assert/strict');
 const { loadBrowserModule } = require('./helpers/load-browser-module');
 
 const PVCalc = loadBrowserModule('js/pv-calc.js', 'PVCalc');
+const mockRules = {
+  getFieldTestProfiles: () => ({
+    custom_profile: {
+      id: 'custom_profile',
+      label: 'Custom Standards Profile',
+      vocTolPct: 1,
+      iscTolPct: 2,
+      note: 'Mocked profile for integration test',
+    }
+  }),
+  getDefaultFieldTestProfileId: () => 'custom_profile',
+  getFieldTestProfile: (profile) => {
+    if (profile && typeof profile === 'object') return profile;
+    return {
+      id: 'custom_profile',
+      label: 'Custom Standards Profile',
+      vocTolPct: 1,
+      iscTolPct: 2,
+      note: 'Mocked profile for integration test',
+    };
+  },
+  getIRTestRule: () => ({ minMOhm: 2.5, standardRef: 'Mock IR rule' }),
+};
+const PVCalcWithRules = loadBrowserModule('js/pv-calc.js', 'PVCalc', { StandardsRules: mockRules });
 
 const panel = {
   Voc: 49.8,
@@ -57,4 +81,17 @@ test('detectFault identifies open-circuit condition', () => {
   const fault = PVCalc.detectFault(5, 0.2, 800, 13, 16, panel);
   assert.equal(fault.severity, 'fault');
   assert.match(fault.fault, /Open Circuit/i);
+});
+
+test('PVCalc consumes StandardsRules field-test profile when provided', () => {
+  const profile = PVCalcWithRules.getFieldTestProfile();
+  assert.equal(profile.id, 'custom_profile');
+  assert.equal(profile.vocTolPct, 1);
+  assert.equal(profile.iscTolPct, 2);
+});
+
+test('irTestResult uses StandardsRules minimum when provided', () => {
+  const out = PVCalcWithRules.irTestResult(2.0);
+  assert.equal(out.min, 2.5);
+  assert.equal(out.pass, false);
 });

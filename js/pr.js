@@ -16,8 +16,42 @@ const PRCalc = (() => {
       .replace(/'/g, '&#39;');
   }
 
+  function _fieldProfile() {
+    if (typeof StandardsRules !== 'undefined' && StandardsRules && typeof StandardsRules.getFieldTestProfile === 'function') {
+      return StandardsRules.getFieldTestProfile();
+    }
+    if (typeof PVCalc !== 'undefined' && PVCalc && typeof PVCalc.getFieldTestProfile === 'function') {
+      return PVCalc.getFieldTestProfile();
+    }
+    return {
+      id: 'iec62446_2016',
+      label: 'IEC 62446-1:2016 + AMD1:2018',
+      vocTolPct: 2,
+      iscTolPct: 5,
+      standardRef: 'IEC 62446-1:2016 + AMD1:2018'
+    };
+  }
+
+  function _irRule() {
+    if (typeof StandardsRules !== 'undefined' && StandardsRules && typeof StandardsRules.getIRTestRule === 'function') {
+      return StandardsRules.getIRTestRule();
+    }
+    return {
+      minMOhm: 1.0,
+      testVoltageV: 500,
+      standardRef: 'IEC 62446-1:2016 + AMD1:2018 Cl. 5.3.3'
+    };
+  }
+
   function render(container) {
     const panels = DB.getAll();
+    const ftProfile = _fieldProfile();
+    const irRule = _irRule();
+    const vocTolText = Number(ftProfile.vocTolPct).toFixed(0);
+    const iscTolText = Number(ftProfile.iscTolPct).toFixed(0);
+    const irMinText = Number(irRule.minMOhm).toFixed(0);
+    const irVoltText = Number(irRule.testVoltageV).toFixed(0);
+    const irStandardRef = String(irRule.standardRef || 'IEC 62446-1');
     const panelOptions = panels.map(p =>
       `<option value="${_esc(p.id)}">${_esc(p.manufacturer)} ${_esc(p.model)} (${_esc(p.Pmax)}W)</option>`
     ).join('');
@@ -100,7 +134,7 @@ const PRCalc = (() => {
         <div class="card">
           <div class="card-title">Insulation Resistance (IR) Test — IEC 62446-1</div>
           <div class="info-box">
-            Minimum 1 MΩ at 500V DC test voltage (IEC 62446-1:2016 + AMD1:2018 Cl. 5.3.3). Test DC+ to earth and DC− to earth separately.
+            Minimum ${_esc(irMinText)} MΩ at ${_esc(irVoltText)}V DC test voltage (${_esc(irStandardRef)}). Test DC+ to earth and DC− to earth separately.
           </div>
           <div class="form-row cols-2">
             <div class="form-group">
@@ -113,7 +147,7 @@ const PRCalc = (() => {
             </div>
             <div class="form-group">
               <label class="form-label">Test Voltage (V)</label>
-              <input class="form-input" id="ir-volt" type="number" value="500" />
+              <input class="form-input" id="ir-volt" type="number" value="${_esc(irVoltText)}" />
               <div class="form-hint">Typically 500V DC for ≤1000V systems</div>
             </div>
             <div class="form-group">
@@ -131,7 +165,7 @@ const PRCalc = (() => {
           <table class="status-table">
             <thead><tr><th>Standard</th><th>Scope</th><th>Key Limit / Requirement</th></tr></thead>
             <tbody>
-              <tr><td><strong>IEC 62446-1:2016 + AMD1:2018</strong></td><td>Commissioning tests &amp; documentation</td><td>IR ≥ 1 MΩ, Voc ±2%, Isc ±5% of STC</td></tr>
+              <tr><td><strong>${_esc(ftProfile.label)}</strong></td><td>Commissioning tests &amp; documentation</td><td>IR ≥ ${_esc(irMinText)} MΩ, Voc ±${_esc(vocTolText)}%, Isc ±${_esc(iscTolText)}% of STC</td></tr>
               <tr><td><strong>IEC 61215:2021</strong></td><td>Module design qualification</td><td>Performance &amp; durability testing</td></tr>
               <tr><td><strong>IEC 61730:2023</strong></td><td>Module safety qualification</td><td>Earthing, insulation, mechanical</td></tr>
               <tr><td><strong>IEC 60364-7-712:2025</strong></td><td>PV electrical installation</td><td>Earthing resistance &lt;1Ω</td></tr>
@@ -246,7 +280,10 @@ const PRCalc = (() => {
 
     if (isNaN(pos) && isNaN(neg)) { App.toast('Enter at least one IR measurement', 'error'); return; }
 
-    const MIN = 1.0;
+    const irRule = _irRule();
+    const MIN = Number.isFinite(Number(irRule.minMOhm)) ? Number(irRule.minMOhm) : 1.0;
+    const minTestVolt = Number.isFinite(Number(irRule.testVoltageV)) ? Number(irRule.testVoltageV) : 500;
+    const standardRef = String(irRule.standardRef || 'IEC 62446-1');
     function row(label, val) {
       if (isNaN(val)) return '';
       const pass = val >= MIN;
@@ -274,8 +311,8 @@ const PRCalc = (() => {
         </tbody>
       </table>
       <div class="info-box" style="margin-top:8px;font-size:0.78rem">
-        IEC 62446-1:2016 + AMD1:2018 Cl. 5.3.3: Minimum insulation resistance ≥ 1 MΩ at 500V DC test voltage.
-        Test both polarities. Values below 1 MΩ indicate earth fault — do not energise.
+        ${_esc(standardRef)}: Minimum insulation resistance ≥ ${_esc(MIN)} MΩ at ${_esc(minTestVolt)}V DC test voltage.
+        Test both polarities. Values below ${_esc(MIN)} MΩ indicate earth fault — do not energise.
       </div>
     `;
 

@@ -18,7 +18,7 @@ const PVCalc = (() => {
     mismatch_isc_ratio: 0.90,           // Isc < 90% while Voc is normal -> mismatch
   };
 
-  const FIELD_TEST_PROFILES = {
+  const FALLBACK_FIELD_TEST_PROFILES = {
     iec62446_2016: {
       id: 'iec62446_2016',
       label: 'IEC 62446-1:2016 + AMD1:2018',
@@ -35,7 +35,25 @@ const PVCalc = (() => {
     },
   };
 
+  function getFieldTestProfiles() {
+    if (typeof StandardsRules !== 'undefined' && StandardsRules && typeof StandardsRules.getFieldTestProfiles === 'function') {
+      return StandardsRules.getFieldTestProfiles();
+    }
+    return { ...FALLBACK_FIELD_TEST_PROFILES };
+  }
+
+  function _defaultFieldTestProfileId() {
+    if (typeof StandardsRules !== 'undefined' && StandardsRules && typeof StandardsRules.getDefaultFieldTestProfileId === 'function') {
+      return StandardsRules.getDefaultFieldTestProfileId();
+    }
+    return 'iec62446_2016';
+  }
+
   function getFieldTestProfile(profile) {
+    if (typeof StandardsRules !== 'undefined' && StandardsRules && typeof StandardsRules.getFieldTestProfile === 'function') {
+      return StandardsRules.getFieldTestProfile(profile);
+    }
+
     if (profile && typeof profile === 'object') {
       const vocTolPct = Number(profile.vocTolPct);
       const iscTolPct = Number(profile.iscTolPct);
@@ -49,8 +67,10 @@ const PVCalc = (() => {
         };
       }
     }
-    const key = String(profile || 'iec62446_2016');
-    return FIELD_TEST_PROFILES[key] || FIELD_TEST_PROFILES.iec62446_2016;
+    const profiles = getFieldTestProfiles();
+    const defaultId = _defaultFieldTestProfileId();
+    const key = String(profile || defaultId);
+    return profiles[key] || profiles[defaultId] || FALLBACK_FIELD_TEST_PROFILES.iec62446_2016;
   }
 
   // -----------------------------------------------------------------------
@@ -421,12 +441,18 @@ const PVCalc = (() => {
    * Returns 'pass' or 'fail' and the minimum value.
    */
   function irTestResult(measured_MOhm) {
-    const MIN_IR = 1.0; // MΩ — IEC 62446-1
+    const irRule = (typeof StandardsRules !== 'undefined' && StandardsRules && typeof StandardsRules.getIRTestRule === 'function')
+      ? StandardsRules.getIRTestRule()
+      : { minMOhm: 1.0, standardRef: 'IEC 62446-1' };
+    const MIN_IR = Number.isFinite(irRule.minMOhm) ? irRule.minMOhm : 1.0;
+    const standardRef = String(irRule.standardRef || 'IEC 62446-1');
     return {
       pass: measured_MOhm >= MIN_IR,
       min: MIN_IR,
       measured: measured_MOhm,
-      verdict: measured_MOhm >= MIN_IR ? 'PASS' : 'FAIL — Below 1 MΩ minimum (IEC 62446-1)'
+      verdict: measured_MOhm >= MIN_IR
+        ? 'PASS'
+        : `FAIL — Below ${MIN_IR} MΩ minimum (${standardRef})`
     };
   }
 
@@ -555,7 +581,8 @@ const PVCalc = (() => {
     batteryCapacity, batteryAhAtVoltage, hybridPVCapacity, hybridInverterCapacity, hybridChargeCurrent,
     round2, round1, pctStr,
     THRESH,
-    FIELD_TEST_PROFILES,
+    FIELD_TEST_PROFILES: getFieldTestProfiles(),
+    getFieldTestProfiles,
     getFieldTestProfile
   };
 })();

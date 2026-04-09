@@ -32,6 +32,9 @@ const FieldTest = (() => {
   }
 
   function _profiles() {
+    if (typeof PVCalc !== 'undefined' && PVCalc && typeof PVCalc.getFieldTestProfiles === 'function') {
+      return PVCalc.getFieldTestProfiles();
+    }
     if (typeof PVCalc !== 'undefined' && PVCalc && PVCalc.FIELD_TEST_PROFILES) {
       return PVCalc.FIELD_TEST_PROFILES;
     }
@@ -45,6 +48,13 @@ const FieldTest = (() => {
     };
   }
 
+  function _defaultProfileId() {
+    if (typeof StandardsRules !== 'undefined' && StandardsRules && typeof StandardsRules.getDefaultFieldTestProfileId === 'function') {
+      return StandardsRules.getDefaultFieldTestProfileId();
+    }
+    return 'iec62446_2016';
+  }
+
   function render(container) {
     const panels = DB.getAll();
     const panelOptions = panels.map(p =>
@@ -52,9 +62,10 @@ const FieldTest = (() => {
     ).join('');
 
     const profileMap = _profiles();
+    const defaultProfileId = _defaultProfileId();
     const profileDefault = (App.state.fieldTestProfileId && profileMap[App.state.fieldTestProfileId])
       ? App.state.fieldTestProfileId
-      : 'iec62446_2016';
+      : defaultProfileId;
     const profileOptions = Object.keys(profileMap).map((id) => {
       const p = profileMap[id] || {};
       return `<option value="${_esc(id)}" ${id === profileDefault ? 'selected' : ''}>${_esc(p.label || id)}</option>`;
@@ -209,8 +220,8 @@ const FieldTest = (() => {
     const G = parseFloat(container.querySelector('#ft-irr').value) || 900;
     const T_mod = parseFloat(container.querySelector('#ft-tmod').value) || 55;
     const profileId = container.querySelector('#ft-profile')
-      ? String(container.querySelector('#ft-profile').value || 'iec62446_2016')
-      : 'iec62446_2016';
+      ? String(container.querySelector('#ft-profile').value || _defaultProfileId())
+      : _defaultProfileId();
 
     App.state.fieldTestProfileId = profileId;
 
