@@ -3,6 +3,7 @@
  */
 
 const CACHE_NAME = 'solarpv-v12';
+const CACHE_PREFIX = 'solarpv-v';
 
 const LOCAL_ASSETS = [
   './',
@@ -61,7 +62,8 @@ self.addEventListener('install', event => {
 self.addEventListener('activate', event => {
   event.waitUntil(
     caches.keys().then(keys =>
-      Promise.all(keys.filter(k => k !== CACHE_NAME).map(k => caches.delete(k)))
+      // Keep versioned app caches (solarpv-v*) for safe rollout fallback, remove unrelated caches.
+      Promise.all(keys.filter(k => !(k === CACHE_NAME || k.startsWith(CACHE_PREFIX))).map(k => caches.delete(k)))
     ).then(() => self.clients.claim())
   );
 });
