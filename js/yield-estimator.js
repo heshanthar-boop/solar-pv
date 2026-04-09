@@ -331,10 +331,10 @@ const YieldEstimator = (() => {
       // Cell temperature
       const tempResult = avgCellTemp(T_amb, NOCT, poa.H_poa, loc.lat, m);
 
-      // PR
+      // PR — coeffPmax is stored as negative decimal (e.g. -0.0035); computePR handles sign internally
       const prResult = computePR(
         tempResult.T_cell,
-        Math.abs(coeffPmax),
+        coeffPmax,
         losses.eta_inv,
         losses.L_cable,
         losses.L_soiling,

@@ -205,6 +205,8 @@ const PRCalc = (() => {
       const panel = DB.getById(panelId);
       P_expected_kW = PVCalc.expectedPower(P * 1000, G, isNaN(T) ? 25 : T, panel.coeffPmax) / 1000;
     } else {
+      // No panel selected: use -0.30%/°C (conservative typical for crystalline silicon per IEC 61724)
+      // For accurate PR, select a panel from the database to use its measured coeffPmax.
       P_expected_kW = P * (G / 1000) * (1 + (-0.0030) * ((isNaN(T) ? 25 : T) - 25));
     }
 

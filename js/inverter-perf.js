@@ -101,6 +101,8 @@ const InverterPerf = (() => {
   // -----------------------------------------------------------------------
 
   function inverterEfficiency(Pdc, Pac, Prated, T) {
+    if (!Pdc || Pdc <= 0) return null;   // guard: avoid div/0 and negative Pdc
+    if (!Prated || Prated <= 0) return null;
     const eta        = Pac / Pdc;
     const Ploss      = Pdc - Pac;
     const loadPct    = Pdc / Prated * 100;
@@ -122,6 +124,7 @@ const InverterPerf = (() => {
     const res    = container.querySelector('#ip-result');
 
     if (isNaN(Pdc)||isNaN(Pac)||isNaN(Prated)) { res.innerHTML='<div class="danger-box">Enter P_DC, P_AC and rated power</div>'; return; }
+    if (Pdc <= 0 || Prated <= 0) { res.innerHTML='<div class="danger-box">P_DC and rated power must be greater than zero</div>'; return; }
     if (Pac > Pdc) { res.innerHTML='<div class="danger-box">P_AC cannot exceed P_DC — check measurement</div>'; return; }
 
     const e   = inverterEfficiency(Pdc, Pac, Prated, T);

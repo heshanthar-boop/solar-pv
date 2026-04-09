@@ -156,7 +156,8 @@ const FaultAI = (() => {
           if (!isNaN(FF) && FF < 0.72) s += 20;
           if (!isNaN(deg) && deg > 1.0) s += 20;
           if (!isNaN(humid) && humid > 75) s += 10;
-          if (!isNaN(ir) && ir < 1.0) s += 25;   // low IR = earth leakage
+          // NOTE: IR < 1MΩ is NOT added here — that's an independent earth fault (see earth_fault entry).
+          // PID is driven by voltage deviation + humidity, not insulation failure.
           return s;
         },
         symptoms: 'Negative voltage leakage through module glass to earth. High humidity accelerates.',

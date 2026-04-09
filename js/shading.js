@@ -188,7 +188,8 @@ const ShadingLoss = (() => {
     const diodeActive  = I_shaded < 0.3 * Isc;
     const I_string     = diodeActive ? Isc : I_shaded;   // diode bypasses bad module
     const V_loss_pct   = diodeActive ? (Ns / Nm * 100) : 0;   // voltage lost per bypassed module
-    const P_before     = Isc * Nm;    // proportional
+    // P_proxy: current × module-count proxy (not watts — Vmp not known; used only for % loss ratio)
+    const P_before     = Isc * Nm;
     const P_after      = I_string * (Nm - (diodeActive ? Ns : 0));
     const P_loss_pct   = (1 - P_after / P_before) * 100;
     const cls          = P_loss_pct > 20 ? 'alert-unsafe' : P_loss_pct > 5 ? 'alert-warn' : 'alert-safe';

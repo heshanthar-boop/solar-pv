@@ -158,7 +158,7 @@ const PVCalc = (() => {
    * @param {number} T_cell - cell temperature at STC-ish condition (use 25 for STC calcs)
    */
   function arrayParams(panel, n_mod, n_str, n_mppt, T_cell) {
-    T_cell = T_cell || 25;
+    T_cell = (T_cell !== undefined && T_cell !== null) ? T_cell : 25;
     const coeffVmp = Number.isFinite(panel.coeffVmp) ? panel.coeffVmp : panel.coeffVoc;
     const coeffImp = Number.isFinite(panel.coeffImp) ? panel.coeffImp : panel.coeffIsc;
     const strings_total = n_str * n_mppt;
