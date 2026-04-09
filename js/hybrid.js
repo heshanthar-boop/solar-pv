@@ -1171,11 +1171,34 @@ const HybridSetup = (() => {
               const merged = _mergeOverrides(_loadCatalogOverrides(), imported);
               _saveCatalogOverrides(merged);
               _applyOverridesToCatalog();
+              if (typeof App !== 'undefined' && App && typeof App.addImportHistory === 'function') {
+                App.addImportHistory({
+                  source: 'Utility Override Import',
+                  fileName: file && file.name ? file.name : '',
+                  sourceFormat: importReport && importReport.sourceFormat ? importReport.sourceFormat : (isCsv ? 'csv' : 'array'),
+                  format: importReport && importReport.format ? importReport.format : '',
+                  schemaVersion: importReport && importReport.schemaVersion ? importReport.schemaVersion : '',
+                  exportedAt: importReport && importReport.exportedAt ? importReport.exportedAt : '',
+                  standardsAudit: importReport && importReport.standardsAudit ? importReport.standardsAudit : null,
+                  ok: true,
+                  records: importReport && Number.isFinite(Number(importReport.records)) ? importReport.records : 0,
+                  error: ''
+                });
+              }
               App.toast(`Utility list import applied${_utilityImportReportSuffix(importReport)}`, 'success');
               App.closeModal();
               _openUtilityListManager(container);
               render(container);
             } catch (err) {
+              if (typeof App !== 'undefined' && App && typeof App.addImportHistory === 'function') {
+                App.addImportHistory({
+                  source: 'Utility Override Import',
+                  fileName: file && file.name ? file.name : '',
+                  sourceFormat: file && file.name && file.name.toLowerCase().endsWith('.csv') ? 'csv' : 'unknown',
+                  ok: false,
+                  error: err && err.message ? err.message : 'invalid file'
+                });
+              }
               App.toast(`Import failed: ${err && err.message ? err.message : 'invalid file'}`, 'error');
             }
           };

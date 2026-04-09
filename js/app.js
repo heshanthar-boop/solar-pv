@@ -121,6 +121,8 @@ const App = (() => {
   ];
 
   const main = document.getElementById('main-content');
+  const IMPORT_HISTORY_KEY = 'solarpv_import_history_v1';
+  const IMPORT_HISTORY_MAX = 60;
 
   function escapeHTML(value) {
     return String(value ?? '')
@@ -137,6 +139,94 @@ const App = (() => {
     const m = String(d.getMonth() + 1).padStart(2, '0');
     const day = String(d.getDate()).padStart(2, '0');
     return `${y}-${m}-${day}`;
+  }
+
+  function _cleanHistoryText(value, maxLen) {
+    return String(value ?? '').replace(/[\u0000-\u001F\u007F]/g, '').trim().slice(0, maxLen || 160);
+  }
+
+  function _normalizeAudit(raw) {
+    if (!raw || typeof raw !== 'object') return null;
+    const profileId = _cleanHistoryText(raw.profileId || raw.profile || '', 64);
+    const profileLabel = _cleanHistoryText(raw.profileLabel || raw.profileName || '', 160);
+    const rulesetVersion = _cleanHistoryText(raw.rulesetVersion || raw.rulesVersion || '', 64);
+    if (!profileId && !profileLabel && !rulesetVersion) return null;
+    return { profileId, profileLabel, rulesetVersion };
+  }
+
+  function _loadImportHistory() {
+    try {
+      const raw = localStorage.getItem(IMPORT_HISTORY_KEY);
+      if (!raw) return [];
+      const arr = JSON.parse(raw);
+      if (!Array.isArray(arr)) return [];
+      return arr
+        .map((x) => (x && typeof x === 'object' ? x : null))
+        .filter(Boolean);
+    } catch (_) {
+      return [];
+    }
+  }
+
+  function _saveImportHistory(items) {
+    const safe = Array.isArray(items) ? items.slice(0, IMPORT_HISTORY_MAX) : [];
+    localStorage.setItem(IMPORT_HISTORY_KEY, JSON.stringify(safe));
+  }
+
+  function addImportHistory(entry) {
+    const raw = entry && typeof entry === 'object' ? entry : {};
+    const item = {
+      ts: _cleanHistoryText(raw.ts || new Date().toISOString(), 64),
+      source: _cleanHistoryText(raw.source || 'Import', 120),
+      fileName: _cleanHistoryText(raw.fileName || '', 180),
+      sourceFormat: _cleanHistoryText(raw.sourceFormat || '', 32),
+      format: _cleanHistoryText(raw.format || '', 64),
+      schemaVersion: _cleanHistoryText(raw.schemaVersion || '', 64),
+      exportedAt: _cleanHistoryText(raw.exportedAt || '', 64),
+      ok: raw.ok === true,
+      total: Number.isFinite(Number(raw.total)) ? Number(raw.total) : 0,
+      added: Number.isFinite(Number(raw.added)) ? Number(raw.added) : 0,
+      updated: Number.isFinite(Number(raw.updated)) ? Number(raw.updated) : 0,
+      rejected: Number.isFinite(Number(raw.rejected)) ? Number(raw.rejected) : 0,
+      records: Number.isFinite(Number(raw.records)) ? Number(raw.records) : 0,
+      error: _cleanHistoryText(raw.error || '', 240),
+      standardsAudit: _normalizeAudit(raw.standardsAudit),
+    };
+    const list = _loadImportHistory();
+    list.unshift(item);
+    _saveImportHistory(list);
+    return item;
+  }
+
+  function getImportHistory(limit) {
+    const list = _loadImportHistory();
+    if (!Number.isFinite(Number(limit)) || Number(limit) <= 0) return list;
+    return list.slice(0, Number(limit));
+  }
+
+  function clearImportHistory() {
+    localStorage.removeItem(IMPORT_HISTORY_KEY);
+  }
+
+  function _historyWhen(isoText) {
+    if (!isoText) return '-';
+    const ms = Date.parse(String(isoText));
+    if (!Number.isFinite(ms)) return String(isoText);
+    return new Date(ms).toLocaleString();
+  }
+
+  function _historyAuditText(entry) {
+    const a = entry && entry.standardsAudit;
+    if (!a) return '-';
+    const profile = a.profileLabel || a.profileId;
+    const rule = a.rulesetVersion;
+    if (profile && rule) return `${profile} @ ${rule}`;
+    return profile || rule || '-';
+  }
+
+  function _historyCountsText(entry) {
+    if (Number(entry.records || 0) > 0) return `${entry.records} records`;
+    return `${entry.added || 0} added / ${entry.updated || 0} updated / ${entry.rejected || 0} rejected`;
   }
 
   async function copyText(text) {
@@ -406,6 +496,19 @@ const App = (() => {
     const hybridCatalogVersion = hybridCatalog && (hybridCatalog.inverterVersion || hybridCatalog.batteryVersion)
       ? `Inverter v${hybridCatalog.inverterVersion || '-'} / Battery v${hybridCatalog.batteryVersion || '-'}`
       : '';
+    const importHistory = getImportHistory(8);
+    const importRows = importHistory.length
+      ? importHistory.map((h) => `
+            <tr>
+              <td>${escapeHTML(_historyWhen(h.ts))}</td>
+              <td>${escapeHTML(h.source || '-')}</td>
+              <td>${escapeHTML(h.fileName || '-')}</td>
+              <td>${escapeHTML(h.ok ? 'OK' : 'FAIL')}</td>
+              <td>${escapeHTML(_historyCountsText(h))}</td>
+              <td>${escapeHTML(_historyAuditText(h))}</td>
+            </tr>
+          `).join('')
+      : '<tr><td colspan="6" class="text-muted">No imports recorded yet.</td></tr>';
 
     container.innerHTML = `
       <div class="page">
@@ -451,6 +554,21 @@ const App = (() => {
           <div class="btn-group mt-8">
             <button class="btn btn-secondary btn-sm" id="set-open-utility-manager">Open Utility List Manager</button>
             <button class="btn btn-secondary btn-sm" id="set-export-utility-template">Download CSV Template</button>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-title">Import Details</div>
+          <div class="text-muted mt-4">Recent import history with schema and standards audit traceability.</div>
+          <div style="overflow-x:auto;margin-top:8px">
+            <table class="status-table">
+              <thead><tr><th>When</th><th>Source</th><th>File</th><th>Status</th><th>Counts</th><th>Standards</th></tr></thead>
+              <tbody>${importRows}</tbody>
+            </table>
+          </div>
+          <div class="btn-group mt-8">
+            <button class="btn btn-secondary btn-sm" id="set-import-history-view">View Full History</button>
+            <button class="btn btn-danger btn-sm" id="set-import-history-clear">Clear History</button>
           </div>
         </div>
 
@@ -558,6 +676,51 @@ const App = (() => {
         toast('Utility CSV template downloaded', 'success');
       });
     }
+
+    const viewImportHistoryBtn = container.querySelector('#set-import-history-view');
+    if (viewImportHistoryBtn) {
+      viewImportHistoryBtn.addEventListener('click', () => {
+        const rows = getImportHistory().map((h) => `
+          <tr>
+            <td>${escapeHTML(_historyWhen(h.ts))}</td>
+            <td>${escapeHTML(h.source || '-')}</td>
+            <td>${escapeHTML(h.fileName || '-')}</td>
+            <td>${escapeHTML(h.sourceFormat || '-')}</td>
+            <td>${escapeHTML(h.format || '-')}</td>
+            <td>${escapeHTML(h.schemaVersion || '-')}</td>
+            <td>${escapeHTML(h.exportedAt ? _historyWhen(h.exportedAt) : '-')}</td>
+            <td>${escapeHTML(h.ok ? 'OK' : 'FAIL')}</td>
+            <td>${escapeHTML(_historyCountsText(h))}</td>
+            <td>${escapeHTML(_historyAuditText(h))}</td>
+            <td>${escapeHTML(h.error || '-')}</td>
+          </tr>
+        `).join('');
+        const bodyHtml = `
+          <div class="text-muted mb-8">Stored locally on this device. Newest first.</div>
+          <div style="overflow-x:auto;max-height:62vh">
+            <table class="status-table">
+              <thead>
+                <tr>
+                  <th>When</th><th>Source</th><th>File</th><th>Source Format</th><th>Format</th><th>Schema</th><th>Exported At</th><th>Status</th><th>Counts</th><th>Standards</th><th>Error</th>
+                </tr>
+              </thead>
+              <tbody>${rows || '<tr><td colspan="11" class="text-muted">No imports recorded.</td></tr>'}</tbody>
+            </table>
+          </div>
+        `;
+        showModal('Import Details History', bodyHtml, [{ label: 'Close', cls: 'btn-secondary', action: 'close' }]);
+      });
+    }
+
+    const clearImportHistoryBtn = container.querySelector('#set-import-history-clear');
+    if (clearImportHistoryBtn) {
+      clearImportHistoryBtn.addEventListener('click', () => {
+        if (!confirm('Clear import history records from this device?')) return;
+        clearImportHistory();
+        toast('Import history cleared', 'success');
+        _renderSettings(container);
+      });
+    }
   }
 
   // -----------------------------------------------------------------------
@@ -623,5 +786,8 @@ const App = (() => {
     copyText,
     printHTML,
     printSection,
+    addImportHistory,
+    getImportHistory,
+    clearImportHistory,
   };
 })();

@@ -840,8 +840,25 @@ const DB = (() => {
       importBtn.onclick = async () => {
         const store = await _ensureCatalogReady(true);
         if (!store) return;
-        _pickJSONFile(text => {
+        _pickJSONFile((text, meta) => {
           const report = store.importInvertersJSON(text);
+          if (typeof App !== 'undefined' && App && typeof App.addImportHistory === 'function') {
+            App.addImportHistory({
+              source: 'Inverter Catalog JSON',
+              fileName: meta && meta.fileName ? meta.fileName : '',
+              sourceFormat: report && report.sourceFormat ? report.sourceFormat : 'array',
+              format: report && report.format ? report.format : '',
+              schemaVersion: report && report.schemaVersion ? report.schemaVersion : '',
+              exportedAt: report && report.exportedAt ? report.exportedAt : '',
+              standardsAudit: report && report.standardsAudit ? report.standardsAudit : null,
+              ok: !!(report && report.ok),
+              total: report && Number.isFinite(Number(report.total)) ? report.total : 0,
+              added: report && Number.isFinite(Number(report.added)) ? report.added : 0,
+              updated: report && Number.isFinite(Number(report.updated)) ? report.updated : 0,
+              rejected: report && Number.isFinite(Number(report.rejected)) ? report.rejected : 0,
+              error: report && report.error ? report.error : '',
+            });
+          }
           if (report && report.ok) {
             App.toast(`Inverters imported (${report.added} added, ${report.updated} updated${report.rejected ? `, ${report.rejected} rejected` : ''})${_importAuditSuffix(report)}`, report.rejected ? 'warning' : 'success');
             renderPage(document.getElementById('main-content'));
@@ -869,8 +886,25 @@ const DB = (() => {
     importBtn.onclick = async () => {
       const store = await _ensureCatalogReady(true);
       if (!store) return;
-      _pickJSONFile(text => {
+      _pickJSONFile((text, meta) => {
         const report = store.importBatteriesJSON(text);
+        if (typeof App !== 'undefined' && App && typeof App.addImportHistory === 'function') {
+          App.addImportHistory({
+            source: 'Battery Catalog JSON',
+            fileName: meta && meta.fileName ? meta.fileName : '',
+            sourceFormat: report && report.sourceFormat ? report.sourceFormat : 'array',
+            format: report && report.format ? report.format : '',
+            schemaVersion: report && report.schemaVersion ? report.schemaVersion : '',
+            exportedAt: report && report.exportedAt ? report.exportedAt : '',
+            standardsAudit: report && report.standardsAudit ? report.standardsAudit : null,
+            ok: !!(report && report.ok),
+            total: report && Number.isFinite(Number(report.total)) ? report.total : 0,
+            added: report && Number.isFinite(Number(report.added)) ? report.added : 0,
+            updated: report && Number.isFinite(Number(report.updated)) ? report.updated : 0,
+            rejected: report && Number.isFinite(Number(report.rejected)) ? report.rejected : 0,
+            error: report && report.error ? report.error : '',
+          });
+        }
         if (report && report.ok) {
           App.toast(`Batteries imported (${report.added} added, ${report.updated} updated${report.rejected ? `, ${report.rejected} rejected` : ''})${_importAuditSuffix(report)}`, report.rejected ? 'warning' : 'success');
           renderPage(document.getElementById('main-content'));
@@ -889,7 +923,10 @@ const DB = (() => {
       const file = e.target.files && e.target.files[0];
       if (!file) return;
       const reader = new FileReader();
-      reader.onload = ev => onText(String(ev.target && ev.target.result ? ev.target.result : ''));
+      reader.onload = ev => onText(
+        String(ev.target && ev.target.result ? ev.target.result : ''),
+        { fileName: file.name, fileSize: file.size }
+      );
       reader.readAsText(file);
     };
     input.click();
@@ -1484,6 +1521,23 @@ const DB = (() => {
       const reader = new FileReader();
       reader.onload = ev => {
         const result = importJSON(ev.target.result);
+        if (typeof App !== 'undefined' && App && typeof App.addImportHistory === 'function') {
+          App.addImportHistory({
+            source: 'PV Module Catalog JSON',
+            fileName: file && file.name ? file.name : '',
+            sourceFormat: result && result.sourceFormat ? result.sourceFormat : 'array',
+            format: result && result.format ? result.format : '',
+            schemaVersion: result && result.schemaVersion ? result.schemaVersion : '',
+            exportedAt: result && result.exportedAt ? result.exportedAt : '',
+            standardsAudit: result && result.standardsAudit ? result.standardsAudit : null,
+            ok: !!(result && result.ok),
+            total: result && Number.isFinite(Number(result.total)) ? result.total : 0,
+            added: result && Number.isFinite(Number(result.added)) ? result.added : 0,
+            updated: result && Number.isFinite(Number(result.updated)) ? result.updated : 0,
+            rejected: result && Number.isFinite(Number(result.rejected)) ? result.rejected : 0,
+            error: result && result.error ? result.error : '',
+          });
+        }
         if (result && result.ok) {
           renderPage(document.getElementById('main-content'));
           const msg = `Panels imported (${result.added} added, ${result.updated} updated${result.rejected ? `, ${result.rejected} rejected` : ''})${_importAuditSuffix(result)}`;
