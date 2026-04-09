@@ -1,12 +1,16 @@
 /**
- * db.js - Panel Database
- * localStorage-backed, synchronous. All calc modules call DB.getById(id).
+ * db.js - Unified local database (PV modules + inverter/battery catalogs)
+ * PV module records are localStorage-backed and used across sizing/hybrid checks.
  * Temperature coefficients stored as decimal fractions (e.g. -0.0026 per C, NOT -0.26%/C)
  */
 
 const DB = (() => {
   const STORAGE_KEY = 'solarpv_panels';
   const MAX_IMPORT_PANELS = 1500;
+  const PV_SEED_PATH = './data/pv-modules.json';
+  const DB_TABS = ['pv', 'inverter', 'battery'];
+  let _activeTab = 'pv';
+  let _seedAttempted = false;
   let _lastImportReport = null;
 
   // --- PRELOADED PANELS ---
@@ -486,41 +490,102 @@ const DB = (() => {
       .substring(0, 60);
   }
 
+  function _downloadJSON(filename, jsonText) {
+    const blob = new Blob([jsonText], { type: 'application/json' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(a.href);
+  }
+
+  function _withCatalogStore() {
+    if (typeof CatalogStore === 'undefined' || !CatalogStore) return null;
+    return CatalogStore;
+  }
+
+  async function _ensurePVSeedFromCatalog() {
+    if (_seedAttempted) return;
+    _seedAttempted = true;
+    try {
+      if (typeof fetch !== 'function') return;
+      const res = await fetch(PV_SEED_PATH);
+      if (!res || !res.ok) return;
+      const payload = await res.json();
+      const modules = Array.isArray(payload)
+        ? payload
+        : (payload && typeof payload === 'object' && Array.isArray(payload.modules) ? payload.modules : []);
+      if (!modules.length) return;
+
+      const existing = _load() || [];
+      const map = {};
+      existing.forEach(p => { if (p && p.id) map[p.id] = p; });
+      let added = 0;
+      modules.forEach(raw => {
+        const normalized = _normalizePanel(raw, { allowPreloaded: true });
+        if (!normalized || map[normalized.id]) return;
+        map[normalized.id] = normalized;
+        added += 1;
+      });
+      if (added > 0) {
+        _save(Object.values(map));
+      }
+    } catch (_) {}
+  }
+
   // --- RENDER PAGE ---
   function renderPage(container) {
-    const panels = getAll();
+    if (!container) return;
+    if (!DB_TABS.includes(_activeTab)) _activeTab = 'pv';
 
     container.innerHTML = `
       <div class="page">
-        <div class="page-title">&#128230; Panel Database</div>
+        <div class="page-title">&#128230; Database</div>
+        <div class="info-box" id="db-summary">
+          PV modules: ${getAll().length} &nbsp;|&nbsp; Inverters: loading... &nbsp;|&nbsp; Batteries: loading...
+        </div>
 
-        <div class="btn-group" style="margin-bottom:16px">
-          <button class="btn btn-primary btn-sm" id="db-add-btn">+ Add Panel</button>
+        <div class="btn-group" style="margin-bottom:12px">
+          <button class="btn btn-sm ${_activeTab === 'pv' ? 'btn-primary' : 'btn-secondary'}" id="db-tab-pv">PV Modules</button>
+          <button class="btn btn-sm ${_activeTab === 'inverter' ? 'btn-primary' : 'btn-secondary'}" id="db-tab-inv">Inverters</button>
+          <button class="btn btn-sm ${_activeTab === 'battery' ? 'btn-primary' : 'btn-secondary'}" id="db-tab-bat">Batteries</button>
+        </div>
+
+        <div class="btn-group" style="margin-bottom:12px">
+          <button class="btn btn-primary btn-sm" id="db-add-btn"></button>
           <button class="btn btn-secondary btn-sm" id="db-export-btn">&#8659; Export JSON</button>
           <button class="btn btn-secondary btn-sm" id="db-import-btn">&#8657; Import JSON</button>
         </div>
 
         <div class="form-group">
-          <input type="search" class="form-input" id="db-search" placeholder="Search panels..." style="margin-bottom:0" />
+          <input type="search" class="form-input" id="db-search" style="margin-bottom:0" />
         </div>
 
         <div id="db-list"></div>
       </div>
     `;
 
-    _renderList(container, panels);
+    const setTab = tab => {
+      _activeTab = tab;
+      renderPage(container);
+    };
+    container.querySelector('#db-tab-pv').addEventListener('click', () => setTab('pv'));
+    container.querySelector('#db-tab-inv').addEventListener('click', () => setTab('inverter'));
+    container.querySelector('#db-tab-bat').addEventListener('click', () => setTab('battery'));
 
-    container.querySelector('#db-search').addEventListener('input', e => {
-      const q = e.target.value.toLowerCase();
-      const filtered = getAll().filter(p =>
-        p.manufacturer.toLowerCase().includes(q) || p.model.toLowerCase().includes(q)
-      );
-      _renderList(container, filtered);
-    });
+    _bindActionButtons(container);
+    _renderActiveList(container, '');
+    container.querySelector('#db-search').addEventListener('input', e => _renderActiveList(container, e.target.value || ''));
 
-    container.querySelector('#db-add-btn').addEventListener('click', () => _showPanelForm(null));
-    container.querySelector('#db-export-btn').addEventListener('click', _doExport);
-    container.querySelector('#db-import-btn').addEventListener('click', _doImport);
+    _updateSummary(container);
+    _ensurePVSeedFromCatalog().then(() => {
+      if (document.getElementById('main-content') === container && _activeTab === 'pv') {
+        _renderActiveList(container, container.querySelector('#db-search').value || '');
+        _updateSummary(container);
+      }
+    }).catch(() => {});
   }
 
   function _renderList(container, panels) {
@@ -577,6 +642,508 @@ const DB = (() => {
         }
       });
     });
+  }
+
+  function _bindActionButtons(container) {
+    const search = container.querySelector('#db-search');
+    const addBtn = container.querySelector('#db-add-btn');
+    const exportBtn = container.querySelector('#db-export-btn');
+    const importBtn = container.querySelector('#db-import-btn');
+
+    if (_activeTab === 'pv') {
+      search.placeholder = 'Search PV modules...';
+      addBtn.textContent = '+ Add PV Module';
+      addBtn.onclick = () => _showPanelForm(null);
+      exportBtn.onclick = () => _doExport();
+      importBtn.onclick = () => _doImport();
+      return;
+    }
+
+    if (_activeTab === 'inverter') {
+      search.placeholder = 'Search inverters (manufacturer, model, topology)...';
+      addBtn.textContent = '+ Add Inverter';
+      addBtn.onclick = async () => {
+        const store = await _ensureCatalogReady(true);
+        if (!store) return;
+        _showInverterForm(null);
+      };
+      exportBtn.onclick = async () => {
+        const store = await _ensureCatalogReady(true);
+        if (!store) return;
+        _downloadJSON('solarpv_inverters.json', store.exportInvertersJSON());
+        App.toast('Inverters exported', 'success');
+      };
+      importBtn.onclick = async () => {
+        const store = await _ensureCatalogReady(true);
+        if (!store) return;
+        _pickJSONFile(text => {
+          const report = store.importInvertersJSON(text);
+          if (report && report.ok) {
+            App.toast(`Inverters imported (${report.added} added, ${report.updated} updated${report.rejected ? `, ${report.rejected} rejected` : ''})`, report.rejected ? 'warning' : 'success');
+            renderPage(document.getElementById('main-content'));
+          } else {
+            App.toast(report && report.error ? report.error : 'Invalid JSON file', 'error');
+          }
+        });
+      };
+      return;
+    }
+
+    search.placeholder = 'Search batteries (manufacturer, model, chemistry)...';
+    addBtn.textContent = '+ Add Battery';
+    addBtn.onclick = async () => {
+      const store = await _ensureCatalogReady(true);
+      if (!store) return;
+      _showBatteryForm(null);
+    };
+    exportBtn.onclick = async () => {
+      const store = await _ensureCatalogReady(true);
+      if (!store) return;
+      _downloadJSON('solarpv_batteries.json', store.exportBatteriesJSON());
+      App.toast('Batteries exported', 'success');
+    };
+    importBtn.onclick = async () => {
+      const store = await _ensureCatalogReady(true);
+      if (!store) return;
+      _pickJSONFile(text => {
+        const report = store.importBatteriesJSON(text);
+        if (report && report.ok) {
+          App.toast(`Batteries imported (${report.added} added, ${report.updated} updated${report.rejected ? `, ${report.rejected} rejected` : ''})`, report.rejected ? 'warning' : 'success');
+          renderPage(document.getElementById('main-content'));
+        } else {
+          App.toast(report && report.error ? report.error : 'Invalid JSON file', 'error');
+        }
+      });
+    };
+  }
+
+  function _pickJSONFile(onText) {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = '.json,application/json';
+    input.onchange = e => {
+      const file = e.target.files && e.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = ev => onText(String(ev.target && ev.target.result ? ev.target.result : ''));
+      reader.readAsText(file);
+    };
+    input.click();
+  }
+
+  async function _ensureCatalogReady(showToastOnError) {
+    const store = _withCatalogStore();
+    if (!store || typeof store.ensureLoaded !== 'function') {
+      if (showToastOnError) App.toast('Catalog store not available', 'error');
+      return null;
+    }
+    try {
+      await store.ensureLoaded();
+      const state = typeof store.getState === 'function' ? store.getState() : null;
+      if (state && state.loadError) {
+        if (showToastOnError) App.toast(state.loadError, 'error');
+        return null;
+      }
+      return store;
+    } catch (err) {
+      if (showToastOnError) App.toast(err && err.message ? err.message : 'Catalog load failed', 'error');
+      return null;
+    }
+  }
+
+  function _renderActiveList(container, queryRaw) {
+    const q = String(queryRaw || '').toLowerCase().trim();
+    if (_activeTab === 'pv') {
+      const filtered = getAll().filter(p =>
+        String(p.manufacturer || '').toLowerCase().includes(q)
+        || String(p.model || '').toLowerCase().includes(q)
+        || String(p.id || '').toLowerCase().includes(q)
+        || String(p.note || '').toLowerCase().includes(q)
+      );
+      _renderList(container, filtered);
+      return;
+    }
+    if (_activeTab === 'inverter') {
+      _renderInverterList(container, q);
+      return;
+    }
+    _renderBatteryList(container, q);
+  }
+
+  async function _renderInverterList(container, q) {
+    const list = container.querySelector('#db-list');
+    if (!list) return;
+    list.innerHTML = '<div class="empty-state"><div class="empty-icon">&#9889;</div><div>Loading inverter database...</div></div>';
+    const store = await _ensureCatalogReady(false);
+    if (!store || _activeTab !== 'inverter') {
+      if (_activeTab === 'inverter') {
+        list.innerHTML = '<div class="empty-state"><div class="empty-icon">&#9889;</div><div>Inverter database unavailable</div></div>';
+      }
+      return;
+    }
+    const rows = (store.getAllInverters() || []).filter(x =>
+      String(x.manufacturer || '').toLowerCase().includes(q)
+      || String(x.model || '').toLowerCase().includes(q)
+      || String(x.id || '').toLowerCase().includes(q)
+      || String(x.topology || '').toLowerCase().includes(q)
+      || String(x.note || '').toLowerCase().includes(q)
+    );
+    if (!rows.length) {
+      list.innerHTML = '<div class="empty-state"><div class="empty-icon">&#9889;</div><div>No inverters found</div></div>';
+      return;
+    }
+    list.innerHTML = rows.map(inv => `
+      <div class="panel-card">
+        <div class="panel-card-info">
+          <div class="panel-card-name">${_esc(inv.manufacturer)} ${_esc(inv.model)}</div>
+          <div class="panel-card-sub">${_esc(inv.note || inv.id || '')}</div>
+          <div class="panel-card-specs">
+            <span class="spec-chip">${_esc(inv.topology || 'grid-tie')}</span>
+            <span class="spec-chip">AC ${_esc(inv.acRated_kW)} kW</span>
+            ${inv.maxPv_kW ? `<span class="spec-chip">PV ${_esc(inv.maxPv_kW)} kW</span>` : ''}
+            ${inv.batteryBus_V ? `<span class="spec-chip">Battery ${_esc(inv.batteryBus_V)} V</span>` : ''}
+            ${inv.maxDcVoc_V ? `<span class="spec-chip">Voc max ${_esc(inv.maxDcVoc_V)} V</span>` : ''}
+            ${(inv.mpptMin_V || inv.mpptMax_V) ? `<span class="spec-chip">MPPT ${_esc(inv.mpptMin_V)}-${_esc(inv.mpptMax_V)} V</span>` : ''}
+            ${inv.mpptCount ? `<span class="spec-chip">${_esc(inv.mpptCount)} MPPT</span>` : ''}
+            ${inv.maxCurrentPerMppt_A ? `<span class="spec-chip">${_esc(inv.maxCurrentPerMppt_A)} A/MPPT</span>` : ''}
+          </div>
+          ${inv.datasheetUrl ? `<div class="text-sm text-muted mt-4">Datasheet: <a href="${_esc(inv.datasheetUrl)}" target="_blank" rel="noopener noreferrer">${_esc(inv.datasheetRev || inv.datasheetUrl)}</a></div>` : ''}
+        </div>
+        <div class="panel-card-actions">
+          <button class="btn btn-secondary btn-sm" data-edit-inv="${_esc(inv.id)}">Edit</button>
+          <button class="btn btn-danger btn-sm" data-del-inv="${_esc(inv.id)}">Del</button>
+        </div>
+      </div>
+    `).join('');
+
+    list.querySelectorAll('[data-edit-inv]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const row = (store.getAllInverters() || []).find(x => x.id === btn.dataset.editInv);
+        if (!row) return;
+        _showInverterForm(row);
+      });
+    });
+    list.querySelectorAll('[data-del-inv]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        if (!confirm('Delete this inverter model?')) return;
+        store.removeInverter(btn.dataset.delInv);
+        renderPage(container);
+        App.toast('Inverter deleted', 'success');
+      });
+    });
+  }
+
+  async function _renderBatteryList(container, q) {
+    const list = container.querySelector('#db-list');
+    if (!list) return;
+    list.innerHTML = '<div class="empty-state"><div class="empty-icon">&#128267;</div><div>Loading battery database...</div></div>';
+    const store = await _ensureCatalogReady(false);
+    if (!store || _activeTab !== 'battery') {
+      if (_activeTab === 'battery') {
+        list.innerHTML = '<div class="empty-state"><div class="empty-icon">&#128267;</div><div>Battery database unavailable</div></div>';
+      }
+      return;
+    }
+    const rows = (store.getAllBatteries() || []).filter(x =>
+      String(x.manufacturer || '').toLowerCase().includes(q)
+      || String(x.model || '').toLowerCase().includes(q)
+      || String(x.id || '').toLowerCase().includes(q)
+      || String(x.chemistry || '').toLowerCase().includes(q)
+      || String(x.note || '').toLowerCase().includes(q)
+    );
+    if (!rows.length) {
+      list.innerHTML = '<div class="empty-state"><div class="empty-icon">&#128267;</div><div>No batteries found</div></div>';
+      return;
+    }
+    list.innerHTML = rows.map(b => `
+      <div class="panel-card">
+        <div class="panel-card-info">
+          <div class="panel-card-name">${_esc(b.manufacturer)} ${_esc(b.model)}</div>
+          <div class="panel-card-sub">${_esc(b.note || b.id || '')}</div>
+          <div class="panel-card-specs">
+            <span class="spec-chip">${_esc(b.chemistry || 'battery')}</span>
+            <span class="spec-chip">${_esc(b.nominalV)} V</span>
+            <span class="spec-chip">${_esc(b.capacityAh)} Ah</span>
+            <span class="spec-chip">DoD ${Math.round((Number(b.recommendedDod) || 0) * 100)}%</span>
+            ${b.continuousCharge_A ? `<span class="spec-chip">Charge ${_esc(b.continuousCharge_A)} A</span>` : ''}
+            ${b.continuousDischarge_A ? `<span class="spec-chip">Discharge ${_esc(b.continuousDischarge_A)} A</span>` : ''}
+            ${b.peakDischarge_A ? `<span class="spec-chip">Peak ${_esc(b.peakDischarge_A)} A/${_esc(b.peakDuration_s || 0)}s</span>` : ''}
+            <span class="spec-chip">${_esc(b.tempMinC)} to ${_esc(b.tempMaxC)} &deg;C</span>
+          </div>
+          ${b.datasheetUrl ? `<div class="text-sm text-muted mt-4">Datasheet: <a href="${_esc(b.datasheetUrl)}" target="_blank" rel="noopener noreferrer">${_esc(b.datasheetRev || b.datasheetUrl)}</a></div>` : ''}
+        </div>
+        <div class="panel-card-actions">
+          <button class="btn btn-secondary btn-sm" data-edit-bat="${_esc(b.id)}">Edit</button>
+          <button class="btn btn-danger btn-sm" data-del-bat="${_esc(b.id)}">Del</button>
+        </div>
+      </div>
+    `).join('');
+
+    list.querySelectorAll('[data-edit-bat]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const row = (store.getAllBatteries() || []).find(x => x.id === btn.dataset.editBat);
+        if (!row) return;
+        _showBatteryForm(row);
+      });
+    });
+    list.querySelectorAll('[data-del-bat]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        if (!confirm('Delete this battery model?')) return;
+        store.removeBattery(btn.dataset.delBat);
+        renderPage(container);
+        App.toast('Battery deleted', 'success');
+      });
+    });
+  }
+
+  function _updateSummary(container) {
+    const el = container.querySelector('#db-summary');
+    if (!el) return;
+    const pvCount = getAll().length;
+    const store = _withCatalogStore();
+    if (!store || typeof store.getState !== 'function') {
+      el.textContent = `PV modules: ${pvCount} | Inverters: n/a | Batteries: n/a`;
+      return;
+    }
+    const state = store.getState();
+    const invCount = Number.isFinite(state.inverterCount) ? state.inverterCount : 0;
+    const batCount = Number.isFinite(state.batteryCount) ? state.batteryCount : 0;
+    const status = state.loading
+      ? 'Catalog syncing...'
+      : (state.loadError ? `Catalog warning: ${state.loadError}` : 'Catalog ready');
+    el.textContent = `PV modules: ${pvCount} | Inverters: ${invCount} | Batteries: ${batCount} | ${status}`;
+    if (!state.loaded && !state.loading) {
+      _ensureCatalogReady(false).then(() => {
+        if (document.getElementById('main-content') === container) {
+          _updateSummary(container);
+          if (_activeTab !== 'pv') _renderActiveList(container, container.querySelector('#db-search').value || '');
+        }
+      }).catch(() => {});
+    }
+  }
+
+  function _showInverterForm(inverter) {
+    const isNew = !inverter;
+    const inv = inverter || {
+      id: '',
+      manufacturer: '',
+      model: '',
+      topology: 'hybrid',
+      acRated_kW: '',
+      surge_kW: '',
+      surge_s: '',
+      batteryBus_V: 48,
+      maxCharge_A: '',
+      maxDischarge_A: '',
+      maxPv_kW: '',
+      maxDcVoc_V: '',
+      mpptMin_V: '',
+      mpptMax_V: '',
+      mpptCount: '',
+      maxCurrentPerMppt_A: '',
+      supportedProfiles: ['offgrid', 'ceb_2025', 'leco_2025'],
+      utilityListed: { ceb_2025: false, leco_2025: false },
+      listingSource: { ceb_2025: '', leco_2025: '' },
+      datasheetRev: '',
+      datasheetUrl: '',
+      sourceConfidence: 'unknown',
+      note: '',
+    };
+
+    App.showModal(isNew ? 'Add Inverter' : `Edit Inverter: ${inv.manufacturer} ${inv.model}`, `
+      <div class="form-row cols-2">
+        <div class="form-group"><label class="form-label">Manufacturer</label><input class="form-input" id="if-mfr" value="${_esc(inv.manufacturer)}" /></div>
+        <div class="form-group"><label class="form-label">Model</label><input class="form-input" id="if-model" value="${_esc(inv.model)}" /></div>
+        <div class="form-group"><label class="form-label">Topology</label>
+          <select class="form-select" id="if-topo">
+            <option value="grid-tie" ${inv.topology === 'grid-tie' ? 'selected' : ''}>Grid-Tie</option>
+            <option value="hybrid" ${inv.topology === 'hybrid' ? 'selected' : ''}>Hybrid</option>
+          </select>
+        </div>
+        <div class="form-group"><label class="form-label">AC Rated (kW)</label><input class="form-input" id="if-ac" type="number" step="0.01" value="${_esc(inv.acRated_kW)}" /></div>
+        <div class="form-group"><label class="form-label">Surge (kW)</label><input class="form-input" id="if-surge" type="number" step="0.01" value="${_esc(inv.surge_kW)}" /></div>
+        <div class="form-group"><label class="form-label">Surge Duration (s)</label><input class="form-input" id="if-surges" type="number" step="0.1" value="${_esc(inv.surge_s)}" /></div>
+        <div class="form-group"><label class="form-label">Battery Bus (V)</label><input class="form-input" id="if-bv" type="number" step="1" value="${_esc(inv.batteryBus_V)}" /></div>
+        <div class="form-group"><label class="form-label">Max Charge (A)</label><input class="form-input" id="if-cha" type="number" step="0.1" value="${_esc(inv.maxCharge_A)}" /></div>
+        <div class="form-group"><label class="form-label">Max Discharge (A)</label><input class="form-input" id="if-disa" type="number" step="0.1" value="${_esc(inv.maxDischarge_A)}" /></div>
+        <div class="form-group"><label class="form-label">Max PV DC (kW)</label><input class="form-input" id="if-maxpv" type="number" step="0.01" value="${_esc(inv.maxPv_kW)}" /></div>
+        <div class="form-group"><label class="form-label">Max DC Voc (V)</label><input class="form-input" id="if-voc" type="number" step="0.1" value="${_esc(inv.maxDcVoc_V)}" /></div>
+        <div class="form-group"><label class="form-label">MPPT Min (V)</label><input class="form-input" id="if-mmin" type="number" step="0.1" value="${_esc(inv.mpptMin_V)}" /></div>
+        <div class="form-group"><label class="form-label">MPPT Max (V)</label><input class="form-input" id="if-mmax" type="number" step="0.1" value="${_esc(inv.mpptMax_V)}" /></div>
+        <div class="form-group"><label class="form-label">MPPT Count</label><input class="form-input" id="if-mcnt" type="number" step="1" value="${_esc(inv.mpptCount)}" /></div>
+        <div class="form-group"><label class="form-label">Max Current / MPPT (A)</label><input class="form-input" id="if-mcur" type="number" step="0.1" value="${_esc(inv.maxCurrentPerMppt_A)}" /></div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Supported Profiles</label>
+        <div class="btn-group">
+          <label><input type="checkbox" id="if-pro-off" ${Array.isArray(inv.supportedProfiles) && inv.supportedProfiles.includes('offgrid') ? 'checked' : ''} /> Offgrid</label>
+          <label><input type="checkbox" id="if-pro-ceb" ${Array.isArray(inv.supportedProfiles) && inv.supportedProfiles.includes('ceb_2025') ? 'checked' : ''} /> CEB 2025</label>
+          <label><input type="checkbox" id="if-pro-leco" ${Array.isArray(inv.supportedProfiles) && inv.supportedProfiles.includes('leco_2025') ? 'checked' : ''} /> LECO 2025</label>
+        </div>
+      </div>
+      <div class="form-row cols-2">
+        <div class="form-group"><label class="form-label">CEB Listed</label><input type="checkbox" id="if-ceb-list" ${inv.utilityListed && inv.utilityListed.ceb_2025 ? 'checked' : ''} /></div>
+        <div class="form-group"><label class="form-label">LECO Listed</label><input type="checkbox" id="if-leco-list" ${inv.utilityListed && inv.utilityListed.leco_2025 ? 'checked' : ''} /></div>
+        <div class="form-group"><label class="form-label">CEB Listing Source</label><input class="form-input" id="if-ceb-src" value="${_esc(inv.listingSource && inv.listingSource.ceb_2025 ? inv.listingSource.ceb_2025 : '')}" /></div>
+        <div class="form-group"><label class="form-label">LECO Listing Source</label><input class="form-input" id="if-leco-src" value="${_esc(inv.listingSource && inv.listingSource.leco_2025 ? inv.listingSource.leco_2025 : '')}" /></div>
+        <div class="form-group"><label class="form-label">Datasheet URL</label><input class="form-input" id="if-url" value="${_esc(inv.datasheetUrl || '')}" /></div>
+        <div class="form-group"><label class="form-label">Datasheet Revision</label><input class="form-input" id="if-rev" value="${_esc(inv.datasheetRev || '')}" /></div>
+        <div class="form-group"><label class="form-label">Source Confidence</label>
+          <select class="form-select" id="if-conf">
+            <option value="high" ${inv.sourceConfidence === 'high' ? 'selected' : ''}>high</option>
+            <option value="medium" ${inv.sourceConfidence === 'medium' ? 'selected' : ''}>medium</option>
+            <option value="low" ${inv.sourceConfidence === 'low' ? 'selected' : ''}>low</option>
+            <option value="unknown" ${!inv.sourceConfidence || inv.sourceConfidence === 'unknown' ? 'selected' : ''}>unknown</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-group"><label class="form-label">Note</label><input class="form-input" id="if-note" value="${_esc(inv.note || '')}" /></div>
+    `, [
+      { label: 'Cancel', cls: 'btn-secondary', action: 'close' },
+      {
+        label: isNew ? 'Add Inverter' : 'Save',
+        cls: 'btn-primary',
+        action: async () => {
+          const store = await _ensureCatalogReady(true);
+          if (!store) return false;
+          const manufacturer = document.getElementById('if-mfr').value.trim();
+          const model = document.getElementById('if-model').value.trim();
+          if (!manufacturer || !model) {
+            App.toast('Manufacturer and model required', 'error');
+            return false;
+          }
+          const supportedProfiles = [];
+          if (document.getElementById('if-pro-off').checked) supportedProfiles.push('offgrid');
+          if (document.getElementById('if-pro-ceb').checked) supportedProfiles.push('ceb_2025');
+          if (document.getElementById('if-pro-leco').checked) supportedProfiles.push('leco_2025');
+          if (!supportedProfiles.length) supportedProfiles.push('offgrid');
+
+          const payload = {
+            id: isNew ? generateId(manufacturer, model) : inv.id,
+            manufacturer,
+            model,
+            topology: document.getElementById('if-topo').value,
+            acRated_kW: parseFloat(document.getElementById('if-ac').value),
+            surge_kW: parseFloat(document.getElementById('if-surge').value),
+            surge_s: parseFloat(document.getElementById('if-surges').value),
+            batteryBus_V: parseFloat(document.getElementById('if-bv').value),
+            maxCharge_A: parseFloat(document.getElementById('if-cha').value),
+            maxDischarge_A: parseFloat(document.getElementById('if-disa').value),
+            maxPv_kW: parseFloat(document.getElementById('if-maxpv').value),
+            maxDcVoc_V: parseFloat(document.getElementById('if-voc').value),
+            mpptMin_V: parseFloat(document.getElementById('if-mmin').value),
+            mpptMax_V: parseFloat(document.getElementById('if-mmax').value),
+            mpptCount: parseInt(document.getElementById('if-mcnt').value, 10),
+            maxCurrentPerMppt_A: parseFloat(document.getElementById('if-mcur').value),
+            supportedProfiles,
+            utilityListed: {
+              ceb_2025: !!document.getElementById('if-ceb-list').checked,
+              leco_2025: !!document.getElementById('if-leco-list').checked,
+            },
+            listingSource: {
+              ceb_2025: document.getElementById('if-ceb-src').value.trim(),
+              leco_2025: document.getElementById('if-leco-src').value.trim(),
+            },
+            datasheetUrl: document.getElementById('if-url').value.trim(),
+            datasheetRev: document.getElementById('if-rev').value.trim(),
+            sourceConfidence: document.getElementById('if-conf').value,
+            note: document.getElementById('if-note').value.trim(),
+          };
+          const saved = store.upsertInverter(payload);
+          if (!saved) {
+            App.toast('Invalid inverter data', 'error');
+            return false;
+          }
+          App.closeModal();
+          renderPage(document.getElementById('main-content'));
+          App.toast(isNew ? 'Inverter added' : 'Inverter updated', 'success');
+        }
+      }
+    ]);
+  }
+
+  function _showBatteryForm(battery) {
+    const isNew = !battery;
+    const bat = battery || {
+      id: '',
+      manufacturer: '',
+      model: '',
+      chemistry: 'lifepo4',
+      nominalV: 48,
+      capacityAh: 100,
+      recommendedDod: 0.8,
+      continuousCharge_A: 0,
+      continuousDischarge_A: 0,
+      peakDischarge_A: 0,
+      peakDuration_s: 0,
+      tempMinC: 0,
+      tempMaxC: 50,
+      datasheetRev: '',
+      datasheetUrl: '',
+      note: '',
+    };
+
+    App.showModal(isNew ? 'Add Battery' : `Edit Battery: ${bat.manufacturer} ${bat.model}`, `
+      <div class="form-row cols-2">
+        <div class="form-group"><label class="form-label">Manufacturer</label><input class="form-input" id="bf-mfr" value="${_esc(bat.manufacturer)}" /></div>
+        <div class="form-group"><label class="form-label">Model</label><input class="form-input" id="bf-model" value="${_esc(bat.model)}" /></div>
+        <div class="form-group"><label class="form-label">Chemistry</label><input class="form-input" id="bf-chem" value="${_esc(bat.chemistry)}" placeholder="lifepo4 / tubular / leadacid" /></div>
+        <div class="form-group"><label class="form-label">Nominal Voltage (V)</label><input class="form-input" id="bf-v" type="number" step="0.1" value="${_esc(bat.nominalV)}" /></div>
+        <div class="form-group"><label class="form-label">Capacity (Ah)</label><input class="form-input" id="bf-ah" type="number" step="0.1" value="${_esc(bat.capacityAh)}" /></div>
+        <div class="form-group"><label class="form-label">Recommended DoD (0-1)</label><input class="form-input" id="bf-dod" type="number" step="0.01" min="0.1" max="1" value="${_esc(bat.recommendedDod)}" /></div>
+        <div class="form-group"><label class="form-label">Continuous Charge (A)</label><input class="form-input" id="bf-cha" type="number" step="0.1" value="${_esc(bat.continuousCharge_A)}" /></div>
+        <div class="form-group"><label class="form-label">Continuous Discharge (A)</label><input class="form-input" id="bf-dis" type="number" step="0.1" value="${_esc(bat.continuousDischarge_A)}" /></div>
+        <div class="form-group"><label class="form-label">Peak Discharge (A)</label><input class="form-input" id="bf-peak" type="number" step="0.1" value="${_esc(bat.peakDischarge_A)}" /></div>
+        <div class="form-group"><label class="form-label">Peak Duration (s)</label><input class="form-input" id="bf-peaks" type="number" step="0.1" value="${_esc(bat.peakDuration_s)}" /></div>
+        <div class="form-group"><label class="form-label">Temp Min (&deg;C)</label><input class="form-input" id="bf-tmin" type="number" step="0.1" value="${_esc(bat.tempMinC)}" /></div>
+        <div class="form-group"><label class="form-label">Temp Max (&deg;C)</label><input class="form-input" id="bf-tmax" type="number" step="0.1" value="${_esc(bat.tempMaxC)}" /></div>
+        <div class="form-group"><label class="form-label">Datasheet URL</label><input class="form-input" id="bf-url" value="${_esc(bat.datasheetUrl || '')}" /></div>
+        <div class="form-group"><label class="form-label">Datasheet Revision</label><input class="form-input" id="bf-rev" value="${_esc(bat.datasheetRev || '')}" /></div>
+      </div>
+      <div class="form-group"><label class="form-label">Note</label><input class="form-input" id="bf-note" value="${_esc(bat.note || '')}" /></div>
+    `, [
+      { label: 'Cancel', cls: 'btn-secondary', action: 'close' },
+      {
+        label: isNew ? 'Add Battery' : 'Save',
+        cls: 'btn-primary',
+        action: async () => {
+          const store = await _ensureCatalogReady(true);
+          if (!store) return false;
+          const manufacturer = document.getElementById('bf-mfr').value.trim();
+          const model = document.getElementById('bf-model').value.trim();
+          if (!manufacturer || !model) {
+            App.toast('Manufacturer and model required', 'error');
+            return false;
+          }
+          const payload = {
+            id: isNew ? generateId(manufacturer, model) : bat.id,
+            manufacturer,
+            model,
+            chemistry: document.getElementById('bf-chem').value.trim(),
+            nominalV: parseFloat(document.getElementById('bf-v').value),
+            capacityAh: parseFloat(document.getElementById('bf-ah').value),
+            recommendedDod: parseFloat(document.getElementById('bf-dod').value),
+            continuousCharge_A: parseFloat(document.getElementById('bf-cha').value),
+            continuousDischarge_A: parseFloat(document.getElementById('bf-dis').value),
+            peakDischarge_A: parseFloat(document.getElementById('bf-peak').value),
+            peakDuration_s: parseFloat(document.getElementById('bf-peaks').value),
+            tempMinC: parseFloat(document.getElementById('bf-tmin').value),
+            tempMaxC: parseFloat(document.getElementById('bf-tmax').value),
+            datasheetUrl: document.getElementById('bf-url').value.trim(),
+            datasheetRev: document.getElementById('bf-rev').value.trim(),
+            note: document.getElementById('bf-note').value.trim(),
+          };
+          const saved = store.upsertBattery(payload);
+          if (!saved) {
+            App.toast('Invalid battery data', 'error');
+            return false;
+          }
+          App.closeModal();
+          renderPage(document.getElementById('main-content'));
+          App.toast(isNew ? 'Battery added' : 'Battery updated', 'success');
+        }
+      }
+    ]);
   }
 
   function _showPanelForm(panel) {

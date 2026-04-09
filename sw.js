@@ -2,7 +2,7 @@
  * sw.js — Service Worker (cache-first offline support)
  */
 
-const CACHE_NAME = 'solarpv-v8';
+const CACHE_NAME = 'solarpv-v12';
 
 const LOCAL_ASSETS = [
   './',
@@ -10,12 +10,16 @@ const LOCAL_ASSETS = [
   './manifest.json',
   './css/style.css',
   './css/style.css?v=2',
+  './data/pv-modules.json',
+  './data/grid-inverters.json',
   './data/hybrid-inverters.json',
   './data/hybrid-batteries.json',
+  './js/catalog-store.js',
   './js/db.js',
   './js/pv-calc.js',
   './js/standards-calc.js',
   './js/sizing.js',
+  './js/wire-calc.js',
   './js/hybrid.js',
   './js/temp-correct.js',
   './js/field-test.js',
@@ -30,6 +34,7 @@ const LOCAL_ASSETS = [
   './js/inverter-perf.js',
   './js/shading.js',
   './js/yield-estimator.js',
+  './js/pv-inspector.js',
   './js/fault-ai.js',
   './js/firebase-sync.js',
   './js/app.js',

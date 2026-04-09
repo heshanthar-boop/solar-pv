@@ -26,6 +26,7 @@ const HybridSetup = (() => {
     loaded: false,
     loading: false,
     loadError: '',
+    storeRevision: '',
     inverterMeta: null,
     batteryMeta: null,
     baseInverters: [],
@@ -607,30 +608,115 @@ const HybridSetup = (() => {
     return (list || []).slice().sort((a, b) => String(`${a.manufacturer} ${a.model}`).localeCompare(`${b.manufacturer} ${b.model}`));
   }
 
+  async function _syncCatalogFromStore(forceRefresh) {
+    if (typeof CatalogStore === 'undefined' || !CatalogStore || typeof CatalogStore.ensureLoaded !== 'function') {
+      return false;
+    }
+
+    await CatalogStore.ensureLoaded();
+    const storeState = typeof CatalogStore.getState === 'function' ? CatalogStore.getState() : null;
+    if (storeState && storeState.loadError) {
+      throw new Error(storeState.loadError);
+    }
+
+    const revisionRaw = typeof CatalogStore.getRevision === 'function'
+      ? CatalogStore.getRevision()
+      : (storeState && storeState.revision ? storeState.revision : '');
+    const revision = _cleanText(revisionRaw || '', 80);
+
+    if (
+      !forceRefresh
+      && catalogState.loaded
+      && revision
+      && revision === catalogState.storeRevision
+      && Array.isArray(catalogState.baseInverters)
+      && catalogState.baseInverters.length
+      && Array.isArray(catalogState.baseBatteries)
+      && catalogState.baseBatteries.length
+    ) {
+      return true;
+    }
+
+    const inverterRows = (typeof CatalogStore.getInvertersByTopology === 'function'
+      ? CatalogStore.getInvertersByTopology('hybrid')
+      : ((typeof CatalogStore.getAllInverters === 'function' ? CatalogStore.getAllInverters() : [])
+        .filter(x => _cleanText(x && x.topology, 40).toLowerCase() === 'hybrid')))
+      .map(_normalizeInverter)
+      .filter(Boolean);
+
+    const batteryRows = (typeof CatalogStore.getAllBatteries === 'function' ? CatalogStore.getAllBatteries() : [])
+      .map(_normalizeBattery)
+      .filter(Boolean);
+
+    catalogState.baseInverters = _sortByName(inverterRows);
+    catalogState.baseBatteries = _sortByName(batteryRows);
+    catalogState.storeRevision = revision;
+
+    const version = _cleanText(revision || '', 40) || 'local';
+    catalogState.inverterMeta = { version, source: 'Unified database catalog' };
+    catalogState.batteryMeta = { version, source: 'Unified database catalog' };
+
+    _applyOverridesToCatalog();
+    return true;
+  }
+
   async function _ensureCatalogLoaded(container) {
-    if (catalogState.loaded || catalogState.loading) return;
+    if (catalogState.loading) return;
+
+    if (catalogState.loaded) {
+      const prevRevision = catalogState.storeRevision || '';
+      try {
+        await _syncCatalogFromStore(false);
+        if (
+          prevRevision !== (catalogState.storeRevision || '')
+          && container
+          && typeof container === 'object'
+          && typeof container.isConnected === 'boolean'
+          && container.isConnected
+          && typeof App !== 'undefined'
+          && App
+          && App.state
+          && App.state.currentPage === 'hybrid'
+        ) {
+          render(container);
+        }
+      } catch (err) {
+        catalogState.loadError = err && err.message ? err.message : 'Catalog sync failed';
+      }
+      return;
+    }
+
     catalogState.loading = true;
     catalogState.loadError = '';
     try {
-      const [inverterPayload, batteryPayload] = await Promise.all([
-        _loadCatalogJSON(CATALOG_PATHS.inverter),
-        _loadCatalogJSON(CATALOG_PATHS.battery),
-      ]);
-      const inverters = _extractRows(inverterPayload, 'inverters')
-        .map(_normalizeInverter)
-        .filter(Boolean);
-      const batteries = _extractRows(batteryPayload, 'batteries')
-        .map(_normalizeBattery)
-        .filter(Boolean);
-      catalogState.inverterMeta = (inverterPayload && typeof inverterPayload === 'object' && !Array.isArray(inverterPayload))
-        ? { version: _cleanText(inverterPayload.version, 40), source: _cleanText(inverterPayload.source, 240) }
-        : null;
-      catalogState.batteryMeta = (batteryPayload && typeof batteryPayload === 'object' && !Array.isArray(batteryPayload))
-        ? { version: _cleanText(batteryPayload.version, 40), source: _cleanText(batteryPayload.source, 240) }
-        : null;
-      catalogState.baseInverters = _sortByName(inverters);
-      catalogState.baseBatteries = _sortByName(batteries);
-      _applyOverridesToCatalog();
+      let loadedFromStore = false;
+      try {
+        loadedFromStore = await _syncCatalogFromStore(true);
+      } catch (storeErr) {
+        catalogState.loadError = storeErr && storeErr.message ? storeErr.message : 'Catalog store sync failed';
+      }
+
+      if (!loadedFromStore || !catalogState.baseInverters.length || !catalogState.baseBatteries.length) {
+        const [inverterPayload, batteryPayload] = await Promise.all([
+          _loadCatalogJSON(CATALOG_PATHS.inverter),
+          _loadCatalogJSON(CATALOG_PATHS.battery),
+        ]);
+        const inverters = _extractRows(inverterPayload, 'inverters')
+          .map(_normalizeInverter)
+          .filter(Boolean);
+        const batteries = _extractRows(batteryPayload, 'batteries')
+          .map(_normalizeBattery)
+          .filter(Boolean);
+        catalogState.inverterMeta = (inverterPayload && typeof inverterPayload === 'object' && !Array.isArray(inverterPayload))
+          ? { version: _cleanText(inverterPayload.version, 40), source: _cleanText(inverterPayload.source, 240) }
+          : null;
+        catalogState.batteryMeta = (batteryPayload && typeof batteryPayload === 'object' && !Array.isArray(batteryPayload))
+          ? { version: _cleanText(batteryPayload.version, 40), source: _cleanText(batteryPayload.source, 240) }
+          : null;
+        catalogState.baseInverters = _sortByName(inverters);
+        catalogState.baseBatteries = _sortByName(batteries);
+        _applyOverridesToCatalog();
+      }
     } catch (err) {
       catalogState.loadError = err && err.message ? err.message : 'Catalog load failed';
       catalogState.baseInverters = [];
@@ -698,9 +784,7 @@ const HybridSetup = (() => {
   }
 
   function render(container) {
-    if (!catalogState.loaded && !catalogState.loading) {
-      _ensureCatalogLoaded(container);
-    }
+    _ensureCatalogLoaded(container);
     const defaults = {
       dailyEnergy_kWh: 18, peakLoad_kW: 5, surgeLoad_kW: 8, autonomyDays: 1,
       batteryVoltage_V: 48, chemistry: 'lifepo4', dod: CHEMISTRY.lifepo4.dod, etaBatt: CHEMISTRY.lifepo4.etaBatt,
@@ -1065,6 +1149,7 @@ const HybridSetup = (() => {
       loadError: catalogState.loadError || '',
       inverterCount: _catalogInverters().length,
       batteryCount: _catalogBatteries().length,
+      storeRevision: catalogState.storeRevision || '',
       inverterVersion: catalogState.inverterMeta && catalogState.inverterMeta.version ? catalogState.inverterMeta.version : '',
       batteryVersion: catalogState.batteryMeta && catalogState.batteryMeta.version ? catalogState.batteryMeta.version : '',
       inverterSource: catalogState.inverterMeta && catalogState.inverterMeta.source ? catalogState.inverterMeta.source : '',

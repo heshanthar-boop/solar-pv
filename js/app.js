@@ -21,7 +21,7 @@ const App = (() => {
   };
 
   const PAGES = {
-    database:   { title: 'Panel Database',      render: (c) => DB.renderPage(c) },
+    database:   { title: 'Database',            render: (c) => DB.renderPage(c) },
     sizing:     { title: 'String Sizing',       render: (c) => Sizing.render(c) },
     wirecalc:   { title: 'Wire Calculation',    render: (c) => WireCalc.render(c) },
     hybrid:     { title: 'Hybrid Setup',        render: (c) => HybridSetup.render(c) },
@@ -82,7 +82,7 @@ const App = (() => {
     {
       group: 'Design & Sizing',
       tiles: [
-        { page: 'database',    icon: '&#128230;', label: 'Panel Database',      desc: 'Module specs & DB' },
+        { page: 'database',    icon: '&#128230;', label: 'Database',            desc: 'PV, inverter, battery catalogs' },
         { page: 'sizing',      icon: '&#9889;',   label: 'String Sizing',        desc: 'Voltage & current limits' },
         { page: 'wirecalc',    icon: '&#128268;', label: 'Wire Calculation',     desc: 'Cable sizing & losses' },
         { page: 'hybrid',      icon: '&#128267;', label: 'Hybrid Setup',         desc: 'Battery & inverter check' },

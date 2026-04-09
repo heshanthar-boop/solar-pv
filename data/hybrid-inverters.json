@@ -1,7 +1,337 @@
 {
-  "version": "2026-04-08",
-  "source": "Project-maintained CEB/LECO approved inverter mapping (sync with latest utility accepted-model circulars before release)",
+  "version": "2026-04-09",
+  "source": "Approved-list staging workbook for hybrid inverter coverage + preserved legacy entries",
   "inverters": [
+    {
+      "id": "deye_sun_10k_sg03lp3_eu",
+      "manufacturer": "Deye",
+      "model": "SUN-10K-SG03LP3-EU",
+      "acRated_kW": 10.0,
+      "surge_kW": 20.0,
+      "surge_s": 10.0,
+      "batteryBus_V": 48.0,
+      "maxCharge_A": 187.5,
+      "maxDischarge_A": 187.5,
+      "maxPv_kW": 15.0,
+      "mpptMin_V": 150.0,
+      "mpptMax_V": 850.0,
+      "maxDcVoc_V": 1000.0,
+      "mpptCount": 2,
+      "maxCurrentPerMppt_A": 26.0,
+      "supportedProfiles": [
+        "offgrid",
+        "ceb_2025",
+        "leco_2025"
+      ],
+      "utilityListed": {
+        "ceb_2025": true,
+        "leco_2025": true
+      },
+      "listingSource": {
+        "ceb_2025": "Approved-list image families + Deye official product pages; verify exact SG03/SG04/SG05 suffix against latest local approvals.",
+        "leco_2025": "Approved-list image families + Deye official product pages; verify exact SG03/SG04/SG05 suffix against latest local approvals."
+      },
+      "datasheetRev": "seed-2026-04-09",
+      "datasheetUrl": "https://deye.com/product/sun-3-3-6-5-6k-sg04lp1-eu/",
+      "note": "Catalogue-backed hybrid model (medium confidence)."
+    },
+    {
+      "id": "deye_sun_10k_sg04lp3_eu",
+      "manufacturer": "Deye",
+      "model": "SUN-10K-SG04LP3-EU",
+      "acRated_kW": 10.0,
+      "surge_kW": 20.0,
+      "surge_s": 10.0,
+      "batteryBus_V": 48.0,
+      "maxCharge_A": 187.5,
+      "maxDischarge_A": 187.5,
+      "maxPv_kW": 15.0,
+      "mpptMin_V": 150.0,
+      "mpptMax_V": 850.0,
+      "maxDcVoc_V": 1000.0,
+      "mpptCount": 2,
+      "maxCurrentPerMppt_A": 26.0,
+      "supportedProfiles": [
+        "offgrid",
+        "ceb_2025",
+        "leco_2025"
+      ],
+      "utilityListed": {
+        "ceb_2025": true,
+        "leco_2025": true
+      },
+      "listingSource": {
+        "ceb_2025": "Approved-list image families + Deye official product pages; verify exact SG03/SG04/SG05 suffix against latest local approvals.",
+        "leco_2025": "Approved-list image families + Deye official product pages; verify exact SG03/SG04/SG05 suffix against latest local approvals."
+      },
+      "datasheetRev": "seed-2026-04-09",
+      "datasheetUrl": "https://deye.com/product/sun-3-3-6-5-6k-sg04lp1-eu/",
+      "note": "Catalogue-backed hybrid model (medium confidence)."
+    },
+    {
+      "id": "deye_sun_12k_sg03lp3_eu",
+      "manufacturer": "Deye",
+      "model": "SUN-12K-SG03LP3-EU",
+      "acRated_kW": 12.0,
+      "surge_kW": 24.0,
+      "surge_s": 10.0,
+      "batteryBus_V": 48.0,
+      "maxCharge_A": 225.0,
+      "maxDischarge_A": 225.0,
+      "maxPv_kW": 18.0,
+      "mpptMin_V": 150.0,
+      "mpptMax_V": 850.0,
+      "maxDcVoc_V": 1000.0,
+      "mpptCount": 2,
+      "maxCurrentPerMppt_A": 26.0,
+      "supportedProfiles": [
+        "offgrid",
+        "ceb_2025",
+        "leco_2025"
+      ],
+      "utilityListed": {
+        "ceb_2025": true,
+        "leco_2025": true
+      },
+      "listingSource": {
+        "ceb_2025": "Approved-list image families + Deye official product pages; verify exact SG03/SG04/SG05 suffix against latest local approvals.",
+        "leco_2025": "Approved-list image families + Deye official product pages; verify exact SG03/SG04/SG05 suffix against latest local approvals."
+      },
+      "datasheetRev": "seed-2026-04-09",
+      "datasheetUrl": "https://deye.com/product/sun-3-3-6-5-6k-sg04lp1-eu/",
+      "note": "Catalogue-backed hybrid model (medium confidence)."
+    },
+    {
+      "id": "deye_sun_12k_sg04lp3_eu",
+      "manufacturer": "Deye",
+      "model": "SUN-12K-SG04LP3-EU",
+      "acRated_kW": 12.0,
+      "surge_kW": 24.0,
+      "surge_s": 10.0,
+      "batteryBus_V": 48.0,
+      "maxCharge_A": 225.0,
+      "maxDischarge_A": 225.0,
+      "maxPv_kW": 18.0,
+      "mpptMin_V": 150.0,
+      "mpptMax_V": 850.0,
+      "maxDcVoc_V": 1000.0,
+      "mpptCount": 2,
+      "maxCurrentPerMppt_A": 26.0,
+      "supportedProfiles": [
+        "offgrid",
+        "ceb_2025",
+        "leco_2025"
+      ],
+      "utilityListed": {
+        "ceb_2025": true,
+        "leco_2025": true
+      },
+      "listingSource": {
+        "ceb_2025": "Approved-list image families + Deye official product pages; verify exact SG03/SG04/SG05 suffix against latest local approvals.",
+        "leco_2025": "Approved-list image families + Deye official product pages; verify exact SG03/SG04/SG05 suffix against latest local approvals."
+      },
+      "datasheetRev": "seed-2026-04-09",
+      "datasheetUrl": "https://deye.com/product/sun-3-3-6-5-6k-sg04lp1-eu/",
+      "note": "Catalogue-backed hybrid model (medium confidence)."
+    },
+    {
+      "id": "deye_sun_14k_sg01lp1_eu",
+      "manufacturer": "Deye",
+      "model": "SUN-14K-SG01LP1-EU",
+      "acRated_kW": 14.0,
+      "surge_kW": 28.0,
+      "surge_s": 10.0,
+      "batteryBus_V": 48.0,
+      "maxCharge_A": 262.5,
+      "maxDischarge_A": 262.5,
+      "maxPv_kW": 19.6,
+      "mpptMin_V": 150.0,
+      "mpptMax_V": 500.0,
+      "maxDcVoc_V": 550.0,
+      "mpptCount": 2,
+      "maxCurrentPerMppt_A": 26.0,
+      "supportedProfiles": [
+        "offgrid",
+        "ceb_2025",
+        "leco_2025"
+      ],
+      "utilityListed": {
+        "ceb_2025": true,
+        "leco_2025": true
+      },
+      "listingSource": {
+        "ceb_2025": "Approved-list image families + Deye official product pages; verify exact SG03/SG04/SG05 suffix against latest local approvals.",
+        "leco_2025": "Approved-list image families + Deye official product pages; verify exact SG03/SG04/SG05 suffix against latest local approvals."
+      },
+      "datasheetRev": "seed-2026-04-09",
+      "datasheetUrl": "https://deye.com/product/sun-3-3-6-5-6k-sg04lp1-eu/",
+      "note": "Catalogue-backed hybrid model (medium confidence)."
+    },
+    {
+      "id": "deye_sun_16k_sg01lp1_eu",
+      "manufacturer": "Deye",
+      "model": "SUN-16K-SG01LP1-EU",
+      "acRated_kW": 16.0,
+      "surge_kW": 32.0,
+      "surge_s": 10.0,
+      "batteryBus_V": 48.0,
+      "maxCharge_A": 300.0,
+      "maxDischarge_A": 300.0,
+      "maxPv_kW": 22.4,
+      "mpptMin_V": 150.0,
+      "mpptMax_V": 500.0,
+      "maxDcVoc_V": 550.0,
+      "mpptCount": 2,
+      "maxCurrentPerMppt_A": 26.0,
+      "supportedProfiles": [
+        "offgrid",
+        "ceb_2025",
+        "leco_2025"
+      ],
+      "utilityListed": {
+        "ceb_2025": true,
+        "leco_2025": true
+      },
+      "listingSource": {
+        "ceb_2025": "Approved-list image families + Deye official product pages; verify exact SG03/SG04/SG05 suffix against latest local approvals.",
+        "leco_2025": "Approved-list image families + Deye official product pages; verify exact SG03/SG04/SG05 suffix against latest local approvals."
+      },
+      "datasheetRev": "seed-2026-04-09",
+      "datasheetUrl": "https://deye.com/product/sun-3-3-6-5-6k-sg04lp1-eu/",
+      "note": "Catalogue-backed hybrid model (medium confidence)."
+    },
+    {
+      "id": "deye_sun_3_6k_sg03lp1_eu",
+      "manufacturer": "Deye",
+      "model": "SUN-3.6K-SG03LP1-EU",
+      "acRated_kW": 3.6,
+      "surge_kW": 7.2,
+      "surge_s": 10.0,
+      "batteryBus_V": 48.0,
+      "maxCharge_A": 120.0,
+      "maxDischarge_A": 120.0,
+      "maxPv_kW": 4.68,
+      "mpptMin_V": 150.0,
+      "mpptMax_V": 425.0,
+      "maxDcVoc_V": 500.0,
+      "mpptCount": 2,
+      "maxCurrentPerMppt_A": 13.0,
+      "supportedProfiles": [
+        "offgrid",
+        "ceb_2025",
+        "leco_2025"
+      ],
+      "utilityListed": {
+        "ceb_2025": true,
+        "leco_2025": true
+      },
+      "listingSource": {
+        "ceb_2025": "Approved-list image families + Deye official product pages; verify exact SG03/SG04/SG05 suffix against latest local approvals.",
+        "leco_2025": "Approved-list image families + Deye official product pages; verify exact SG03/SG04/SG05 suffix against latest local approvals."
+      },
+      "datasheetRev": "seed-2026-04-09",
+      "datasheetUrl": "https://deye.com/product/sun-3-3-6-5-6k-sg04lp1-eu/",
+      "note": "Catalogue-backed hybrid model (medium confidence)."
+    },
+    {
+      "id": "deye_sun_3_6k_sg04lp1_eu",
+      "manufacturer": "Deye",
+      "model": "SUN-3.6K-SG04LP1-EU",
+      "acRated_kW": 3.6,
+      "surge_kW": 7.2,
+      "surge_s": 10.0,
+      "batteryBus_V": 48.0,
+      "maxCharge_A": 120.0,
+      "maxDischarge_A": 120.0,
+      "maxPv_kW": 4.68,
+      "mpptMin_V": 150.0,
+      "mpptMax_V": 425.0,
+      "maxDcVoc_V": 500.0,
+      "mpptCount": 2,
+      "maxCurrentPerMppt_A": 13.0,
+      "supportedProfiles": [
+        "offgrid",
+        "ceb_2025",
+        "leco_2025"
+      ],
+      "utilityListed": {
+        "ceb_2025": true,
+        "leco_2025": true
+      },
+      "listingSource": {
+        "ceb_2025": "Approved-list image families + Deye official product pages; verify exact SG03/SG04/SG05 suffix against latest local approvals.",
+        "leco_2025": "Approved-list image families + Deye official product pages; verify exact SG03/SG04/SG05 suffix against latest local approvals."
+      },
+      "datasheetRev": "seed-2026-04-09",
+      "datasheetUrl": "https://deye.com/product/sun-3-3-6-5-6k-sg04lp1-eu/",
+      "note": "Catalogue-backed hybrid model (medium confidence)."
+    },
+    {
+      "id": "deye_sun_3k_sg04lp1_eu",
+      "manufacturer": "Deye",
+      "model": "SUN-3K-SG04LP1-EU",
+      "acRated_kW": 3.0,
+      "surge_kW": 6.0,
+      "surge_s": 10.0,
+      "batteryBus_V": 48.0,
+      "maxCharge_A": 120.0,
+      "maxDischarge_A": 120.0,
+      "maxPv_kW": 3.9,
+      "mpptMin_V": 150.0,
+      "mpptMax_V": 425.0,
+      "maxDcVoc_V": 500.0,
+      "mpptCount": 2,
+      "maxCurrentPerMppt_A": 13.0,
+      "supportedProfiles": [
+        "offgrid",
+        "ceb_2025",
+        "leco_2025"
+      ],
+      "utilityListed": {
+        "ceb_2025": true,
+        "leco_2025": true
+      },
+      "listingSource": {
+        "ceb_2025": "Approved-list image families + Deye official product pages; verify exact SG03/SG04/SG05 suffix against latest local approvals.",
+        "leco_2025": "Approved-list image families + Deye official product pages; verify exact SG03/SG04/SG05 suffix against latest local approvals."
+      },
+      "datasheetRev": "seed-2026-04-09",
+      "datasheetUrl": "https://deye.com/product/sun-3-3-6-5-6k-sg04lp1-eu/",
+      "note": "Catalogue-backed hybrid model (medium confidence)."
+    },
+    {
+      "id": "deye_sun_5k_sg03lp1_eu",
+      "manufacturer": "Deye",
+      "model": "SUN-5K-SG03LP1-EU",
+      "acRated_kW": 5.0,
+      "surge_kW": 10.0,
+      "surge_s": 10.0,
+      "batteryBus_V": 48.0,
+      "maxCharge_A": 120.0,
+      "maxDischarge_A": 120.0,
+      "maxPv_kW": 6.5,
+      "mpptMin_V": 150.0,
+      "mpptMax_V": 425.0,
+      "maxDcVoc_V": 500.0,
+      "mpptCount": 2,
+      "maxCurrentPerMppt_A": 13.0,
+      "supportedProfiles": [
+        "offgrid",
+        "ceb_2025",
+        "leco_2025"
+      ],
+      "utilityListed": {
+        "ceb_2025": true,
+        "leco_2025": true
+      },
+      "listingSource": {
+        "ceb_2025": "Approved-list image families + Deye official product pages; verify exact SG03/SG04/SG05 suffix against latest local approvals.",
+        "leco_2025": "Approved-list image families + Deye official product pages; verify exact SG03/SG04/SG05 suffix against latest local approvals."
+      },
+      "datasheetRev": "seed-2026-04-09",
+      "datasheetUrl": "https://deye.com/product/sun-3-3-6-5-6k-sg04lp1-eu/",
+      "note": "Catalogue-backed hybrid model (medium confidence)."
+    },
     {
       "id": "deye_sun_5k_sg04lp1_eu",
       "manufacturer": "Deye",
@@ -9,27 +339,163 @@
       "acRated_kW": 5.0,
       "surge_kW": 10.0,
       "surge_s": 10.0,
-      "batteryBus_V": 48,
-      "maxCharge_A": 120,
-      "maxDischarge_A": 120,
+      "batteryBus_V": 48.0,
+      "maxCharge_A": 120.0,
+      "maxDischarge_A": 120.0,
       "maxPv_kW": 6.5,
-      "mpptMin_V": 150,
-      "mpptMax_V": 425,
-      "maxDcVoc_V": 500,
+      "mpptMin_V": 150.0,
+      "mpptMax_V": 425.0,
+      "maxDcVoc_V": 500.0,
       "mpptCount": 2,
-      "maxCurrentPerMppt_A": 13,
-      "supportedProfiles": ["offgrid", "ceb_2025", "leco_2025"],
+      "maxCurrentPerMppt_A": 13.0,
+      "supportedProfiles": [
+        "offgrid",
+        "ceb_2025",
+        "leco_2025"
+      ],
       "utilityListed": {
         "ceb_2025": true,
         "leco_2025": true
       },
       "listingSource": {
-        "ceb_2025": "Project approved-list snapshot 2026-04-08",
-        "leco_2025": "Project approved-list snapshot 2026-04-08"
+        "ceb_2025": "Approved-list image families + Deye official product pages; verify exact SG03/SG04/SG05 suffix against latest local approvals.",
+        "leco_2025": "Approved-list image families + Deye official product pages; verify exact SG03/SG04/SG05 suffix against latest local approvals."
       },
-      "datasheetRev": "Hybrid LP1 (engineering reference)",
-      "datasheetUrl": "",
-      "note": "Low-voltage hybrid inverter."
+      "datasheetRev": "seed-2026-04-09",
+      "datasheetUrl": "https://deye.com/product/sun-3-3-6-5-6k-sg04lp1-eu/",
+      "note": "Catalogue-backed hybrid model (medium confidence)."
+    },
+    {
+      "id": "deye_sun_5k_sg04lp3_eu",
+      "manufacturer": "Deye",
+      "model": "SUN-5K-SG04LP3-EU",
+      "acRated_kW": 5.0,
+      "surge_kW": 10.0,
+      "surge_s": 10.0,
+      "batteryBus_V": 48.0,
+      "maxCharge_A": 160.0,
+      "maxDischarge_A": 160.0,
+      "maxPv_kW": 7.5,
+      "mpptMin_V": 150.0,
+      "mpptMax_V": 850.0,
+      "maxDcVoc_V": 1000.0,
+      "mpptCount": 2,
+      "maxCurrentPerMppt_A": 26.0,
+      "supportedProfiles": [
+        "offgrid",
+        "ceb_2025",
+        "leco_2025"
+      ],
+      "utilityListed": {
+        "ceb_2025": true,
+        "leco_2025": true
+      },
+      "listingSource": {
+        "ceb_2025": "Approved-list image families + Deye official product pages; verify exact SG03/SG04/SG05 suffix against latest local approvals.",
+        "leco_2025": "Approved-list image families + Deye official product pages; verify exact SG03/SG04/SG05 suffix against latest local approvals."
+      },
+      "datasheetRev": "seed-2026-04-09",
+      "datasheetUrl": "https://deye.com/product/sun-3-3-6-5-6k-sg04lp1-eu/",
+      "note": "Catalogue-backed hybrid model (medium confidence)."
+    },
+    {
+      "id": "deye_sun_6k_sg03lp1_eu",
+      "manufacturer": "Deye",
+      "model": "SUN-6K-SG03LP1-EU",
+      "acRated_kW": 6.0,
+      "surge_kW": 12.0,
+      "surge_s": 10.0,
+      "batteryBus_V": 48.0,
+      "maxCharge_A": 120.0,
+      "maxDischarge_A": 120.0,
+      "maxPv_kW": 7.8,
+      "mpptMin_V": 150.0,
+      "mpptMax_V": 425.0,
+      "maxDcVoc_V": 500.0,
+      "mpptCount": 2,
+      "maxCurrentPerMppt_A": 13.0,
+      "supportedProfiles": [
+        "offgrid",
+        "ceb_2025",
+        "leco_2025"
+      ],
+      "utilityListed": {
+        "ceb_2025": true,
+        "leco_2025": true
+      },
+      "listingSource": {
+        "ceb_2025": "Approved-list image families + Deye official product pages; verify exact SG03/SG04/SG05 suffix against latest local approvals.",
+        "leco_2025": "Approved-list image families + Deye official product pages; verify exact SG03/SG04/SG05 suffix against latest local approvals."
+      },
+      "datasheetRev": "seed-2026-04-09",
+      "datasheetUrl": "https://deye.com/product/sun-3-3-6-5-6k-sg04lp1-eu/",
+      "note": "Catalogue-backed hybrid model (medium confidence)."
+    },
+    {
+      "id": "deye_sun_6k_sg04lp1_eu",
+      "manufacturer": "Deye",
+      "model": "SUN-6K-SG04LP1-EU",
+      "acRated_kW": 6.0,
+      "surge_kW": 12.0,
+      "surge_s": 10.0,
+      "batteryBus_V": 48.0,
+      "maxCharge_A": 120.0,
+      "maxDischarge_A": 120.0,
+      "maxPv_kW": 7.8,
+      "mpptMin_V": 150.0,
+      "mpptMax_V": 425.0,
+      "maxDcVoc_V": 500.0,
+      "mpptCount": 2,
+      "maxCurrentPerMppt_A": 13.0,
+      "supportedProfiles": [
+        "offgrid",
+        "ceb_2025",
+        "leco_2025"
+      ],
+      "utilityListed": {
+        "ceb_2025": true,
+        "leco_2025": true
+      },
+      "listingSource": {
+        "ceb_2025": "Approved-list image families + Deye official product pages; verify exact SG03/SG04/SG05 suffix against latest local approvals.",
+        "leco_2025": "Approved-list image families + Deye official product pages; verify exact SG03/SG04/SG05 suffix against latest local approvals."
+      },
+      "datasheetRev": "seed-2026-04-09",
+      "datasheetUrl": "https://deye.com/product/sun-3-3-6-5-6k-sg04lp1-eu/",
+      "note": "Catalogue-backed hybrid model (medium confidence)."
+    },
+    {
+      "id": "deye_sun_6k_sg04lp3_eu",
+      "manufacturer": "Deye",
+      "model": "SUN-6K-SG04LP3-EU",
+      "acRated_kW": 6.0,
+      "surge_kW": 12.0,
+      "surge_s": 10.0,
+      "batteryBus_V": 48.0,
+      "maxCharge_A": 160.0,
+      "maxDischarge_A": 160.0,
+      "maxPv_kW": 9.0,
+      "mpptMin_V": 150.0,
+      "mpptMax_V": 850.0,
+      "maxDcVoc_V": 1000.0,
+      "mpptCount": 2,
+      "maxCurrentPerMppt_A": 26.0,
+      "supportedProfiles": [
+        "offgrid",
+        "ceb_2025",
+        "leco_2025"
+      ],
+      "utilityListed": {
+        "ceb_2025": true,
+        "leco_2025": true
+      },
+      "listingSource": {
+        "ceb_2025": "Approved-list image families + Deye official product pages; verify exact SG03/SG04/SG05 suffix against latest local approvals.",
+        "leco_2025": "Approved-list image families + Deye official product pages; verify exact SG03/SG04/SG05 suffix against latest local approvals."
+      },
+      "datasheetRev": "seed-2026-04-09",
+      "datasheetUrl": "https://deye.com/product/sun-3-3-6-5-6k-sg04lp1-eu/",
+      "note": "Catalogue-backed hybrid model (medium confidence)."
     },
     {
       "id": "deye_sun_8k_sg01lp1",
@@ -47,7 +513,11 @@
       "maxDcVoc_V": 500,
       "mpptCount": 2,
       "maxCurrentPerMppt_A": 18,
-      "supportedProfiles": ["offgrid", "ceb_2025", "leco_2025"],
+      "supportedProfiles": [
+        "offgrid",
+        "ceb_2025",
+        "leco_2025"
+      ],
       "utilityListed": {
         "ceb_2025": true,
         "leco_2025": true
@@ -59,6 +529,72 @@
       "datasheetRev": "Hybrid LP1 (engineering reference)",
       "datasheetUrl": "",
       "note": "Higher current class low-voltage hybrid inverter."
+    },
+    {
+      "id": "deye_sun_8k_sg03lp3_eu",
+      "manufacturer": "Deye",
+      "model": "SUN-8K-SG03LP3-EU",
+      "acRated_kW": 8.0,
+      "surge_kW": 16.0,
+      "surge_s": 10.0,
+      "batteryBus_V": 48.0,
+      "maxCharge_A": 160.0,
+      "maxDischarge_A": 160.0,
+      "maxPv_kW": 12.0,
+      "mpptMin_V": 150.0,
+      "mpptMax_V": 850.0,
+      "maxDcVoc_V": 1000.0,
+      "mpptCount": 2,
+      "maxCurrentPerMppt_A": 26.0,
+      "supportedProfiles": [
+        "offgrid",
+        "ceb_2025",
+        "leco_2025"
+      ],
+      "utilityListed": {
+        "ceb_2025": true,
+        "leco_2025": true
+      },
+      "listingSource": {
+        "ceb_2025": "Approved-list image families + Deye official product pages; verify exact SG03/SG04/SG05 suffix against latest local approvals.",
+        "leco_2025": "Approved-list image families + Deye official product pages; verify exact SG03/SG04/SG05 suffix against latest local approvals."
+      },
+      "datasheetRev": "seed-2026-04-09",
+      "datasheetUrl": "https://deye.com/product/sun-3-3-6-5-6k-sg04lp1-eu/",
+      "note": "Catalogue-backed hybrid model (medium confidence)."
+    },
+    {
+      "id": "deye_sun_8k_sg04lp3_eu",
+      "manufacturer": "Deye",
+      "model": "SUN-8K-SG04LP3-EU",
+      "acRated_kW": 8.0,
+      "surge_kW": 16.0,
+      "surge_s": 10.0,
+      "batteryBus_V": 48.0,
+      "maxCharge_A": 160.0,
+      "maxDischarge_A": 160.0,
+      "maxPv_kW": 12.0,
+      "mpptMin_V": 150.0,
+      "mpptMax_V": 850.0,
+      "maxDcVoc_V": 1000.0,
+      "mpptCount": 2,
+      "maxCurrentPerMppt_A": 26.0,
+      "supportedProfiles": [
+        "offgrid",
+        "ceb_2025",
+        "leco_2025"
+      ],
+      "utilityListed": {
+        "ceb_2025": true,
+        "leco_2025": true
+      },
+      "listingSource": {
+        "ceb_2025": "Approved-list image families + Deye official product pages; verify exact SG03/SG04/SG05 suffix against latest local approvals.",
+        "leco_2025": "Approved-list image families + Deye official product pages; verify exact SG03/SG04/SG05 suffix against latest local approvals."
+      },
+      "datasheetRev": "seed-2026-04-09",
+      "datasheetUrl": "https://deye.com/product/sun-3-3-6-5-6k-sg04lp1-eu/",
+      "note": "Catalogue-backed hybrid model (medium confidence)."
     },
     {
       "id": "goodwe_gw5048_em",
@@ -76,7 +612,11 @@
       "maxDcVoc_V": 550,
       "mpptCount": 2,
       "maxCurrentPerMppt_A": 12.5,
-      "supportedProfiles": ["offgrid", "ceb_2025", "leco_2025"],
+      "supportedProfiles": [
+        "offgrid",
+        "ceb_2025",
+        "leco_2025"
+      ],
       "utilityListed": {
         "ceb_2025": true,
         "leco_2025": true
@@ -88,6 +628,1359 @@
       "datasheetRev": "EM series (engineering reference)",
       "datasheetUrl": "",
       "note": "Single-phase hybrid inverter class."
+    },
+    {
+      "id": "kaco_new_energy_blueplanet_hybrid_10_0_nh3",
+      "manufacturer": "KACO New Energy",
+      "model": "blueplanet hybrid 10.0 NH3",
+      "acRated_kW": 10.0,
+      "surge_kW": 15.0,
+      "surge_s": 5.0,
+      "batteryBus_V": 400.0,
+      "maxCharge_A": 30.0,
+      "maxDischarge_A": 30.0,
+      "maxPv_kW": 13.5,
+      "mpptMin_V": 150.0,
+      "mpptMax_V": 850.0,
+      "maxDcVoc_V": 1000.0,
+      "mpptCount": 2,
+      "maxCurrentPerMppt_A": 18.0,
+      "supportedProfiles": [
+        "offgrid",
+        "ceb_2025",
+        "leco_2025"
+      ],
+      "utilityListed": {
+        "ceb_2025": true,
+        "leco_2025": true
+      },
+      "listingSource": {
+        "ceb_2025": "Approved-list image family names; exact marketed SKUs to be confirmed from current KACO region catalog.",
+        "leco_2025": "Approved-list image family names; exact marketed SKUs to be confirmed from current KACO region catalog."
+      },
+      "datasheetRev": "seed-2026-04-09",
+      "datasheetUrl": "https://kaco-newenergy.com/products",
+      "note": "Catalogue-backed hybrid model (low confidence)."
+    },
+    {
+      "id": "kaco_new_energy_blueplanet_hybrid_10_0_tl3",
+      "manufacturer": "KACO New Energy",
+      "model": "blueplanet hybrid 10.0 TL3",
+      "acRated_kW": 10.0,
+      "surge_kW": 15.0,
+      "surge_s": 5.0,
+      "batteryBus_V": 400.0,
+      "maxCharge_A": 30.0,
+      "maxDischarge_A": 30.0,
+      "maxPv_kW": 13.5,
+      "mpptMin_V": 150.0,
+      "mpptMax_V": 850.0,
+      "maxDcVoc_V": 1000.0,
+      "mpptCount": 2,
+      "maxCurrentPerMppt_A": 18.0,
+      "supportedProfiles": [
+        "offgrid",
+        "ceb_2025",
+        "leco_2025"
+      ],
+      "utilityListed": {
+        "ceb_2025": true,
+        "leco_2025": true
+      },
+      "listingSource": {
+        "ceb_2025": "Approved-list image family names; exact marketed SKUs to be confirmed from current KACO region catalog.",
+        "leco_2025": "Approved-list image family names; exact marketed SKUs to be confirmed from current KACO region catalog."
+      },
+      "datasheetRev": "seed-2026-04-09",
+      "datasheetUrl": "https://kaco-newenergy.com/products",
+      "note": "Catalogue-backed hybrid model (low confidence)."
+    },
+    {
+      "id": "kaco_new_energy_blueplanet_hybrid_12_0_nh3",
+      "manufacturer": "KACO New Energy",
+      "model": "blueplanet hybrid 12.0 NH3",
+      "acRated_kW": 12.0,
+      "surge_kW": 18.0,
+      "surge_s": 5.0,
+      "batteryBus_V": 400.0,
+      "maxCharge_A": 36.0,
+      "maxDischarge_A": 36.0,
+      "maxPv_kW": 16.2,
+      "mpptMin_V": 150.0,
+      "mpptMax_V": 850.0,
+      "maxDcVoc_V": 1000.0,
+      "mpptCount": 2,
+      "maxCurrentPerMppt_A": 18.0,
+      "supportedProfiles": [
+        "offgrid",
+        "ceb_2025",
+        "leco_2025"
+      ],
+      "utilityListed": {
+        "ceb_2025": true,
+        "leco_2025": true
+      },
+      "listingSource": {
+        "ceb_2025": "Approved-list image family names; exact marketed SKUs to be confirmed from current KACO region catalog.",
+        "leco_2025": "Approved-list image family names; exact marketed SKUs to be confirmed from current KACO region catalog."
+      },
+      "datasheetRev": "seed-2026-04-09",
+      "datasheetUrl": "https://kaco-newenergy.com/products",
+      "note": "Catalogue-backed hybrid model (low confidence)."
+    },
+    {
+      "id": "kaco_new_energy_blueplanet_hybrid_6_0_nh3",
+      "manufacturer": "KACO New Energy",
+      "model": "blueplanet hybrid 6.0 NH3",
+      "acRated_kW": 6.0,
+      "surge_kW": 9.0,
+      "surge_s": 5.0,
+      "batteryBus_V": 400.0,
+      "maxCharge_A": 20.0,
+      "maxDischarge_A": 20.0,
+      "maxPv_kW": 8.1,
+      "mpptMin_V": 150.0,
+      "mpptMax_V": 850.0,
+      "maxDcVoc_V": 1000.0,
+      "mpptCount": 2,
+      "maxCurrentPerMppt_A": 18.0,
+      "supportedProfiles": [
+        "offgrid",
+        "ceb_2025",
+        "leco_2025"
+      ],
+      "utilityListed": {
+        "ceb_2025": true,
+        "leco_2025": true
+      },
+      "listingSource": {
+        "ceb_2025": "Approved-list image family names; exact marketed SKUs to be confirmed from current KACO region catalog.",
+        "leco_2025": "Approved-list image family names; exact marketed SKUs to be confirmed from current KACO region catalog."
+      },
+      "datasheetRev": "seed-2026-04-09",
+      "datasheetUrl": "https://kaco-newenergy.com/products",
+      "note": "Catalogue-backed hybrid model (low confidence)."
+    },
+    {
+      "id": "kaco_new_energy_blueplanet_hybrid_8_0_nh3",
+      "manufacturer": "KACO New Energy",
+      "model": "blueplanet hybrid 8.0 NH3",
+      "acRated_kW": 8.0,
+      "surge_kW": 12.0,
+      "surge_s": 5.0,
+      "batteryBus_V": 400.0,
+      "maxCharge_A": 24.0,
+      "maxDischarge_A": 24.0,
+      "maxPv_kW": 10.8,
+      "mpptMin_V": 150.0,
+      "mpptMax_V": 850.0,
+      "maxDcVoc_V": 1000.0,
+      "mpptCount": 2,
+      "maxCurrentPerMppt_A": 18.0,
+      "supportedProfiles": [
+        "offgrid",
+        "ceb_2025",
+        "leco_2025"
+      ],
+      "utilityListed": {
+        "ceb_2025": true,
+        "leco_2025": true
+      },
+      "listingSource": {
+        "ceb_2025": "Approved-list image family names; exact marketed SKUs to be confirmed from current KACO region catalog.",
+        "leco_2025": "Approved-list image family names; exact marketed SKUs to be confirmed from current KACO region catalog."
+      },
+      "datasheetRev": "seed-2026-04-09",
+      "datasheetUrl": "https://kaco-newenergy.com/products",
+      "note": "Catalogue-backed hybrid model (low confidence)."
+    },
+    {
+      "id": "sofar_esi_3_68k_s1",
+      "manufacturer": "SOFAR",
+      "model": "ESI 3.68K-S1",
+      "acRated_kW": 3.68,
+      "surge_kW": 5.52,
+      "surge_s": 5.0,
+      "batteryBus_V": 400.0,
+      "maxCharge_A": 20.0,
+      "maxDischarge_A": 20.0,
+      "maxPv_kW": 4.6,
+      "mpptMin_V": 85.0,
+      "mpptMax_V": 520.0,
+      "maxDcVoc_V": 550.0,
+      "mpptCount": 2,
+      "maxCurrentPerMppt_A": 16.0,
+      "supportedProfiles": [
+        "offgrid",
+        "ceb_2025",
+        "leco_2025"
+      ],
+      "utilityListed": {
+        "ceb_2025": true,
+        "leco_2025": true
+      },
+      "listingSource": {
+        "ceb_2025": "Approved-list image models + SOFAR official hybrid datasheets.",
+        "leco_2025": "Approved-list image models + SOFAR official hybrid datasheets."
+      },
+      "datasheetRev": "seed-2026-04-09",
+      "datasheetUrl": "https://www.sofarsolar.com/upload/file/20240205/1707117103572051692.pdf",
+      "note": "Catalogue-backed hybrid model (high confidence)."
+    },
+    {
+      "id": "sofar_esi_3k_s1",
+      "manufacturer": "SOFAR",
+      "model": "ESI 3K-S1",
+      "acRated_kW": 3.0,
+      "surge_kW": 4.5,
+      "surge_s": 5.0,
+      "batteryBus_V": 400.0,
+      "maxCharge_A": 20.0,
+      "maxDischarge_A": 20.0,
+      "maxPv_kW": 3.75,
+      "mpptMin_V": 85.0,
+      "mpptMax_V": 520.0,
+      "maxDcVoc_V": 550.0,
+      "mpptCount": 2,
+      "maxCurrentPerMppt_A": 16.0,
+      "supportedProfiles": [
+        "offgrid",
+        "ceb_2025",
+        "leco_2025"
+      ],
+      "utilityListed": {
+        "ceb_2025": true,
+        "leco_2025": true
+      },
+      "listingSource": {
+        "ceb_2025": "Approved-list image models + SOFAR official hybrid datasheets.",
+        "leco_2025": "Approved-list image models + SOFAR official hybrid datasheets."
+      },
+      "datasheetRev": "seed-2026-04-09",
+      "datasheetUrl": "https://www.sofarsolar.com/upload/file/20240205/1707117103572051692.pdf",
+      "note": "Catalogue-backed hybrid model (high confidence)."
+    },
+    {
+      "id": "sofar_esi_4_6k_s1",
+      "manufacturer": "SOFAR",
+      "model": "ESI 4.6K-S1",
+      "acRated_kW": 4.6,
+      "surge_kW": 6.9,
+      "surge_s": 5.0,
+      "batteryBus_V": 400.0,
+      "maxCharge_A": 20.0,
+      "maxDischarge_A": 20.0,
+      "maxPv_kW": 5.75,
+      "mpptMin_V": 85.0,
+      "mpptMax_V": 520.0,
+      "maxDcVoc_V": 550.0,
+      "mpptCount": 2,
+      "maxCurrentPerMppt_A": 16.0,
+      "supportedProfiles": [
+        "offgrid",
+        "ceb_2025",
+        "leco_2025"
+      ],
+      "utilityListed": {
+        "ceb_2025": true,
+        "leco_2025": true
+      },
+      "listingSource": {
+        "ceb_2025": "Approved-list image models + SOFAR official hybrid datasheets.",
+        "leco_2025": "Approved-list image models + SOFAR official hybrid datasheets."
+      },
+      "datasheetRev": "seed-2026-04-09",
+      "datasheetUrl": "https://www.sofarsolar.com/upload/file/20240205/1707117103572051692.pdf",
+      "note": "Catalogue-backed hybrid model (high confidence)."
+    },
+    {
+      "id": "sofar_esi_4k_s1",
+      "manufacturer": "SOFAR",
+      "model": "ESI 4K-S1",
+      "acRated_kW": 4.0,
+      "surge_kW": 6.0,
+      "surge_s": 5.0,
+      "batteryBus_V": 400.0,
+      "maxCharge_A": 20.0,
+      "maxDischarge_A": 20.0,
+      "maxPv_kW": 5.0,
+      "mpptMin_V": 85.0,
+      "mpptMax_V": 520.0,
+      "maxDcVoc_V": 550.0,
+      "mpptCount": 2,
+      "maxCurrentPerMppt_A": 16.0,
+      "supportedProfiles": [
+        "offgrid",
+        "ceb_2025",
+        "leco_2025"
+      ],
+      "utilityListed": {
+        "ceb_2025": true,
+        "leco_2025": true
+      },
+      "listingSource": {
+        "ceb_2025": "Approved-list image models + SOFAR official hybrid datasheets.",
+        "leco_2025": "Approved-list image models + SOFAR official hybrid datasheets."
+      },
+      "datasheetRev": "seed-2026-04-09",
+      "datasheetUrl": "https://www.sofarsolar.com/upload/file/20240205/1707117103572051692.pdf",
+      "note": "Catalogue-backed hybrid model (high confidence)."
+    },
+    {
+      "id": "sofar_esi_5k_s1",
+      "manufacturer": "SOFAR",
+      "model": "ESI 5K-S1",
+      "acRated_kW": 5.0,
+      "surge_kW": 7.5,
+      "surge_s": 5.0,
+      "batteryBus_V": 400.0,
+      "maxCharge_A": 20.0,
+      "maxDischarge_A": 20.0,
+      "maxPv_kW": 6.25,
+      "mpptMin_V": 85.0,
+      "mpptMax_V": 520.0,
+      "maxDcVoc_V": 550.0,
+      "mpptCount": 2,
+      "maxCurrentPerMppt_A": 16.0,
+      "supportedProfiles": [
+        "offgrid",
+        "ceb_2025",
+        "leco_2025"
+      ],
+      "utilityListed": {
+        "ceb_2025": true,
+        "leco_2025": true
+      },
+      "listingSource": {
+        "ceb_2025": "Approved-list image models + SOFAR official hybrid datasheets.",
+        "leco_2025": "Approved-list image models + SOFAR official hybrid datasheets."
+      },
+      "datasheetRev": "seed-2026-04-09",
+      "datasheetUrl": "https://www.sofarsolar.com/upload/file/20240205/1707117103572051692.pdf",
+      "note": "Catalogue-backed hybrid model (high confidence)."
+    },
+    {
+      "id": "sofar_esi_5k_s1_a",
+      "manufacturer": "SOFAR",
+      "model": "ESI 5K-S1-A",
+      "acRated_kW": 5.0,
+      "surge_kW": 7.5,
+      "surge_s": 5.0,
+      "batteryBus_V": 400.0,
+      "maxCharge_A": 20.0,
+      "maxDischarge_A": 20.0,
+      "maxPv_kW": 6.25,
+      "mpptMin_V": 85.0,
+      "mpptMax_V": 520.0,
+      "maxDcVoc_V": 550.0,
+      "mpptCount": 2,
+      "maxCurrentPerMppt_A": 16.0,
+      "supportedProfiles": [
+        "offgrid",
+        "ceb_2025",
+        "leco_2025"
+      ],
+      "utilityListed": {
+        "ceb_2025": true,
+        "leco_2025": true
+      },
+      "listingSource": {
+        "ceb_2025": "Approved-list image models + SOFAR official hybrid datasheets.",
+        "leco_2025": "Approved-list image models + SOFAR official hybrid datasheets."
+      },
+      "datasheetRev": "seed-2026-04-09",
+      "datasheetUrl": "https://www.sofarsolar.com/upload/file/20240205/1707117103572051692.pdf",
+      "note": "Catalogue-backed hybrid model (high confidence)."
+    },
+    {
+      "id": "sofar_esi_6k_s1",
+      "manufacturer": "SOFAR",
+      "model": "ESI 6K-S1",
+      "acRated_kW": 6.0,
+      "surge_kW": 9.0,
+      "surge_s": 5.0,
+      "batteryBus_V": 400.0,
+      "maxCharge_A": 20.0,
+      "maxDischarge_A": 20.0,
+      "maxPv_kW": 7.5,
+      "mpptMin_V": 85.0,
+      "mpptMax_V": 520.0,
+      "maxDcVoc_V": 550.0,
+      "mpptCount": 2,
+      "maxCurrentPerMppt_A": 16.0,
+      "supportedProfiles": [
+        "offgrid",
+        "ceb_2025",
+        "leco_2025"
+      ],
+      "utilityListed": {
+        "ceb_2025": true,
+        "leco_2025": true
+      },
+      "listingSource": {
+        "ceb_2025": "Approved-list image models + SOFAR official hybrid datasheets.",
+        "leco_2025": "Approved-list image models + SOFAR official hybrid datasheets."
+      },
+      "datasheetRev": "seed-2026-04-09",
+      "datasheetUrl": "https://www.sofarsolar.com/upload/file/20240205/1707117103572051692.pdf",
+      "note": "Catalogue-backed hybrid model (high confidence)."
+    },
+    {
+      "id": "sofar_hyd_10ktl_3ph",
+      "manufacturer": "SOFAR",
+      "model": "HYD 10KTL-3PH",
+      "acRated_kW": 10.0,
+      "surge_kW": 15.0,
+      "surge_s": 5.0,
+      "batteryBus_V": 400.0,
+      "maxCharge_A": 30.0,
+      "maxDischarge_A": 30.0,
+      "maxPv_kW": 13.5,
+      "mpptMin_V": 180.0,
+      "mpptMax_V": 960.0,
+      "maxDcVoc_V": 1000.0,
+      "mpptCount": 2,
+      "maxCurrentPerMppt_A": 26.0,
+      "supportedProfiles": [
+        "offgrid",
+        "ceb_2025",
+        "leco_2025"
+      ],
+      "utilityListed": {
+        "ceb_2025": true,
+        "leco_2025": true
+      },
+      "listingSource": {
+        "ceb_2025": "Approved-list image models + SOFAR official hybrid datasheets.",
+        "leco_2025": "Approved-list image models + SOFAR official hybrid datasheets."
+      },
+      "datasheetRev": "seed-2026-04-09",
+      "datasheetUrl": "https://www.sofarsolar.com/upload/file/20240205/1707117103572051692.pdf",
+      "note": "Catalogue-backed hybrid model (high confidence)."
+    },
+    {
+      "id": "sofar_hyd_15ktl_3ph",
+      "manufacturer": "SOFAR",
+      "model": "HYD 15KTL-3PH",
+      "acRated_kW": 15.0,
+      "surge_kW": 22.5,
+      "surge_s": 5.0,
+      "batteryBus_V": 400.0,
+      "maxCharge_A": 45.0,
+      "maxDischarge_A": 45.0,
+      "maxPv_kW": 20.25,
+      "mpptMin_V": 180.0,
+      "mpptMax_V": 960.0,
+      "maxDcVoc_V": 1000.0,
+      "mpptCount": 2,
+      "maxCurrentPerMppt_A": 26.0,
+      "supportedProfiles": [
+        "offgrid",
+        "ceb_2025",
+        "leco_2025"
+      ],
+      "utilityListed": {
+        "ceb_2025": true,
+        "leco_2025": true
+      },
+      "listingSource": {
+        "ceb_2025": "Approved-list image models + SOFAR official hybrid datasheets.",
+        "leco_2025": "Approved-list image models + SOFAR official hybrid datasheets."
+      },
+      "datasheetRev": "seed-2026-04-09",
+      "datasheetUrl": "https://www.sofarsolar.com/upload/file/20240205/1707117103572051692.pdf",
+      "note": "Catalogue-backed hybrid model (high confidence)."
+    },
+    {
+      "id": "sofar_hyd_20ktl_3ph",
+      "manufacturer": "SOFAR",
+      "model": "HYD 20KTL-3PH",
+      "acRated_kW": 20.0,
+      "surge_kW": 30.0,
+      "surge_s": 5.0,
+      "batteryBus_V": 400.0,
+      "maxCharge_A": 60.0,
+      "maxDischarge_A": 60.0,
+      "maxPv_kW": 27.0,
+      "mpptMin_V": 180.0,
+      "mpptMax_V": 960.0,
+      "maxDcVoc_V": 1000.0,
+      "mpptCount": 2,
+      "maxCurrentPerMppt_A": 26.0,
+      "supportedProfiles": [
+        "offgrid",
+        "ceb_2025",
+        "leco_2025"
+      ],
+      "utilityListed": {
+        "ceb_2025": true,
+        "leco_2025": true
+      },
+      "listingSource": {
+        "ceb_2025": "Approved-list image models + SOFAR official hybrid datasheets.",
+        "leco_2025": "Approved-list image models + SOFAR official hybrid datasheets."
+      },
+      "datasheetRev": "seed-2026-04-09",
+      "datasheetUrl": "https://www.sofarsolar.com/upload/file/20240205/1707117103572051692.pdf",
+      "note": "Catalogue-backed hybrid model (high confidence)."
+    },
+    {
+      "id": "sofar_hyd_3000_ep",
+      "manufacturer": "SOFAR",
+      "model": "HYD 3000-EP",
+      "acRated_kW": 3.0,
+      "surge_kW": 6.0,
+      "surge_s": 10.0,
+      "batteryBus_V": 48.0,
+      "maxCharge_A": 100.0,
+      "maxDischarge_A": 100.0,
+      "maxPv_kW": 3.9,
+      "mpptMin_V": 90.0,
+      "mpptMax_V": 550.0,
+      "maxDcVoc_V": 600.0,
+      "mpptCount": 2,
+      "maxCurrentPerMppt_A": 13.0,
+      "supportedProfiles": [
+        "offgrid",
+        "ceb_2025",
+        "leco_2025"
+      ],
+      "utilityListed": {
+        "ceb_2025": true,
+        "leco_2025": true
+      },
+      "listingSource": {
+        "ceb_2025": "Approved-list image models + SOFAR official hybrid datasheets.",
+        "leco_2025": "Approved-list image models + SOFAR official hybrid datasheets."
+      },
+      "datasheetRev": "seed-2026-04-09",
+      "datasheetUrl": "https://www.sofarsolar.com/upload/file/20240205/1707117103572051692.pdf",
+      "note": "Catalogue-backed hybrid model (high confidence)."
+    },
+    {
+      "id": "sofar_hyd_3000_es",
+      "manufacturer": "SOFAR",
+      "model": "HYD 3000-ES",
+      "acRated_kW": 3.0,
+      "surge_kW": 6.0,
+      "surge_s": 10.0,
+      "batteryBus_V": 48.0,
+      "maxCharge_A": 100.0,
+      "maxDischarge_A": 100.0,
+      "maxPv_kW": 3.9,
+      "mpptMin_V": 90.0,
+      "mpptMax_V": 550.0,
+      "maxDcVoc_V": 600.0,
+      "mpptCount": 2,
+      "maxCurrentPerMppt_A": 13.0,
+      "supportedProfiles": [
+        "offgrid",
+        "ceb_2025",
+        "leco_2025"
+      ],
+      "utilityListed": {
+        "ceb_2025": true,
+        "leco_2025": true
+      },
+      "listingSource": {
+        "ceb_2025": "Approved-list image models + SOFAR official hybrid datasheets.",
+        "leco_2025": "Approved-list image models + SOFAR official hybrid datasheets."
+      },
+      "datasheetRev": "seed-2026-04-09",
+      "datasheetUrl": "https://www.sofarsolar.com/upload/file/20240205/1707117103572051692.pdf",
+      "note": "Catalogue-backed hybrid model (high confidence)."
+    },
+    {
+      "id": "sofar_hyd_3680_ep",
+      "manufacturer": "SOFAR",
+      "model": "HYD 3680-EP",
+      "acRated_kW": 3.68,
+      "surge_kW": 7.36,
+      "surge_s": 10.0,
+      "batteryBus_V": 48.0,
+      "maxCharge_A": 100.0,
+      "maxDischarge_A": 100.0,
+      "maxPv_kW": 4.784,
+      "mpptMin_V": 90.0,
+      "mpptMax_V": 550.0,
+      "maxDcVoc_V": 600.0,
+      "mpptCount": 2,
+      "maxCurrentPerMppt_A": 13.0,
+      "supportedProfiles": [
+        "offgrid",
+        "ceb_2025",
+        "leco_2025"
+      ],
+      "utilityListed": {
+        "ceb_2025": true,
+        "leco_2025": true
+      },
+      "listingSource": {
+        "ceb_2025": "Approved-list image models + SOFAR official hybrid datasheets.",
+        "leco_2025": "Approved-list image models + SOFAR official hybrid datasheets."
+      },
+      "datasheetRev": "seed-2026-04-09",
+      "datasheetUrl": "https://www.sofarsolar.com/upload/file/20240205/1707117103572051692.pdf",
+      "note": "Catalogue-backed hybrid model (high confidence)."
+    },
+    {
+      "id": "sofar_hyd_3680_es",
+      "manufacturer": "SOFAR",
+      "model": "HYD 3680-ES",
+      "acRated_kW": 3.68,
+      "surge_kW": 7.36,
+      "surge_s": 10.0,
+      "batteryBus_V": 48.0,
+      "maxCharge_A": 100.0,
+      "maxDischarge_A": 100.0,
+      "maxPv_kW": 4.784,
+      "mpptMin_V": 90.0,
+      "mpptMax_V": 550.0,
+      "maxDcVoc_V": 600.0,
+      "mpptCount": 2,
+      "maxCurrentPerMppt_A": 13.0,
+      "supportedProfiles": [
+        "offgrid",
+        "ceb_2025",
+        "leco_2025"
+      ],
+      "utilityListed": {
+        "ceb_2025": true,
+        "leco_2025": true
+      },
+      "listingSource": {
+        "ceb_2025": "Approved-list image models + SOFAR official hybrid datasheets.",
+        "leco_2025": "Approved-list image models + SOFAR official hybrid datasheets."
+      },
+      "datasheetRev": "seed-2026-04-09",
+      "datasheetUrl": "https://www.sofarsolar.com/upload/file/20240205/1707117103572051692.pdf",
+      "note": "Catalogue-backed hybrid model (high confidence)."
+    },
+    {
+      "id": "sofar_hyd_4000_ep",
+      "manufacturer": "SOFAR",
+      "model": "HYD 4000-EP",
+      "acRated_kW": 4.0,
+      "surge_kW": 8.0,
+      "surge_s": 10.0,
+      "batteryBus_V": 48.0,
+      "maxCharge_A": 100.0,
+      "maxDischarge_A": 100.0,
+      "maxPv_kW": 5.2,
+      "mpptMin_V": 90.0,
+      "mpptMax_V": 550.0,
+      "maxDcVoc_V": 600.0,
+      "mpptCount": 2,
+      "maxCurrentPerMppt_A": 13.0,
+      "supportedProfiles": [
+        "offgrid",
+        "ceb_2025",
+        "leco_2025"
+      ],
+      "utilityListed": {
+        "ceb_2025": true,
+        "leco_2025": true
+      },
+      "listingSource": {
+        "ceb_2025": "Approved-list image models + SOFAR official hybrid datasheets.",
+        "leco_2025": "Approved-list image models + SOFAR official hybrid datasheets."
+      },
+      "datasheetRev": "seed-2026-04-09",
+      "datasheetUrl": "https://www.sofarsolar.com/upload/file/20240205/1707117103572051692.pdf",
+      "note": "Catalogue-backed hybrid model (high confidence)."
+    },
+    {
+      "id": "sofar_hyd_4000_es",
+      "manufacturer": "SOFAR",
+      "model": "HYD 4000-ES",
+      "acRated_kW": 4.0,
+      "surge_kW": 8.0,
+      "surge_s": 10.0,
+      "batteryBus_V": 48.0,
+      "maxCharge_A": 100.0,
+      "maxDischarge_A": 100.0,
+      "maxPv_kW": 5.2,
+      "mpptMin_V": 90.0,
+      "mpptMax_V": 550.0,
+      "maxDcVoc_V": 600.0,
+      "mpptCount": 2,
+      "maxCurrentPerMppt_A": 13.0,
+      "supportedProfiles": [
+        "offgrid",
+        "ceb_2025",
+        "leco_2025"
+      ],
+      "utilityListed": {
+        "ceb_2025": true,
+        "leco_2025": true
+      },
+      "listingSource": {
+        "ceb_2025": "Approved-list image models + SOFAR official hybrid datasheets.",
+        "leco_2025": "Approved-list image models + SOFAR official hybrid datasheets."
+      },
+      "datasheetRev": "seed-2026-04-09",
+      "datasheetUrl": "https://www.sofarsolar.com/upload/file/20240205/1707117103572051692.pdf",
+      "note": "Catalogue-backed hybrid model (high confidence)."
+    },
+    {
+      "id": "sofar_hyd_4600_ep",
+      "manufacturer": "SOFAR",
+      "model": "HYD 4600-EP",
+      "acRated_kW": 4.6,
+      "surge_kW": 9.2,
+      "surge_s": 10.0,
+      "batteryBus_V": 48.0,
+      "maxCharge_A": 100.0,
+      "maxDischarge_A": 100.0,
+      "maxPv_kW": 5.98,
+      "mpptMin_V": 90.0,
+      "mpptMax_V": 550.0,
+      "maxDcVoc_V": 600.0,
+      "mpptCount": 2,
+      "maxCurrentPerMppt_A": 13.0,
+      "supportedProfiles": [
+        "offgrid",
+        "ceb_2025",
+        "leco_2025"
+      ],
+      "utilityListed": {
+        "ceb_2025": true,
+        "leco_2025": true
+      },
+      "listingSource": {
+        "ceb_2025": "Approved-list image models + SOFAR official hybrid datasheets.",
+        "leco_2025": "Approved-list image models + SOFAR official hybrid datasheets."
+      },
+      "datasheetRev": "seed-2026-04-09",
+      "datasheetUrl": "https://www.sofarsolar.com/upload/file/20240205/1707117103572051692.pdf",
+      "note": "Catalogue-backed hybrid model (high confidence)."
+    },
+    {
+      "id": "sofar_hyd_4600_es",
+      "manufacturer": "SOFAR",
+      "model": "HYD 4600-ES",
+      "acRated_kW": 4.6,
+      "surge_kW": 9.2,
+      "surge_s": 10.0,
+      "batteryBus_V": 48.0,
+      "maxCharge_A": 100.0,
+      "maxDischarge_A": 100.0,
+      "maxPv_kW": 5.98,
+      "mpptMin_V": 90.0,
+      "mpptMax_V": 550.0,
+      "maxDcVoc_V": 600.0,
+      "mpptCount": 2,
+      "maxCurrentPerMppt_A": 13.0,
+      "supportedProfiles": [
+        "offgrid",
+        "ceb_2025",
+        "leco_2025"
+      ],
+      "utilityListed": {
+        "ceb_2025": true,
+        "leco_2025": true
+      },
+      "listingSource": {
+        "ceb_2025": "Approved-list image models + SOFAR official hybrid datasheets.",
+        "leco_2025": "Approved-list image models + SOFAR official hybrid datasheets."
+      },
+      "datasheetRev": "seed-2026-04-09",
+      "datasheetUrl": "https://www.sofarsolar.com/upload/file/20240205/1707117103572051692.pdf",
+      "note": "Catalogue-backed hybrid model (high confidence)."
+    },
+    {
+      "id": "sofar_hyd_5000_ep",
+      "manufacturer": "SOFAR",
+      "model": "HYD 5000-EP",
+      "acRated_kW": 5.0,
+      "surge_kW": 10.0,
+      "surge_s": 10.0,
+      "batteryBus_V": 48.0,
+      "maxCharge_A": 100.0,
+      "maxDischarge_A": 100.0,
+      "maxPv_kW": 6.5,
+      "mpptMin_V": 90.0,
+      "mpptMax_V": 550.0,
+      "maxDcVoc_V": 600.0,
+      "mpptCount": 2,
+      "maxCurrentPerMppt_A": 13.0,
+      "supportedProfiles": [
+        "offgrid",
+        "ceb_2025",
+        "leco_2025"
+      ],
+      "utilityListed": {
+        "ceb_2025": true,
+        "leco_2025": true
+      },
+      "listingSource": {
+        "ceb_2025": "Approved-list image models + SOFAR official hybrid datasheets.",
+        "leco_2025": "Approved-list image models + SOFAR official hybrid datasheets."
+      },
+      "datasheetRev": "seed-2026-04-09",
+      "datasheetUrl": "https://www.sofarsolar.com/upload/file/20240205/1707117103572051692.pdf",
+      "note": "Catalogue-backed hybrid model (high confidence)."
+    },
+    {
+      "id": "sofar_hyd_5000_es",
+      "manufacturer": "SOFAR",
+      "model": "HYD 5000-ES",
+      "acRated_kW": 5.0,
+      "surge_kW": 10.0,
+      "surge_s": 10.0,
+      "batteryBus_V": 48.0,
+      "maxCharge_A": 100.0,
+      "maxDischarge_A": 100.0,
+      "maxPv_kW": 6.5,
+      "mpptMin_V": 90.0,
+      "mpptMax_V": 550.0,
+      "maxDcVoc_V": 600.0,
+      "mpptCount": 2,
+      "maxCurrentPerMppt_A": 13.0,
+      "supportedProfiles": [
+        "offgrid",
+        "ceb_2025",
+        "leco_2025"
+      ],
+      "utilityListed": {
+        "ceb_2025": true,
+        "leco_2025": true
+      },
+      "listingSource": {
+        "ceb_2025": "Approved-list image models + SOFAR official hybrid datasheets.",
+        "leco_2025": "Approved-list image models + SOFAR official hybrid datasheets."
+      },
+      "datasheetRev": "seed-2026-04-09",
+      "datasheetUrl": "https://www.sofarsolar.com/upload/file/20240205/1707117103572051692.pdf",
+      "note": "Catalogue-backed hybrid model (high confidence)."
+    },
+    {
+      "id": "sofar_hyd_5500_ep",
+      "manufacturer": "SOFAR",
+      "model": "HYD 5500-EP",
+      "acRated_kW": 5.5,
+      "surge_kW": 11.0,
+      "surge_s": 10.0,
+      "batteryBus_V": 48.0,
+      "maxCharge_A": 100.0,
+      "maxDischarge_A": 100.0,
+      "maxPv_kW": 7.15,
+      "mpptMin_V": 90.0,
+      "mpptMax_V": 550.0,
+      "maxDcVoc_V": 600.0,
+      "mpptCount": 2,
+      "maxCurrentPerMppt_A": 13.0,
+      "supportedProfiles": [
+        "offgrid",
+        "ceb_2025",
+        "leco_2025"
+      ],
+      "utilityListed": {
+        "ceb_2025": true,
+        "leco_2025": true
+      },
+      "listingSource": {
+        "ceb_2025": "Approved-list image models + SOFAR official hybrid datasheets.",
+        "leco_2025": "Approved-list image models + SOFAR official hybrid datasheets."
+      },
+      "datasheetRev": "seed-2026-04-09",
+      "datasheetUrl": "https://www.sofarsolar.com/upload/file/20240205/1707117103572051692.pdf",
+      "note": "Catalogue-backed hybrid model (high confidence)."
+    },
+    {
+      "id": "sofar_hyd_5ktl_3ph",
+      "manufacturer": "SOFAR",
+      "model": "HYD 5KTL-3PH",
+      "acRated_kW": 5.0,
+      "surge_kW": 7.5,
+      "surge_s": 5.0,
+      "batteryBus_V": 400.0,
+      "maxCharge_A": 20.0,
+      "maxDischarge_A": 20.0,
+      "maxPv_kW": 6.75,
+      "mpptMin_V": 180.0,
+      "mpptMax_V": 960.0,
+      "maxDcVoc_V": 1000.0,
+      "mpptCount": 2,
+      "maxCurrentPerMppt_A": 26.0,
+      "supportedProfiles": [
+        "offgrid",
+        "ceb_2025",
+        "leco_2025"
+      ],
+      "utilityListed": {
+        "ceb_2025": true,
+        "leco_2025": true
+      },
+      "listingSource": {
+        "ceb_2025": "Approved-list image models + SOFAR official hybrid datasheets.",
+        "leco_2025": "Approved-list image models + SOFAR official hybrid datasheets."
+      },
+      "datasheetRev": "seed-2026-04-09",
+      "datasheetUrl": "https://www.sofarsolar.com/upload/file/20240205/1707117103572051692.pdf",
+      "note": "Catalogue-backed hybrid model (high confidence)."
+    },
+    {
+      "id": "sofar_hyd_6000_ep",
+      "manufacturer": "SOFAR",
+      "model": "HYD 6000-EP",
+      "acRated_kW": 6.0,
+      "surge_kW": 12.0,
+      "surge_s": 10.0,
+      "batteryBus_V": 48.0,
+      "maxCharge_A": 100.0,
+      "maxDischarge_A": 100.0,
+      "maxPv_kW": 7.8,
+      "mpptMin_V": 90.0,
+      "mpptMax_V": 550.0,
+      "maxDcVoc_V": 600.0,
+      "mpptCount": 2,
+      "maxCurrentPerMppt_A": 13.0,
+      "supportedProfiles": [
+        "offgrid",
+        "ceb_2025",
+        "leco_2025"
+      ],
+      "utilityListed": {
+        "ceb_2025": true,
+        "leco_2025": true
+      },
+      "listingSource": {
+        "ceb_2025": "Approved-list image models + SOFAR official hybrid datasheets.",
+        "leco_2025": "Approved-list image models + SOFAR official hybrid datasheets."
+      },
+      "datasheetRev": "seed-2026-04-09",
+      "datasheetUrl": "https://www.sofarsolar.com/upload/file/20240205/1707117103572051692.pdf",
+      "note": "Catalogue-backed hybrid model (high confidence)."
+    },
+    {
+      "id": "sofar_hyd_6000_es",
+      "manufacturer": "SOFAR",
+      "model": "HYD 6000-ES",
+      "acRated_kW": 6.0,
+      "surge_kW": 12.0,
+      "surge_s": 10.0,
+      "batteryBus_V": 48.0,
+      "maxCharge_A": 100.0,
+      "maxDischarge_A": 100.0,
+      "maxPv_kW": 7.8,
+      "mpptMin_V": 90.0,
+      "mpptMax_V": 550.0,
+      "maxDcVoc_V": 600.0,
+      "mpptCount": 2,
+      "maxCurrentPerMppt_A": 13.0,
+      "supportedProfiles": [
+        "offgrid",
+        "ceb_2025",
+        "leco_2025"
+      ],
+      "utilityListed": {
+        "ceb_2025": true,
+        "leco_2025": true
+      },
+      "listingSource": {
+        "ceb_2025": "Approved-list image models + SOFAR official hybrid datasheets.",
+        "leco_2025": "Approved-list image models + SOFAR official hybrid datasheets."
+      },
+      "datasheetRev": "seed-2026-04-09",
+      "datasheetUrl": "https://www.sofarsolar.com/upload/file/20240205/1707117103572051692.pdf",
+      "note": "Catalogue-backed hybrid model (high confidence)."
+    },
+    {
+      "id": "sofar_hyd_6ktl_3ph",
+      "manufacturer": "SOFAR",
+      "model": "HYD 6KTL-3PH",
+      "acRated_kW": 6.0,
+      "surge_kW": 9.0,
+      "surge_s": 5.0,
+      "batteryBus_V": 400.0,
+      "maxCharge_A": 20.0,
+      "maxDischarge_A": 20.0,
+      "maxPv_kW": 8.1,
+      "mpptMin_V": 180.0,
+      "mpptMax_V": 960.0,
+      "maxDcVoc_V": 1000.0,
+      "mpptCount": 2,
+      "maxCurrentPerMppt_A": 26.0,
+      "supportedProfiles": [
+        "offgrid",
+        "ceb_2025",
+        "leco_2025"
+      ],
+      "utilityListed": {
+        "ceb_2025": true,
+        "leco_2025": true
+      },
+      "listingSource": {
+        "ceb_2025": "Approved-list image models + SOFAR official hybrid datasheets.",
+        "leco_2025": "Approved-list image models + SOFAR official hybrid datasheets."
+      },
+      "datasheetRev": "seed-2026-04-09",
+      "datasheetUrl": "https://www.sofarsolar.com/upload/file/20240205/1707117103572051692.pdf",
+      "note": "Catalogue-backed hybrid model (high confidence)."
+    },
+    {
+      "id": "sofar_hyd_8ktl_3ph",
+      "manufacturer": "SOFAR",
+      "model": "HYD 8KTL-3PH",
+      "acRated_kW": 8.0,
+      "surge_kW": 12.0,
+      "surge_s": 5.0,
+      "batteryBus_V": 400.0,
+      "maxCharge_A": 24.0,
+      "maxDischarge_A": 24.0,
+      "maxPv_kW": 10.8,
+      "mpptMin_V": 180.0,
+      "mpptMax_V": 960.0,
+      "maxDcVoc_V": 1000.0,
+      "mpptCount": 2,
+      "maxCurrentPerMppt_A": 26.0,
+      "supportedProfiles": [
+        "offgrid",
+        "ceb_2025",
+        "leco_2025"
+      ],
+      "utilityListed": {
+        "ceb_2025": true,
+        "leco_2025": true
+      },
+      "listingSource": {
+        "ceb_2025": "Approved-list image models + SOFAR official hybrid datasheets.",
+        "leco_2025": "Approved-list image models + SOFAR official hybrid datasheets."
+      },
+      "datasheetRev": "seed-2026-04-09",
+      "datasheetUrl": "https://www.sofarsolar.com/upload/file/20240205/1707117103572051692.pdf",
+      "note": "Catalogue-backed hybrid model (high confidence)."
+    },
+    {
+      "id": "solis_ginlong_s5_eh1p3_6k_l",
+      "manufacturer": "Solis (Ginlong)",
+      "model": "S5-EH1P3.6K-L",
+      "acRated_kW": 3.6,
+      "surge_kW": 7.2,
+      "surge_s": 10.0,
+      "batteryBus_V": 48.0,
+      "maxCharge_A": 100.0,
+      "maxDischarge_A": 100.0,
+      "maxPv_kW": 4.68,
+      "mpptMin_V": 90.0,
+      "mpptMax_V": 520.0,
+      "maxDcVoc_V": 600.0,
+      "mpptCount": 2,
+      "maxCurrentPerMppt_A": 16.0,
+      "supportedProfiles": [
+        "offgrid",
+        "ceb_2025",
+        "leco_2025"
+      ],
+      "utilityListed": {
+        "ceb_2025": true,
+        "leco_2025": true
+      },
+      "listingSource": {
+        "ceb_2025": "Approved-list image models + Solis official hybrid datasheet.",
+        "leco_2025": "Approved-list image models + Solis official hybrid datasheet."
+      },
+      "datasheetRev": "seed-2026-04-09",
+      "datasheetUrl": "https://www.ginlong.com/uploads/file/Datasheet_S6-EH1P%283-6%29K-L-EU_Global.pdf",
+      "note": "Catalogue-backed hybrid model (high confidence)."
+    },
+    {
+      "id": "solis_ginlong_s5_eh1p3k_l",
+      "manufacturer": "Solis (Ginlong)",
+      "model": "S5-EH1P3K-L",
+      "acRated_kW": 3.0,
+      "surge_kW": 6.0,
+      "surge_s": 10.0,
+      "batteryBus_V": 48.0,
+      "maxCharge_A": 100.0,
+      "maxDischarge_A": 100.0,
+      "maxPv_kW": 3.9,
+      "mpptMin_V": 90.0,
+      "mpptMax_V": 520.0,
+      "maxDcVoc_V": 600.0,
+      "mpptCount": 2,
+      "maxCurrentPerMppt_A": 16.0,
+      "supportedProfiles": [
+        "offgrid",
+        "ceb_2025",
+        "leco_2025"
+      ],
+      "utilityListed": {
+        "ceb_2025": true,
+        "leco_2025": true
+      },
+      "listingSource": {
+        "ceb_2025": "Approved-list image models + Solis official hybrid datasheet.",
+        "leco_2025": "Approved-list image models + Solis official hybrid datasheet."
+      },
+      "datasheetRev": "seed-2026-04-09",
+      "datasheetUrl": "https://www.ginlong.com/uploads/file/Datasheet_S6-EH1P%283-6%29K-L-EU_Global.pdf",
+      "note": "Catalogue-backed hybrid model (high confidence)."
+    },
+    {
+      "id": "solis_ginlong_s5_eh1p4_6k_l",
+      "manufacturer": "Solis (Ginlong)",
+      "model": "S5-EH1P4.6K-L",
+      "acRated_kW": 4.6,
+      "surge_kW": 9.2,
+      "surge_s": 10.0,
+      "batteryBus_V": 48.0,
+      "maxCharge_A": 100.0,
+      "maxDischarge_A": 100.0,
+      "maxPv_kW": 5.98,
+      "mpptMin_V": 90.0,
+      "mpptMax_V": 520.0,
+      "maxDcVoc_V": 600.0,
+      "mpptCount": 2,
+      "maxCurrentPerMppt_A": 16.0,
+      "supportedProfiles": [
+        "offgrid",
+        "ceb_2025",
+        "leco_2025"
+      ],
+      "utilityListed": {
+        "ceb_2025": true,
+        "leco_2025": true
+      },
+      "listingSource": {
+        "ceb_2025": "Approved-list image models + Solis official hybrid datasheet.",
+        "leco_2025": "Approved-list image models + Solis official hybrid datasheet."
+      },
+      "datasheetRev": "seed-2026-04-09",
+      "datasheetUrl": "https://www.ginlong.com/uploads/file/Datasheet_S6-EH1P%283-6%29K-L-EU_Global.pdf",
+      "note": "Catalogue-backed hybrid model (high confidence)."
+    },
+    {
+      "id": "solis_ginlong_s5_eh1p5k_l",
+      "manufacturer": "Solis (Ginlong)",
+      "model": "S5-EH1P5K-L",
+      "acRated_kW": 5.0,
+      "surge_kW": 10.0,
+      "surge_s": 10.0,
+      "batteryBus_V": 48.0,
+      "maxCharge_A": 125.0,
+      "maxDischarge_A": 125.0,
+      "maxPv_kW": 6.5,
+      "mpptMin_V": 90.0,
+      "mpptMax_V": 520.0,
+      "maxDcVoc_V": 600.0,
+      "mpptCount": 2,
+      "maxCurrentPerMppt_A": 16.0,
+      "supportedProfiles": [
+        "offgrid",
+        "ceb_2025",
+        "leco_2025"
+      ],
+      "utilityListed": {
+        "ceb_2025": true,
+        "leco_2025": true
+      },
+      "listingSource": {
+        "ceb_2025": "Approved-list image models + Solis official hybrid datasheet.",
+        "leco_2025": "Approved-list image models + Solis official hybrid datasheet."
+      },
+      "datasheetRev": "seed-2026-04-09",
+      "datasheetUrl": "https://www.ginlong.com/uploads/file/Datasheet_S6-EH1P%283-6%29K-L-EU_Global.pdf",
+      "note": "Catalogue-backed hybrid model (high confidence)."
+    },
+    {
+      "id": "solis_ginlong_s5_eh1p6k_l",
+      "manufacturer": "Solis (Ginlong)",
+      "model": "S5-EH1P6K-L",
+      "acRated_kW": 6.0,
+      "surge_kW": 12.0,
+      "surge_s": 10.0,
+      "batteryBus_V": 48.0,
+      "maxCharge_A": 125.0,
+      "maxDischarge_A": 125.0,
+      "maxPv_kW": 7.8,
+      "mpptMin_V": 90.0,
+      "mpptMax_V": 520.0,
+      "maxDcVoc_V": 600.0,
+      "mpptCount": 2,
+      "maxCurrentPerMppt_A": 16.0,
+      "supportedProfiles": [
+        "offgrid",
+        "ceb_2025",
+        "leco_2025"
+      ],
+      "utilityListed": {
+        "ceb_2025": true,
+        "leco_2025": true
+      },
+      "listingSource": {
+        "ceb_2025": "Approved-list image models + Solis official hybrid datasheet.",
+        "leco_2025": "Approved-list image models + Solis official hybrid datasheet."
+      },
+      "datasheetRev": "seed-2026-04-09",
+      "datasheetUrl": "https://www.ginlong.com/uploads/file/Datasheet_S6-EH1P%283-6%29K-L-EU_Global.pdf",
+      "note": "Catalogue-backed hybrid model (high confidence)."
+    },
+    {
+      "id": "solis_ginlong_s6_eh1p3_6k_l_eu",
+      "manufacturer": "Solis (Ginlong)",
+      "model": "S6-EH1P3.6K-L-EU",
+      "acRated_kW": 3.6,
+      "surge_kW": 7.2,
+      "surge_s": 10.0,
+      "batteryBus_V": 48.0,
+      "maxCharge_A": 100.0,
+      "maxDischarge_A": 100.0,
+      "maxPv_kW": 4.68,
+      "mpptMin_V": 90.0,
+      "mpptMax_V": 520.0,
+      "maxDcVoc_V": 600.0,
+      "mpptCount": 2,
+      "maxCurrentPerMppt_A": 16.0,
+      "supportedProfiles": [
+        "offgrid",
+        "ceb_2025",
+        "leco_2025"
+      ],
+      "utilityListed": {
+        "ceb_2025": true,
+        "leco_2025": true
+      },
+      "listingSource": {
+        "ceb_2025": "Approved-list image models + Solis official hybrid datasheet.",
+        "leco_2025": "Approved-list image models + Solis official hybrid datasheet."
+      },
+      "datasheetRev": "seed-2026-04-09",
+      "datasheetUrl": "https://www.ginlong.com/uploads/file/Datasheet_S6-EH1P%283-6%29K-L-EU_Global.pdf",
+      "note": "Catalogue-backed hybrid model (high confidence)."
+    },
+    {
+      "id": "solis_ginlong_s6_eh1p3k_l_eu",
+      "manufacturer": "Solis (Ginlong)",
+      "model": "S6-EH1P3K-L-EU",
+      "acRated_kW": 3.0,
+      "surge_kW": 6.0,
+      "surge_s": 10.0,
+      "batteryBus_V": 48.0,
+      "maxCharge_A": 100.0,
+      "maxDischarge_A": 100.0,
+      "maxPv_kW": 3.9,
+      "mpptMin_V": 90.0,
+      "mpptMax_V": 520.0,
+      "maxDcVoc_V": 600.0,
+      "mpptCount": 2,
+      "maxCurrentPerMppt_A": 16.0,
+      "supportedProfiles": [
+        "offgrid",
+        "ceb_2025",
+        "leco_2025"
+      ],
+      "utilityListed": {
+        "ceb_2025": true,
+        "leco_2025": true
+      },
+      "listingSource": {
+        "ceb_2025": "Approved-list image models + Solis official hybrid datasheet.",
+        "leco_2025": "Approved-list image models + Solis official hybrid datasheet."
+      },
+      "datasheetRev": "seed-2026-04-09",
+      "datasheetUrl": "https://www.ginlong.com/uploads/file/Datasheet_S6-EH1P%283-6%29K-L-EU_Global.pdf",
+      "note": "Catalogue-backed hybrid model (high confidence)."
+    },
+    {
+      "id": "solis_ginlong_s6_eh1p4_6k_l_eu",
+      "manufacturer": "Solis (Ginlong)",
+      "model": "S6-EH1P4.6K-L-EU",
+      "acRated_kW": 4.6,
+      "surge_kW": 9.2,
+      "surge_s": 10.0,
+      "batteryBus_V": 48.0,
+      "maxCharge_A": 100.0,
+      "maxDischarge_A": 100.0,
+      "maxPv_kW": 5.98,
+      "mpptMin_V": 90.0,
+      "mpptMax_V": 520.0,
+      "maxDcVoc_V": 600.0,
+      "mpptCount": 2,
+      "maxCurrentPerMppt_A": 16.0,
+      "supportedProfiles": [
+        "offgrid",
+        "ceb_2025",
+        "leco_2025"
+      ],
+      "utilityListed": {
+        "ceb_2025": true,
+        "leco_2025": true
+      },
+      "listingSource": {
+        "ceb_2025": "Approved-list image models + Solis official hybrid datasheet.",
+        "leco_2025": "Approved-list image models + Solis official hybrid datasheet."
+      },
+      "datasheetRev": "seed-2026-04-09",
+      "datasheetUrl": "https://www.ginlong.com/uploads/file/Datasheet_S6-EH1P%283-6%29K-L-EU_Global.pdf",
+      "note": "Catalogue-backed hybrid model (high confidence)."
+    },
+    {
+      "id": "solis_ginlong_s6_eh1p5k_l_eu",
+      "manufacturer": "Solis (Ginlong)",
+      "model": "S6-EH1P5K-L-EU",
+      "acRated_kW": 5.0,
+      "surge_kW": 10.0,
+      "surge_s": 10.0,
+      "batteryBus_V": 48.0,
+      "maxCharge_A": 125.0,
+      "maxDischarge_A": 125.0,
+      "maxPv_kW": 6.5,
+      "mpptMin_V": 90.0,
+      "mpptMax_V": 520.0,
+      "maxDcVoc_V": 600.0,
+      "mpptCount": 2,
+      "maxCurrentPerMppt_A": 16.0,
+      "supportedProfiles": [
+        "offgrid",
+        "ceb_2025",
+        "leco_2025"
+      ],
+      "utilityListed": {
+        "ceb_2025": true,
+        "leco_2025": true
+      },
+      "listingSource": {
+        "ceb_2025": "Approved-list image models + Solis official hybrid datasheet.",
+        "leco_2025": "Approved-list image models + Solis official hybrid datasheet."
+      },
+      "datasheetRev": "seed-2026-04-09",
+      "datasheetUrl": "https://www.ginlong.com/uploads/file/Datasheet_S6-EH1P%283-6%29K-L-EU_Global.pdf",
+      "note": "Catalogue-backed hybrid model (high confidence)."
+    },
+    {
+      "id": "solis_ginlong_s6_eh1p6k_l_eu",
+      "manufacturer": "Solis (Ginlong)",
+      "model": "S6-EH1P6K-L-EU",
+      "acRated_kW": 6.0,
+      "surge_kW": 12.0,
+      "surge_s": 10.0,
+      "batteryBus_V": 48.0,
+      "maxCharge_A": 125.0,
+      "maxDischarge_A": 125.0,
+      "maxPv_kW": 7.8,
+      "mpptMin_V": 90.0,
+      "mpptMax_V": 520.0,
+      "maxDcVoc_V": 600.0,
+      "mpptCount": 2,
+      "maxCurrentPerMppt_A": 16.0,
+      "supportedProfiles": [
+        "offgrid",
+        "ceb_2025",
+        "leco_2025"
+      ],
+      "utilityListed": {
+        "ceb_2025": true,
+        "leco_2025": true
+      },
+      "listingSource": {
+        "ceb_2025": "Approved-list image models + Solis official hybrid datasheet.",
+        "leco_2025": "Approved-list image models + Solis official hybrid datasheet."
+      },
+      "datasheetRev": "seed-2026-04-09",
+      "datasheetUrl": "https://www.ginlong.com/uploads/file/Datasheet_S6-EH1P%283-6%29K-L-EU_Global.pdf",
+      "note": "Catalogue-backed hybrid model (high confidence)."
     },
     {
       "id": "victron_multiplus_ii_48_5000",
@@ -105,7 +1998,11 @@
       "maxDcVoc_V": 0.0,
       "mpptCount": 0,
       "maxCurrentPerMppt_A": 0.0,
-      "supportedProfiles": ["offgrid", "ceb_2025", "leco_2025"],
+      "supportedProfiles": [
+        "offgrid",
+        "ceb_2025",
+        "leco_2025"
+      ],
       "utilityListed": {
         "ceb_2025": false,
         "leco_2025": false
