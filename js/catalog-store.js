@@ -54,6 +54,66 @@ const CatalogStore = (() => {
     return Number.isFinite(n) ? n : fallback;
   }
 
+  const LK_GRID_INVERTER_PATTERNS = [
+    { mfr: /^ABB\/FIMER$/i, model: /^(UNO-DM-|PVS-|TRIO-)/i },
+    { mfr: /^KACO New Energy$/i, model: /blueplanet/i },
+    { mfr: /^Solis \(Ginlong\)$/i, model: /^(S6-GR1P|S5-GR3P|S5-GC|S6-GC|Solis-100K-EHV-5G|Solis-125K-EHV-5G|Solis-125K1-EHV-5G)/i },
+    { mfr: /^SOFAR$/i, model: /^SOFAR\s.*G3/i },
+    { mfr: /^Fronius$/i, model: /^(Primo|Symo|Eco|Primo\sGEN24|GEN24)/i },
+    { mfr: /^Growatt$/i, model: /^(MIN|MID)/i },
+    { mfr: /^Afore$/i, model: /^(HNS|BNT)/i },
+    { mfr: /^Sungrow$/i, model: /^SG60KU-M$/i },
+  ];
+
+  const LK_HYBRID_INVERTER_BRANDS = [
+    /^Deye$/i,
+    /^SOFAR$/i,
+    /^Solis \(Ginlong\)$/i,
+    /^GoodWe$/i,
+    /^KACO New Energy$/i,
+    /^Victron$/i,
+    /^Growatt$/i,
+    /^Fronius$/i,
+    /^Sungrow$/i,
+  ];
+
+  function _isSriLankaGridInverter(row) {
+    const manufacturer = _cleanText(row && row.manufacturer, 120);
+    const model = _cleanText(row && row.model, 180);
+    if (!manufacturer || !model) return false;
+    if (/\bUS\b|\bUSH\b|\b208\b|\b240\b|\b277\b|\b480\b|\bAUS\b/i.test(model)) return false;
+    return LK_GRID_INVERTER_PATTERNS.some(rule => rule.mfr.test(manufacturer) && rule.model.test(model));
+  }
+
+  function _isSriLankaHybridInverter(row) {
+    const manufacturer = _cleanText(row && row.manufacturer, 120);
+    return LK_HYBRID_INVERTER_BRANDS.some(rx => rx.test(manufacturer));
+  }
+
+  function _isSriLankaInverter(row) {
+    const topology = _cleanText(row && row.topology, 32).toLowerCase();
+    if (topology === 'hybrid') return _isSriLankaHybridInverter(row);
+    return _isSriLankaGridInverter(row);
+  }
+
+  function _isLegacyGlobalInverter(row) {
+    const note = _cleanText(row && row.note, 260).toLowerCase();
+    const datasheetUrl = _safeUrl(row && row.datasheetUrl).toLowerCase();
+    const datasheetRev = _cleanText(row && row.datasheetRev, 200).toLowerCase();
+    if (note.includes('cec/sam')) return true;
+    if (datasheetUrl.includes('raw.githubusercontent.com/nrel/sam')) return true;
+    if (datasheetRev.includes('cec inverters.csv')) return true;
+    return false;
+  }
+
+  function _pruneLegacyGlobalInverters(rows) {
+    const src = Array.isArray(rows) ? rows : [];
+    return src.filter(row => {
+      if (_isSriLankaInverter(row)) return true;
+      return !_isLegacyGlobalInverter(row);
+    });
+  }
+
   function _currentStandardsAudit() {
     const requestedProfileId = (typeof App !== 'undefined' && App && App.state && App.state.fieldTestProfileId)
       ? String(App.state.fieldTestProfileId)
@@ -323,7 +383,7 @@ const CatalogStore = (() => {
     const batteryRows = _extractRows(batteryPayload, 'batteries');
 
     return {
-      inverters: _mergeUnique(gridRows.concat(hybridRows), _normalizeInverter),
+      inverters: _mergeUnique(gridRows.concat(hybridRows), _normalizeInverter).filter(_isSriLankaInverter),
       batteries: _mergeUnique(batteryRows, _normalizeBattery),
       seed: {
         gridInverters: gridRows.length,
@@ -340,10 +400,15 @@ const CatalogStore = (() => {
     let inverters = [];
     let batteries = [];
     try {
-      const localInverters = _loadLocalArray(STORAGE_INVERTERS, _normalizeInverter);
+      const localInvertersRaw = _loadLocalArray(STORAGE_INVERTERS, _normalizeInverter);
+      const localInverters = _pruneLegacyGlobalInverters(localInvertersRaw);
       const localBatteries = _loadLocalArray(STORAGE_BATTERIES, _normalizeBattery);
       inverters = localInverters;
       batteries = localBatteries;
+
+      if (localInverters.length !== localInvertersRaw.length) {
+        _saveLocalArray(STORAGE_INVERTERS, localInverters);
+      }
 
       let bundled = null;
       try {
@@ -365,7 +430,7 @@ const CatalogStore = (() => {
         // Keep user overrides, but merge in newly bundled defaults by id when available.
         const mergedInverters = _mergeUnique(bundled.inverters.concat(localInverters), _normalizeInverter);
         const mergedBatteries = _mergeUnique(bundled.batteries.concat(localBatteries), _normalizeBattery);
-        const changed = mergedInverters.length !== localInverters.length || mergedBatteries.length !== localBatteries.length;
+        const changed = mergedInverters.length !== localInvertersRaw.length || mergedBatteries.length !== localBatteries.length;
         inverters = mergedInverters;
         batteries = mergedBatteries;
         if (changed) {
@@ -544,6 +609,10 @@ const CatalogStore = (() => {
       arr.forEach(raw => {
         const n = _normalizeInverter(raw);
         if (!n) {
+          report.rejected++;
+          return;
+        }
+        if (!_isSriLankaInverter(n) && _isLegacyGlobalInverter(n)) {
           report.rejected++;
           return;
         }

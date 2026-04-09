@@ -308,6 +308,55 @@ const DB = (() => {
     }
   }
 
+  const LK_PV_MODEL_PATTERNS = [
+    /JKM(?:550|555|560|565|570)M-72HL4-V$/i,
+    /JKM(?:580|590)N-72HL4-(?:V|JV)$/i,
+    /JAM72S30-(?:44[5-9]|45\d|46\d|470)\/MR$/i,
+    /JAM72S30-(?:52[5-9]|53\d|54\d|55[0-5])\/MR$/i,
+    /JAM72S30-(?:56\d|57\d|58[0-5])\/LR$/i,
+    /JAM72S40-(?:57[5-9]|58\d|59[0-5])\/LB$/i,
+    /JAM66D45-(?:59\d|60\d|61[0-5])\/LB$/i,
+    /RSM156-6-(?:430|435|440|445|450|455)M$/i,
+    /RSM150-8-(?:480|485|490|495|500)M$/i,
+    /RSM110-8-(?:535|540|545|550|555|560)M$/i,
+    /RSM144-9-(?:535|540|545|550|555)M$/i,
+    /LR5-72HGD-(?:560|565|570|575|580|585|590)M$/i,
+    /LR5-72HTH-(?:560|565|570|575|580|585|590)M$/i,
+    /JAM72S30/i,
+    /JKM\d{3}.*72HL4/i,
+    /RSM(?:110|144|150|156)/i,
+    /LR5-72H/i
+  ];
+
+  function _isSriLankaPanelModel(panel) {
+    const model = _cleanText(panel && panel.model, 180);
+    if (!model) return false;
+    if (/co\.?\s*ltd/i.test(model)) return false;
+    return LK_PV_MODEL_PATTERNS.some(rx => rx.test(model));
+  }
+
+  function _isLegacyGlobalPanel(panel) {
+    const note = _cleanText(panel && panel.note, 260).toLowerCase();
+    const datasheetUrl = _normalizeURL(panel && panel.datasheetUrl).toLowerCase();
+    const datasheetRev = _cleanText(panel && panel.datasheetRev, 160).toLowerCase();
+    if (note.includes('cec/sam')) return true;
+    if (datasheetUrl.includes('raw.githubusercontent.com/nrel/sam')) return true;
+    if (datasheetRev.includes('cec modules.csv')) return true;
+    return false;
+  }
+
+  function _shouldKeepPanelInLocalScope(panel) {
+    if (_isSriLankaPanelModel(panel)) return true;
+    if (panel && panel.preloaded === true) return false;
+    return !_isLegacyGlobalPanel(panel);
+  }
+
+  function _prunePanelsToSriLankaScope(panels) {
+    const src = Array.isArray(panels) ? panels : [];
+    const kept = src.filter(_shouldKeepPanelInLocalScope);
+    return { kept, removed: Math.max(0, src.length - kept.length) };
+  }
+
   function _normalizePanel(input, options) {
     const opts = options || {};
     if (!input || typeof input !== 'object') return null;
@@ -404,15 +453,21 @@ const DB = (() => {
   }
 
   function init() {
-    if (!_load()) {
+    let panels = _load();
+    if (!panels) {
       const nowISO = new Date().toISOString();
-      _save(PRELOADED.map(p => ({
+      panels = PRELOADED.map(p => ({
         ...p,
         createdAt: p.createdAt || nowISO,
         updatedAt: p.updatedAt || nowISO,
         _deleted: false,
         deletedAt: null,
-      })));
+      }));
+      _save(panels);
+    }
+    const pruned = _prunePanelsToSriLankaScope(panels);
+    if (pruned.removed > 0) {
+      _save(pruned.kept);
     }
   }
 
@@ -448,7 +503,11 @@ const DB = (() => {
 
   function getAll() {
     const panels = _load() || [];
-    return panels.map(_withDefaults).sort((a, b) => {
+    const pruned = _prunePanelsToSriLankaScope(panels);
+    if (pruned.removed > 0) {
+      _save(pruned.kept);
+    }
+    return pruned.kept.map(_withDefaults).sort((a, b) => {
       const m = a.manufacturer.localeCompare(b.manufacturer);
       return m !== 0 ? m : a.model.localeCompare(b.model);
     });
@@ -549,6 +608,10 @@ const DB = (() => {
           report.rejected++;
           return;
         }
+        if (!_isSriLankaPanelModel(normalized) && _isLegacyGlobalPanel(normalized)) {
+          report.rejected++;
+          return;
+        }
         const existingRecord = map[normalized.id] || null;
         if (existingRecord && existingRecord.createdAt) {
           normalized.createdAt = existingRecord.createdAt;
@@ -626,6 +689,7 @@ const DB = (() => {
             ? payload
             : (payload && typeof payload === 'object' && Array.isArray(payload.modules) ? payload.modules : []);
           rows = modules
+            .filter(_isSriLankaPanelModel)
             .map(raw => _normalizePanel(raw, { allowPreloaded: true, nowISO }))
             .filter(Boolean)
             .map(p => ({
@@ -643,6 +707,7 @@ const DB = (() => {
 
     if (!rows.length) {
       rows = PRELOADED
+        .filter(_isSriLankaPanelModel)
         .map(raw => _normalizePanel(raw, { allowPreloaded: true, nowISO }))
         .filter(Boolean)
         .map(p => ({
@@ -688,6 +753,7 @@ const DB = (() => {
       existing.forEach(p => { if (p && p.id) map[p.id] = p; });
       let added = 0;
       modules.forEach(raw => {
+        if (!_isSriLankaPanelModel(raw)) return;
         const normalized = _normalizePanel(raw, { allowPreloaded: true });
         if (!normalized || map[normalized.id]) return;
         map[normalized.id] = normalized;
