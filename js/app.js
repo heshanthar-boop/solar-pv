@@ -433,7 +433,9 @@ const App = (() => {
           <div class="btn-group">
             <button class="btn btn-secondary btn-sm" id="set-clear-sessions">Clear All Inspections</button>
             <button class="btn btn-danger btn-sm" id="set-reset-db">Reset Panel DB to Defaults</button>
+            <button class="btn btn-danger btn-sm" id="set-reset-catalogs">Reset Catalog to Bundled Defaults</button>
           </div>
+          <div class="text-muted mt-4">Resets PV modules, inverters, and batteries to bundled app datasets.</div>
         </div>
 
         <div class="card">
@@ -484,12 +486,48 @@ const App = (() => {
       toast('All inspections cleared');
     });
 
-    container.querySelector('#set-reset-db').addEventListener('click', () => {
-      if (!confirm('Reset panel database to factory defaults? All custom panels will be lost.')) return;
-      localStorage.removeItem('solarpv_panels');
-      DB.init();
-      toast('Panel database reset to defaults', 'success');
+    container.querySelector('#set-reset-db').addEventListener('click', async () => {
+      if (!confirm('Reset panel database to bundled defaults? All custom PV modules will be lost.')) return;
+      const report = (typeof DB.resetToBundledDefaults === 'function')
+        ? await DB.resetToBundledDefaults()
+        : null;
+      if (report && report.ok) toast(`Panel database reset (${report.count} modules)`, 'success');
+      else toast('Panel database reset completed', 'success');
+      _renderSettings(container);
     });
+
+    const resetCatalogsBtn = container.querySelector('#set-reset-catalogs');
+    if (resetCatalogsBtn) {
+      resetCatalogsBtn.addEventListener('click', async () => {
+        if (!confirm('Reset ALL catalogs to bundled defaults? This will overwrite custom PV modules, inverters, and batteries.')) return;
+        const prev = resetCatalogsBtn.textContent;
+        resetCatalogsBtn.disabled = true;
+        resetCatalogsBtn.textContent = 'Resetting...';
+        try {
+          const pvReport = (typeof DB.resetToBundledDefaults === 'function')
+            ? await DB.resetToBundledDefaults()
+            : { ok: false, error: 'PV module reset unavailable' };
+          let catReport = { ok: false, error: 'Catalog store unavailable', inverterCount: 0, batteryCount: 0 };
+          if (typeof CatalogStore !== 'undefined' && CatalogStore && typeof CatalogStore.resetToBundledDefaults === 'function') {
+            catReport = await CatalogStore.resetToBundledDefaults();
+          }
+          if (pvReport.ok && catReport.ok) {
+            toast(`Catalog reset complete: ${pvReport.count} PV, ${catReport.inverterCount} inverters, ${catReport.batteryCount} batteries`, 'success');
+          } else {
+            const err = [pvReport && pvReport.ok ? '' : (pvReport && pvReport.error ? pvReport.error : 'PV reset failed'),
+              catReport && catReport.ok ? '' : (catReport && catReport.error ? catReport.error : 'Catalog reset failed')]
+              .filter(Boolean).join(' | ');
+            toast(`Reset completed with warnings: ${err}`, 'warning');
+          }
+          _renderSettings(container);
+        } catch (err) {
+          toast(err && err.message ? err.message : 'Failed to reset catalog defaults', 'error');
+        } finally {
+          resetCatalogsBtn.disabled = false;
+          resetCatalogsBtn.textContent = prev;
+        }
+      });
+    }
 
     const openUtilityBtn = container.querySelector('#set-open-utility-manager');
     if (openUtilityBtn) {

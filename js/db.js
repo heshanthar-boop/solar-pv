@@ -506,6 +506,64 @@ const DB = (() => {
     return CatalogStore;
   }
 
+  async function resetToBundledDefaults() {
+    const nowISO = new Date().toISOString();
+    let source = 'preloaded';
+    let rows = [];
+
+    try {
+      if (typeof fetch === 'function') {
+        const res = await fetch(PV_SEED_PATH);
+        if (res && res.ok) {
+          const payload = await res.json();
+          const modules = Array.isArray(payload)
+            ? payload
+            : (payload && typeof payload === 'object' && Array.isArray(payload.modules) ? payload.modules : []);
+          rows = modules
+            .map(raw => _normalizePanel(raw, { allowPreloaded: true, nowISO }))
+            .filter(Boolean)
+            .map(p => ({
+              ...p,
+              preloaded: true,
+              createdAt: nowISO,
+              updatedAt: nowISO,
+              _deleted: false,
+              deletedAt: null,
+            }));
+          if (rows.length) source = 'data/pv-modules.json';
+        }
+      }
+    } catch (_) {}
+
+    if (!rows.length) {
+      rows = PRELOADED
+        .map(raw => _normalizePanel(raw, { allowPreloaded: true, nowISO }))
+        .filter(Boolean)
+        .map(p => ({
+          ...p,
+          preloaded: true,
+          createdAt: nowISO,
+          updatedAt: nowISO,
+          _deleted: false,
+          deletedAt: null,
+        }));
+    }
+
+    if (!rows.length) return { ok: false, error: 'No bundled PV module records available' };
+    _save(rows);
+    _seedAttempted = true;
+
+    if (typeof FirebaseSync !== 'undefined'
+      && FirebaseSync
+      && typeof FirebaseSync.isSignedIn === 'function'
+      && FirebaseSync.isSignedIn()
+      && typeof FirebaseSync.syncPanels === 'function') {
+      FirebaseSync.syncPanels({ silent: true }).catch(() => {});
+    }
+
+    return { ok: true, count: rows.length, source };
+  }
+
   async function _ensurePVSeedFromCatalog() {
     if (_seedAttempted) return;
     _seedAttempted = true;
@@ -1334,6 +1392,6 @@ const DB = (() => {
     input.click();
   }
 
-  return { init, getAll, getById, save, remove, exportJSON, importJSON, getLastImportReport, generateId, renderPage };
+  return { init, getAll, getById, save, remove, exportJSON, importJSON, getLastImportReport, generateId, renderPage, resetToBundledDefaults };
 })();
 
