@@ -254,6 +254,89 @@ const App = (() => {
     ].join('\n');
   }
 
+  function _canRetryImportEntry(entry) {
+    const source = String(entry && entry.source ? entry.source : '');
+    return source === 'PV Module Catalog JSON'
+      || source === 'Inverter Catalog JSON'
+      || source === 'Battery Catalog JSON'
+      || source === 'Utility Override Import';
+  }
+
+  function _retryImportEntry(entry) {
+    const source = String(entry && entry.source ? entry.source : '');
+    if (!_canRetryImportEntry(entry)) {
+      toast('Retry is not available for this entry', 'warning');
+      return false;
+    }
+
+    closeModal();
+
+    const openDbImport = (tabId) => {
+      navigate('database');
+      const tabBtn = document.getElementById(tabId);
+      if (tabBtn) tabBtn.click();
+      const importBtn = document.getElementById('db-import-btn');
+      if (importBtn) {
+        importBtn.click();
+        toast('Retry import: select the source file again', 'warning');
+        return true;
+      }
+      toast('Import button not available on Database page', 'warning');
+      return false;
+    };
+
+    if (source === 'PV Module Catalog JSON') return openDbImport('db-tab-pv');
+    if (source === 'Inverter Catalog JSON') return openDbImport('db-tab-inv');
+    if (source === 'Battery Catalog JSON') return openDbImport('db-tab-bat');
+
+    if (source === 'Utility Override Import') {
+      navigate('hybrid');
+      const root = document.getElementById('main-content');
+      if (typeof HybridSetup !== 'undefined' && HybridSetup && typeof HybridSetup.openUtilityManager === 'function') {
+        HybridSetup.openUtilityManager(root);
+        const importBtn = document.getElementById('hy-ulm-import');
+        if (importBtn) {
+          importBtn.click();
+          toast('Retry utility import: select the source file again', 'warning');
+          return true;
+        }
+      }
+      toast('Utility import manager is not available', 'warning');
+      return false;
+    }
+
+    return false;
+  }
+
+  function _historyFilteredSummaryText(rows, totalCount, ctx) {
+    const list = Array.isArray(rows) ? rows : [];
+    const total = Number.isFinite(Number(totalCount)) ? Number(totalCount) : list.length;
+    const okCount = list.filter(x => x && x.ok).length;
+    const failCount = list.length - okCount;
+    const bySource = {};
+    list.forEach((r) => {
+      const k = String(r && r.source ? r.source : 'Unknown');
+      bySource[k] = (bySource[k] || 0) + 1;
+    });
+    const sourceLines = Object.keys(bySource).sort().map((k) => `- ${k}: ${bySource[k]}`);
+    const c = ctx && typeof ctx === 'object' ? ctx : {};
+    const filterLine = `search="${c.search || ''}", source="${c.source || ''}", status="${c.status || ''}", from="${c.from || ''}", to="${c.to || ''}", sort="${c.sortBy || 'ts'} ${c.sortDir || 'desc'}"`;
+    const rowsText = list.map((h, i) => `${i + 1}. [${_historyWhen(h.ts)}] ${h.source || '-'} | ${h.fileName || '-'} | ${h.ok ? 'OK' : 'FAIL'} | ${_historyCountsText(h)} | ${_historyAuditText(h)}`).join('\n');
+
+    return [
+      'Import History Filtered Summary',
+      `Generated: ${new Date().toLocaleString()}`,
+      `Filtered records: ${list.length} of ${total}`,
+      `Status: OK ${okCount}, FAIL ${failCount}`,
+      `Filters: ${filterLine}`,
+      'By source:',
+      sourceLines.length ? sourceLines.join('\n') : '- (none)',
+      '',
+      'Rows:',
+      rowsText || '(none)'
+    ].join('\n');
+  }
+
   function _defaultHistoryModalPrefs() {
     return {
       search: '',
@@ -911,6 +994,7 @@ const App = (() => {
               <label class="form-label">Actions</label>
               <div class="btn-group">
                 <button class="btn btn-secondary btn-sm" id="set-ih-clear-filters">Clear Filters</button>
+                <button class="btn btn-secondary btn-sm" id="set-ih-copy-summary">Copy Filtered Summary</button>
               </div>
             </div>
           </div>
@@ -930,7 +1014,7 @@ const App = (() => {
                   <th><button class="btn btn-secondary btn-sm" data-ih-sort="counts">Counts</button></th>
                   <th>Standards</th>
                   <th>Error</th>
-                  <th>Copy</th>
+                  <th>Actions</th>
                 </tr>
               </thead>
               <tbody id="set-ih-tbody">${allHistory.length ? '' : '<tr><td colspan="12" class="text-muted">No imports recorded.</td></tr>'}</tbody>
@@ -947,10 +1031,11 @@ const App = (() => {
         const fromInput = modalBody.querySelector('#set-ih-from');
         const toInput = modalBody.querySelector('#set-ih-to');
         const clearBtn = modalBody.querySelector('#set-ih-clear-filters');
+        const copySummaryBtn = modalBody.querySelector('#set-ih-copy-summary');
         const countEl = modalBody.querySelector('#set-ih-count');
         const tbody = modalBody.querySelector('#set-ih-tbody');
         const sortBtns = Array.from(modalBody.querySelectorAll('[data-ih-sort]'));
-        if (!searchInput || !sourceInput || !statusInput || !fromInput || !toInput || !clearBtn || !countEl || !tbody || !sortBtns.length) return;
+        if (!searchInput || !sourceInput || !statusInput || !fromInput || !toInput || !clearBtn || !copySummaryBtn || !countEl || !tbody || !sortBtns.length) return;
 
         const sourceSet = new Set(sourceOptions);
         searchInput.value = prefs.search || '';
@@ -991,7 +1076,13 @@ const App = (() => {
                 <td>${escapeHTML(_historyCountsText(h))}</td>
                 <td>${escapeHTML(_historyAuditText(h))}</td>
                 <td>${escapeHTML(h.error || '-')}</td>
-                <td><button class="btn btn-secondary btn-sm" data-ih-copy="${idx}">Copy</button></td>
+                <td>
+                  <div class="btn-group">
+                    <button class="btn btn-secondary btn-sm" data-ih-copy="${idx}">Copy</button>
+                    <button class="btn btn-danger btn-sm" data-ih-del="${idx}">Delete</button>
+                    ${(!h.ok && _canRetryImportEntry(h)) ? `<button class="btn btn-secondary btn-sm" data-ih-retry="${idx}">Retry</button>` : ''}
+                  </div>
+                </td>
               </tr>
             `).join('');
           }
@@ -1039,11 +1130,37 @@ const App = (() => {
         };
 
         tbody.addEventListener('click', (evt) => {
-          const btn = evt.target && evt.target.closest ? evt.target.closest('[data-ih-copy]') : null;
-          if (!btn) return;
-          const idx = Number(btn.getAttribute('data-ih-copy'));
-          if (!Number.isFinite(idx) || idx < 0 || idx >= filteredRows.length) return;
-          copyText(_historyRowCopyText(filteredRows[idx]));
+          const copyBtn = evt.target && evt.target.closest ? evt.target.closest('[data-ih-copy]') : null;
+          if (copyBtn) {
+            const idx = Number(copyBtn.getAttribute('data-ih-copy'));
+            if (!Number.isFinite(idx) || idx < 0 || idx >= filteredRows.length) return;
+            copyText(_historyRowCopyText(filteredRows[idx]));
+            return;
+          }
+
+          const delBtn = evt.target && evt.target.closest ? evt.target.closest('[data-ih-del]') : null;
+          if (delBtn) {
+            const idx = Number(delBtn.getAttribute('data-ih-del'));
+            if (!Number.isFinite(idx) || idx < 0 || idx >= filteredRows.length) return;
+            if (!confirm('Delete this import history row?')) return;
+            const target = filteredRows[idx];
+            const pos = allHistory.indexOf(target);
+            if (pos >= 0) {
+              allHistory.splice(pos, 1);
+              _saveImportHistory(allHistory);
+              applyFilters();
+              toast('Import history row deleted', 'success');
+            }
+            return;
+          }
+
+          const retryBtn = evt.target && evt.target.closest ? evt.target.closest('[data-ih-retry]') : null;
+          if (retryBtn) {
+            const idx = Number(retryBtn.getAttribute('data-ih-retry'));
+            if (!Number.isFinite(idx) || idx < 0 || idx >= filteredRows.length) return;
+            _retryImportEntry(filteredRows[idx]);
+            return;
+          }
         });
 
         sortBtns.forEach((btn) => {
@@ -1071,6 +1188,19 @@ const App = (() => {
           fromInput.value = '';
           toInput.value = '';
           applyFilters();
+        });
+
+        copySummaryBtn.addEventListener('click', () => {
+          const text = _historyFilteredSummaryText(filteredRows, allHistory.length, {
+            search: String(searchInput.value || ''),
+            source: String(sourceInput.value || ''),
+            status: String(statusInput.value || ''),
+            from: String(fromInput.value || ''),
+            to: String(toInput.value || ''),
+            sortBy,
+            sortDir
+          });
+          copyText(text);
         });
 
         applyFilters();
