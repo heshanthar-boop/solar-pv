@@ -593,9 +593,21 @@ const HybridSetup = (() => {
 
   async function _loadCatalogJSON(url) {
     if (typeof fetch !== 'function') throw new Error('Fetch API unavailable');
-    const res = await fetch(url);
-    if (!res || !res.ok) throw new Error(`Failed to load ${url}`);
-    return res.json();
+    try {
+      const res = await fetch(url, { cache: 'no-cache' });
+      if (res && res.ok) return res.json();
+    } catch (_) {}
+    try {
+      const absolute = (typeof window !== 'undefined' && window.location)
+        ? new URL(url, window.location.href).toString()
+        : url;
+      const res2 = await fetch(absolute, { cache: 'no-cache' });
+      if (res2 && res2.ok) return res2.json();
+    } catch (_) {}
+    if (typeof window !== 'undefined' && window.location && window.location.protocol === 'file:') {
+      throw new Error(`Cannot load ${url} from file://. Start app with launch.bat (http://localhost:8090).`);
+    }
+    throw new Error(`Failed to load ${url}`);
   }
 
   function _extractRows(payload, key) {

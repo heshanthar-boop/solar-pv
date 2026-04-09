@@ -206,9 +206,23 @@ const CatalogStore = (() => {
 
   async function _fetchJson(url) {
     if (typeof fetch !== 'function') throw new Error('Fetch API unavailable');
-    const res = await fetch(url);
-    if (!res || !res.ok) throw new Error(`Failed to load ${url}`);
-    return res.json();
+    try {
+      const res = await fetch(url, { cache: 'no-cache' });
+      if (res && res.ok) return res.json();
+    } catch (_) {}
+
+    try {
+      const absolute = (typeof window !== 'undefined' && window.location)
+        ? new URL(url, window.location.href).toString()
+        : url;
+      const res2 = await fetch(absolute, { cache: 'no-cache' });
+      if (res2 && res2.ok) return res2.json();
+    } catch (_) {}
+
+    if (typeof window !== 'undefined' && window.location && window.location.protocol === 'file:') {
+      throw new Error(`Cannot load ${url} from file://. Start app with launch.bat (http://localhost:8090).`);
+    }
+    throw new Error(`Failed to load ${url}`);
   }
 
   function _extractRows(payload, key) {
@@ -233,34 +247,70 @@ const CatalogStore = (() => {
     return Object.values(map).sort((a, b) => `${a.manufacturer} ${a.model}`.localeCompare(`${b.manufacturer} ${b.model}`));
   }
 
+  async function _loadBundledCatalogs() {
+    const [gridPayload, hybridPayload, batteryPayload] = await Promise.all([
+      _fetchJson(PATH_GRID_INVERTERS),
+      _fetchJson(PATH_HYBRID_INVERTERS),
+      _fetchJson(PATH_HYBRID_BATTERIES),
+    ]);
+    const gridRows = _extractRows(gridPayload, 'inverters').map(x => ({ ...x, topology: x.topology || 'grid-tie' }));
+    const hybridRows = _extractRows(hybridPayload, 'inverters').map(x => ({ ...x, topology: 'hybrid' }));
+    const batteryRows = _extractRows(batteryPayload, 'batteries');
+
+    return {
+      inverters: _mergeUnique(gridRows.concat(hybridRows), _normalizeInverter),
+      batteries: _mergeUnique(batteryRows, _normalizeBattery),
+      seed: {
+        gridInverters: gridRows.length,
+        hybridInverters: hybridRows.length,
+        batteries: batteryRows.length,
+      },
+    };
+  }
+
   async function ensureLoaded() {
     if (state.loaded || state.loading) return;
     state.loading = true;
     state.loadError = '';
+    let inverters = [];
+    let batteries = [];
     try {
-      let inverters = _loadLocalArray(STORAGE_INVERTERS, _normalizeInverter);
-      let batteries = _loadLocalArray(STORAGE_BATTERIES, _normalizeBattery);
+      const localInverters = _loadLocalArray(STORAGE_INVERTERS, _normalizeInverter);
+      const localBatteries = _loadLocalArray(STORAGE_BATTERIES, _normalizeBattery);
+      inverters = localInverters;
+      batteries = localBatteries;
 
-      if (!inverters.length || !batteries.length) {
-        const [gridPayload, hybridPayload, batteryPayload] = await Promise.all([
-          _fetchJson(PATH_GRID_INVERTERS),
-          _fetchJson(PATH_HYBRID_INVERTERS),
-          _fetchJson(PATH_HYBRID_BATTERIES),
-        ]);
-        const gridRows = _extractRows(gridPayload, 'inverters').map(x => ({ ...x, topology: x.topology || 'grid-tie' }));
-        const hybridRows = _extractRows(hybridPayload, 'inverters').map(x => ({ ...x, topology: 'hybrid' }));
-        const batteryRows = _extractRows(batteryPayload, 'batteries');
+      let bundled = null;
+      try {
+        bundled = await _loadBundledCatalogs();
+        state.seed = { ...bundled.seed };
+      } catch (bundleErr) {
+        // Non-fatal if local data exists; fatal only on first-run with empty local DB.
+        if (!localInverters.length || !localBatteries.length) throw bundleErr;
+      }
 
-        state.seed.gridInverters = gridRows.length;
-        state.seed.hybridInverters = hybridRows.length;
-        state.seed.batteries = batteryRows.length;
-
-        inverters = _mergeUnique(gridRows.concat(hybridRows), _normalizeInverter);
-        batteries = _mergeUnique(batteryRows, _normalizeBattery);
-
+      if (!localInverters.length || !localBatteries.length) {
+        if (!bundled) throw new Error('Bundled catalogs unavailable');
+        inverters = bundled.inverters;
+        batteries = bundled.batteries;
         _saveLocalArray(STORAGE_INVERTERS, inverters);
         _saveLocalArray(STORAGE_BATTERIES, batteries);
         _setRevision();
+      } else if (bundled) {
+        // Keep user overrides, but merge in newly bundled defaults by id when available.
+        const mergedInverters = _mergeUnique(bundled.inverters.concat(localInverters), _normalizeInverter);
+        const mergedBatteries = _mergeUnique(bundled.batteries.concat(localBatteries), _normalizeBattery);
+        const changed = mergedInverters.length !== localInverters.length || mergedBatteries.length !== localBatteries.length;
+        inverters = mergedInverters;
+        batteries = mergedBatteries;
+        if (changed) {
+          _saveLocalArray(STORAGE_INVERTERS, inverters);
+          _saveLocalArray(STORAGE_BATTERIES, batteries);
+          _setRevision();
+        } else {
+          const meta = _loadMeta();
+          state.revision = _cleanText(meta && meta.revision, 80);
+        }
       } else {
         const meta = _loadMeta();
         state.revision = _cleanText(meta && meta.revision, 80);
@@ -270,11 +320,39 @@ const CatalogStore = (() => {
       state.batteries = batteries;
     } catch (err) {
       state.loadError = err && err.message ? err.message : 'Catalog load failed';
-      state.inverters = [];
-      state.batteries = [];
+      // Preserve whatever local data was available instead of blanking UI on fetch issues.
+      state.inverters = Array.isArray(inverters) ? inverters : [];
+      state.batteries = Array.isArray(batteries) ? batteries : [];
     } finally {
       state.loading = false;
       state.loaded = true;
+    }
+  }
+
+  async function resetToBundledDefaults() {
+    state.loading = true;
+    state.loadError = '';
+    try {
+      const bundled = await _loadBundledCatalogs();
+      state.inverters = bundled.inverters;
+      state.batteries = bundled.batteries;
+      state.seed = { ...bundled.seed };
+      _saveLocalArray(STORAGE_INVERTERS, state.inverters);
+      _saveLocalArray(STORAGE_BATTERIES, state.batteries);
+      _setRevision();
+      state.loaded = true;
+      return {
+        ok: true,
+        inverterCount: state.inverters.length,
+        batteryCount: state.batteries.length,
+        seed: { ...state.seed },
+        revision: state.revision,
+      };
+    } catch (err) {
+      state.loadError = err && err.message ? err.message : 'Failed to reset catalog defaults';
+      return { ok: false, error: state.loadError };
+    } finally {
+      state.loading = false;
     }
   }
 
@@ -429,5 +507,6 @@ const CatalogStore = (() => {
     exportBatteriesJSON,
     importInvertersJSON,
     importBatteriesJSON,
+    resetToBundledDefaults,
   };
 })();
