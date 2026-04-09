@@ -65,6 +65,73 @@ const HybridSetup = (() => {
     }
   };
 
+  const UTILITY_SUBMISSION_DOCS = [
+    {
+      key: 'utilityDocSld',
+      inputId: 'hy-util-doc-sld',
+      label: 'Single-line diagram (SLD) attached',
+      note: 'SLD should include meter point, protection devices, and isolation locations.'
+    },
+    {
+      key: 'utilityDocProtectionSettings',
+      inputId: 'hy-util-doc-settings',
+      label: 'Protection settings sheet attached',
+      note: 'Submitted inverter protection settings must be documented and signed.'
+    },
+    {
+      key: 'utilityDocEquipmentApprovals',
+      inputId: 'hy-util-doc-approvals',
+      label: 'Equipment approvals/datasheets attached',
+      note: 'Include inverter model approvals and key datasheets used in submission.'
+    },
+    {
+      key: 'utilityDocCommissioningReport',
+      inputId: 'hy-util-doc-commissioning',
+      label: 'Commissioning/test report attached',
+      note: 'Attach measured commissioning evidence before final export request.'
+    },
+    {
+      key: 'utilityDocInterconnectionForm',
+      inputId: 'hy-util-doc-application',
+      label: 'Utility interconnection application complete',
+      note: 'Submission should include all required utility forms and declarations.'
+    },
+  ];
+
+  const UTILITY_SUBMISSION_GATES = [
+    {
+      key: 'utilityMeterReady',
+      inputId: 'hy-util-gate-meter',
+      label: 'Utility-compliant bi-directional metering arrangement confirmed',
+      note: 'Net-metering/net-accounting metering arrangement must be in place.',
+      blocker: 'Utility-compliant bidirectional metering arrangement is not confirmed.'
+    },
+    {
+      key: 'utilityIsolationAccessible',
+      inputId: 'hy-util-gate-isolation',
+      label: 'Accessible AC/DC isolation points confirmed',
+      note: 'Isolation points must be accessible for utility inspection and operation.',
+      blocker: 'Accessible isolation points are not confirmed.'
+    },
+    {
+      key: 'utilitySettingsMatched',
+      inputId: 'hy-util-gate-settings-match',
+      label: 'Commissioned settings match submitted settings',
+      note: 'Commissioned inverter settings should match submitted profile values exactly.',
+      blocker: 'Commissioned inverter settings are not confirmed as matching submitted settings.'
+    },
+    {
+      key: 'utilityFinalAcceptance',
+      inputId: 'hy-util-gate-acceptance',
+      label: 'Utility final inspection/acceptance recorded',
+      note: 'Grid export should be enabled only after formal utility acceptance.',
+      blocker: 'Utility final acceptance is not recorded.'
+    },
+  ];
+
+  const UTILITY_SUBMISSION_ITEMS = [...UTILITY_SUBMISSION_DOCS, ...UTILITY_SUBMISSION_GATES];
+  const UTILITY_SUBMISSION_KEYS = UTILITY_SUBMISSION_ITEMS.map(item => item.key);
+
   const STANDARDS = [
     {
       id: 'iec62446',
@@ -326,6 +393,17 @@ const HybridSetup = (() => {
   function _num(v, fallback) {
     const n = Number(v);
     return Number.isFinite(n) ? n : (fallback ?? 0);
+  }
+
+  function _bool(v, fallback) {
+    if (typeof v === 'boolean') return v;
+    if (typeof v === 'number') return v !== 0;
+    if (typeof v === 'string') {
+      const s = v.trim().toLowerCase();
+      if (s === 'true' || s === '1' || s === 'yes') return true;
+      if (s === 'false' || s === '0' || s === 'no') return false;
+    }
+    return !!fallback;
   }
 
   function _cleanText(v, maxLen) {
@@ -855,8 +933,18 @@ const HybridSetup = (() => {
       panelId: CATALOG_NONE, modulesPerString: 0, stringsPerMppt: 1,
       siteTmin_C: 10, cellTmax_C: 70, surgeDuration_s: 5,
       exportMode: 'no_export', utilityProfile: 'offgrid',
+      utilityDocSld: false,
+      utilityDocProtectionSettings: false,
+      utilityDocEquipmentApprovals: false,
+      utilityDocCommissioningReport: false,
+      utilityDocInterconnectionForm: false,
+      utilityMeterReady: false,
+      utilityIsolationAccessible: false,
+      utilitySettingsMatched: false,
+      utilityFinalAcceptance: false,
     };
     const s = { ...defaults, ...(App.state.hybridInputs || {}) };
+    UTILITY_SUBMISSION_KEYS.forEach(key => { s[key] = _bool(s[key], defaults[key]); });
     const inverterCatalog = _catalogInverters();
     const batteryCatalog = _catalogBatteries();
     const loadingLabel = catalogState.loading && !catalogState.loaded
@@ -875,6 +963,14 @@ const HybridSetup = (() => {
       .join('');
     const profileOptions = Object.values(UTILITY_PROFILES)
       .map(p => _modelOption(p.id, p.label, s.utilityProfile))
+      .join('');
+    const utilityChecklistHtml = UTILITY_SUBMISSION_ITEMS
+      .map(item => `
+        <label class="checkbox-item ${s[item.key] ? 'checked' : ''}">
+          <input type="checkbox" id="${_esc(item.inputId)}" ${s[item.key] ? 'checked' : ''} />
+          <span>${_esc(item.label)}</span>
+        </label>
+      `)
       .join('');
 
     container.innerHTML = `
@@ -947,6 +1043,11 @@ const HybridSetup = (() => {
               <select class="form-select" id="hy-utility-profile">${profileOptions}</select>
               <div class="form-hint" id="hy-profile-hint"></div>
             </div>
+            <div class="form-group" style="grid-column:1/-1">
+              <label class="form-label">Utility Submission Package Validator (Strict Export Gate)</label>
+              <div class="checkbox-grid" id="hy-utility-checklist">${utilityChecklistHtml}</div>
+              <div class="form-hint" id="hy-submission-hint"></div>
+            </div>
           </div>
           <div class="btn-group"><button class="btn btn-primary" id="hy-calc-btn">Calculate Hybrid Setup</button></div>
         </div>
@@ -959,9 +1060,13 @@ const HybridSetup = (() => {
     container.querySelector('#hy-bat-model').addEventListener('change', () => _updateCatalogueHints(container));
     container.querySelector('#hy-export-mode').addEventListener('change', () => _updateCatalogueHints(container));
     container.querySelector('#hy-utility-profile').addEventListener('change', () => _updateCatalogueHints(container));
+    container.querySelectorAll('#hy-utility-checklist input[type="checkbox"]').forEach(el => {
+      el.addEventListener('change', () => _updateCatalogueHints(container));
+    });
     const utilityMgrBtn = container.querySelector('#hy-utility-manager-btn');
     if (utilityMgrBtn) utilityMgrBtn.addEventListener('click', () => _openUtilityListManager(container));
     container.querySelector('#hy-calc-btn').addEventListener('click', () => _calculate(container));
+    _bindChecklistVisualState(container, '#hy-utility-checklist');
     _applyChemistryDefaults(container, false);
     _updateCatalogueHints(container);
     if (App.state.hybridResult) _renderResults(container, App.state.hybridResult);
@@ -1017,6 +1122,12 @@ const HybridSetup = (() => {
       } else {
         profileHint.textContent = `${profile.utility}: V ${profile.voltageWindow}, f ${profile.frequencyWindow}, reconnect >= ${profile.reconnect_s}s`;
       }
+    }
+
+    const submissionHint = container.querySelector('#hy-submission-hint');
+    if (submissionHint) {
+      const submissionInputs = _readUtilitySubmissionInputs(container);
+      submissionHint.textContent = _submissionChecklistHint(submissionInputs, exportMode);
     }
   }
 
@@ -1259,8 +1370,45 @@ const HybridSetup = (() => {
   }
 
   function _v(container, id) { return parseFloat(container.querySelector(id).value); }
+  function _checked(container, id) {
+    const el = container.querySelector(id);
+    return !!(el && el.checked);
+  }
+
+  function _readUtilitySubmissionInputs(container) {
+    const out = {};
+    UTILITY_SUBMISSION_ITEMS.forEach(item => {
+      out[item.key] = _checked(container, `#${item.inputId}`);
+    });
+    return out;
+  }
+
+  function _bindChecklistVisualState(container, rootSelector) {
+    const root = container.querySelector(rootSelector);
+    if (!root) return;
+    const items = Array.from(root.querySelectorAll('.checkbox-item'));
+    items.forEach(item => {
+      const input = item.querySelector('input[type="checkbox"]');
+      if (!input) return;
+      const sync = () => item.classList.toggle('checked', !!input.checked);
+      input.addEventListener('change', sync);
+      sync();
+    });
+  }
+
+  function _submissionChecklistHint(inputs, exportMode) {
+    if (exportMode !== 'export') return 'Export mode is OFF. Checklist is optional until export path is selected.';
+    const docProvided = UTILITY_SUBMISSION_DOCS.filter(item => inputs[item.key] === true).length;
+    const gateConfirmed = UTILITY_SUBMISSION_GATES.filter(item => inputs[item.key] === true).length;
+    const docTotal = UTILITY_SUBMISSION_DOCS.length;
+    const gateTotal = UTILITY_SUBMISSION_GATES.length;
+    const remaining = (docTotal - docProvided) + (gateTotal - gateConfirmed);
+    if (remaining <= 0) return 'Submission package and utility gates are complete for strict export release.';
+    return `Submission readiness: documents ${docProvided}/${docTotal}, gates ${gateConfirmed}/${gateTotal}. Remaining blockers: ${remaining}.`;
+  }
 
   function _calculate(container) {
+    const utilityInputs = _readUtilitySubmissionInputs(container);
     const inputs = {
       dailyEnergy_kWh: _v(container, '#hy-e'), autonomyDays: _v(container, '#hy-auto'),
       peakLoad_kW: _v(container, '#hy-peak'), surgeLoad_kW: _v(container, '#hy-surge'),
@@ -1280,6 +1428,7 @@ const HybridSetup = (() => {
       cellTmax_C: _v(container, '#hy-tmax-cell'),
       exportMode: container.querySelector('#hy-export-mode').value,
       utilityProfile: container.querySelector('#hy-utility-profile').value,
+      ...utilityInputs,
     };
     if (Object.values(inputs).some(v => typeof v === 'number' && Number.isNaN(v))) { App.toast('Please fill all numeric fields', 'error'); return; }
 
@@ -1303,6 +1452,11 @@ const HybridSetup = (() => {
     if (catalogue.summary.fail > 0) warnings.push(`${catalogue.summary.fail} catalogue hard-limit checks failed. Review catalogue check table.`);
     if (catalogue.summary.warn > 0) warnings.push(`${catalogue.summary.warn} catalogue checks require engineering review.`);
     if (catalogue.approvalRequired) warnings.push('Export mode selected: utility acceptance is required before enabling grid export.');
+    if (catalogue.utilitySubmission && catalogue.utilitySubmission.applicable && !catalogue.utilitySubmission.strictPass) {
+      const us = catalogue.utilitySubmission;
+      if (us.missingDocuments.length) warnings.push(`Utility submission missing documents: ${us.missingDocuments.join('; ')}.`);
+      if (us.gateBlockers.length) warnings.push(`Utility submission blockers: ${us.gateBlockers.join('; ')}.`);
+    }
 
     const result = {
       date: typeof App.localDateISO === 'function' ? App.localDateISO() : new Date().toISOString().slice(0, 10),
@@ -1315,6 +1469,87 @@ const HybridSetup = (() => {
     App.state.hybridResult = result;
     _renderResults(container, result);
     App.toast('Hybrid sizing completed', 'success');
+  }
+
+  function _evaluateUtilitySubmission(inputs, profile, inverterModel) {
+    const applicable = inputs.exportMode === 'export';
+    if (!applicable) {
+      return {
+        applicable: false,
+        checks: [],
+        missingDocuments: [],
+        gateBlockers: [],
+        blockers: [],
+        strictPass: true,
+        docProvided: 0,
+        docTotal: UTILITY_SUBMISSION_DOCS.length,
+      };
+    }
+
+    const checks = [];
+    const missingDocuments = [];
+    UTILITY_SUBMISSION_DOCS.forEach(item => {
+      const ok = inputs[item.key] === true;
+      if (!ok) missingDocuments.push(item.label);
+      checks.push({
+        check: `Submission document: ${item.label}`,
+        value: ok ? 'Provided' : 'Missing',
+        target: 'Provided',
+        status: ok ? 'pass' : 'fail',
+        note: item.note,
+        source: 'CEB/LECO workflow'
+      });
+    });
+
+    const gateBlockers = [];
+    UTILITY_SUBMISSION_GATES.forEach(item => {
+      const ok = inputs[item.key] === true;
+      if (!ok) gateBlockers.push(item.blocker || `${item.label} is not confirmed.`);
+      checks.push({
+        check: `Submission gate: ${item.label}`,
+        value: ok ? 'Confirmed' : 'Not confirmed',
+        target: 'Confirmed before export enablement',
+        status: ok ? 'pass' : 'fail',
+        note: item.note,
+        source: 'CEB/LECO workflow'
+      });
+    });
+
+    if (!profile.exportEnabled) {
+      gateBlockers.push('Selected utility profile is not export-enabled for grid export.');
+    }
+    if (!inverterModel) {
+      gateBlockers.push('Inverter model selection is required for utility submission and approval checks.');
+    }
+
+    const blockers = [
+      ...missingDocuments.map(label => `Missing required document: ${label}`),
+      ...gateBlockers
+    ];
+    const strictPass = blockers.length === 0;
+    const docProvided = UTILITY_SUBMISSION_DOCS.length - missingDocuments.length;
+
+    checks.push({
+      check: 'Utility submission strict release gate',
+      value: strictPass ? 'PASS' : 'FAIL',
+      target: `${UTILITY_SUBMISSION_DOCS.length}/${UTILITY_SUBMISSION_DOCS.length} required docs + all gates confirmed`,
+      status: strictPass ? 'pass' : 'fail',
+      note: strictPass
+        ? 'Submission package is complete for utility export release workflow.'
+        : 'Resolve missing documents/blockers before enabling export.',
+      source: 'CEB/LECO workflow'
+    });
+
+    return {
+      applicable: true,
+      checks,
+      missingDocuments,
+      gateBlockers,
+      blockers,
+      strictPass,
+      docProvided,
+      docTotal: UTILITY_SUBMISSION_DOCS.length,
+    };
   }
 
   function _statusByLimit(actual, limit, warnMargin) {
@@ -1331,6 +1566,7 @@ const HybridSetup = (() => {
     const batteryModel = _getBattery(inputs.batteryModelId);
     const panelModel = _getPanel(inputs.panelId);
     const profile = _profileById(inputs.utilityProfile);
+    const utilitySubmission = _evaluateUtilitySubmission(inputs, profile, inverterModel);
 
     const reqContDischargeA = (base.inverter.requiredContinuous_kW * 1000) / Math.max(inputs.batteryVoltage_V * Math.max(inputs.etaInv, 0.1), 1);
     const reqSurgeDischargeA = (base.inverter.requiredSurge_kW * 1000) / Math.max(inputs.batteryVoltage_V * Math.max(inputs.etaInv, 0.1), 1);
@@ -1565,6 +1801,12 @@ const HybridSetup = (() => {
       );
     }
 
+    if (utilitySubmission.applicable) {
+      utilitySubmission.checks.forEach(ch => {
+        add(ch.check, ch.value, ch.target, ch.status, ch.note, ch.source);
+      });
+    }
+
     let approvalRequired = false;
     if (inputs.exportMode === 'export') {
       add(
@@ -1620,6 +1862,7 @@ const HybridSetup = (() => {
         'Workflow'
       );
     }
+    if (utilitySubmission.applicable && !utilitySubmission.strictPass) approvalRequired = true;
 
     const summary = checks.reduce((acc, c) => {
       acc[c.status] = (acc[c.status] || 0) + 1;
@@ -1650,6 +1893,7 @@ const HybridSetup = (() => {
       checks,
       summary,
       approvalRequired,
+      utilitySubmission,
       badges,
       metrics: {
         reqContDischargeA,
@@ -1666,6 +1910,7 @@ const HybridSetup = (() => {
     const warningHtml = warnings.length ? `<div class="card">${warnings.map(w => `<div class="warn-box">${_esc(w)}</div>`).join('')}</div>` : '';
     const badgeHtml = (r.badges || []).length ? `<div class="info-box" style="margin-bottom:10px">${(r.badges || []).map(b => _badgeChip(b, b === 'Approval required' ? 'badge-fail' : (b === 'Heuristic' ? 'badge-warn' : 'badge-pass'))).join('')}</div>` : '';
     const catalogueCard = _catalogueChecksCard(r);
+    const utilityCard = _utilitySubmissionCard(r);
     out.innerHTML = `
       <div class="card">
         <div class="card-title">Sizing Summary (${_esc(r.date)})</div>
@@ -1685,9 +1930,12 @@ const HybridSetup = (() => {
           <button class="btn btn-secondary btn-sm" id="hy-print-btn">Print Learning Report</button>
           <button class="btn btn-success btn-sm" id="hy-pdf-btn">Export PDF</button>
           <button class="btn btn-secondary btn-sm" id="hy-docx-btn">Export DOCX</button>
+          <button class="btn btn-secondary btn-sm" id="hy-pack-print-btn">Print Project Pack</button>
+          <button class="btn btn-secondary btn-sm" id="hy-pack-json-btn">Export Project Pack JSON</button>
         </div>
       </div>
       ${catalogueCard}
+      ${utilityCard}
       ${warningHtml}
     `;
     const copyBtn = out.querySelector('#hy-copy-btn');
@@ -1706,17 +1954,27 @@ const HybridSetup = (() => {
     const docxBtn = out.querySelector('#hy-docx-btn');
     if (docxBtn) docxBtn.addEventListener('click', () => _exportLearningDOCX(r));
 
+    const packPrintBtn = out.querySelector('#hy-pack-print-btn');
+    if (packPrintBtn) packPrintBtn.addEventListener('click', () => _printProjectPack(r));
+
+    const packJsonBtn = out.querySelector('#hy-pack-json-btn');
+    if (packJsonBtn) packJsonBtn.addEventListener('click', () => _exportProjectPackJSON(r));
+
     out.scrollIntoView({ behavior: 'smooth', block: 'start' });
   }
 
   function _summaryText(r) {
     const cat = r.catalogue || {};
+    const us = cat.utilitySubmission || {};
     const inv = cat.inverterModel ? `${cat.inverterModel.manufacturer} ${cat.inverterModel.model}` : 'Not selected';
     const bat = cat.batteryModel ? `${cat.batteryModel.manufacturer} ${cat.batteryModel.model}` : 'Not selected';
     const pan = cat.panelModel ? `${cat.panelModel.manufacturer} ${cat.panelModel.model}` : 'Not selected';
     const pass = cat.summary ? cat.summary.pass : 0;
     const warn = cat.summary ? cat.summary.warn : 0;
     const fail = cat.summary ? cat.summary.fail : 0;
+    const utilityGate = us.applicable
+      ? `${us.strictPass ? 'PASS' : 'FAIL'} (${us.docProvided || 0}/${us.docTotal || 0} docs, ${(us.blockers || []).length} blockers)`
+      : 'N/A (no-export mode)';
     return [
       `Hybrid Setup Summary (${r.date})`,
       `Chemistry: ${r.chemistryLabel}`,
@@ -1731,6 +1989,7 @@ const HybridSetup = (() => {
       `Selected battery: ${bat}`,
       `Selected panel: ${pan}`,
       `Catalogue checks: PASS ${pass}, CHECK ${warn}, FAIL ${fail}`,
+      `Utility submission gate: ${utilityGate}`,
       '',
       'References: IEC 60364-7-712:2025, IEC 62109, IEC 62446-1:2016+AMD1:2018, IEC 61427-1/-2, IEC 62619:2022, SLS 1522, PUCSL, SLS 1543, SLS 1547, CEB inverter settings (2025-02-25), CEB Grid Connection Code (2024)'
     ].join('\n');
@@ -1768,6 +2027,54 @@ const HybridSetup = (() => {
     `;
   }
 
+  function _utilitySubmissionCard(r) {
+    const cat = r.catalogue || {};
+    const us = cat.utilitySubmission;
+    if (!us || !us.applicable) {
+      return `
+        <div class="card" style="margin-top:8px">
+          <div class="card-title">Utility Submission Validator</div>
+          <div class="info-box">Not active for this run because export mode is OFF.</div>
+        </div>
+      `;
+    }
+    const rows = (us.checks || []).map(ch => `
+      <tr>
+        <td><strong>${_esc(ch.check)}</strong></td>
+        <td>${_esc(ch.value)}</td>
+        <td>${_esc(ch.target)}</td>
+        <td>${_statusBadge(ch.status)}</td>
+        <td>${_esc(ch.note)}</td>
+      </tr>
+    `).join('');
+    const missing = Array.isArray(us.missingDocuments) ? us.missingDocuments : [];
+    const blockers = Array.isArray(us.blockers) ? us.blockers : [];
+    const missingHtml = missing.length
+      ? `<div class="warn-box"><strong>Missing Required Documents:</strong> ${_esc(missing.join(' | '))}</div>`
+      : '<div class="info-box">All required documents are marked as provided.</div>';
+    const blockerHtml = blockers.length
+      ? `<div class="warn-box"><strong>Blocking Conditions:</strong> ${_esc(blockers.join(' | '))}</div>`
+      : '<div class="info-box">No submission blockers detected.</div>';
+    const gateBadge = us.strictPass ? _statusBadge('pass') : _statusBadge('fail');
+    return `
+      <div class="card" style="margin-top:8px">
+        <div class="card-title">Utility Submission Validator</div>
+        <div class="info-box">
+          Strict export gate: ${gateBadge}
+          <span style="margin-left:8px">Documents ${_esc(us.docProvided || 0)}/${_esc(us.docTotal || 0)}</span>
+        </div>
+        <div style="overflow-x:auto">
+          <table class="status-table">
+            <thead><tr><th>Requirement</th><th>Current</th><th>Target</th><th>Status</th><th>Engineering Note</th></tr></thead>
+            <tbody>${rows}</tbody>
+          </table>
+        </div>
+        ${missingHtml}
+        ${blockerHtml}
+      </div>
+    `;
+  }
+
   function _statusBadge(state) {
     if (state === 'pass') return '<span class="status-badge badge-pass">PASS</span>';
     if (state === 'warn') return '<span class="status-badge badge-warn">CHECK</span>';
@@ -1788,6 +2095,33 @@ const HybridSetup = (() => {
     const invName = cat.inverterModel ? `${cat.inverterModel.manufacturer} ${cat.inverterModel.model}` : 'Not selected';
     const batName = cat.batteryModel ? `${cat.batteryModel.manufacturer} ${cat.batteryModel.model}` : 'Not selected';
     const panName = cat.panelModel ? `${cat.panelModel.manufacturer} ${cat.panelModel.model}` : 'Not selected';
+    const utilitySubmission = cat.utilitySubmission || {
+      applicable: false,
+      checks: [],
+      missingDocuments: [],
+      gateBlockers: [],
+      blockers: [],
+      strictPass: true,
+      docProvided: 0,
+      docTotal: UTILITY_SUBMISSION_DOCS.length,
+    };
+    const utilityGate = utilitySubmission.applicable
+      ? (utilitySubmission.strictPass ? 'PASS' : 'FAIL')
+      : 'N/A (no-export mode)';
+    const utilityRows = utilitySubmission.applicable
+      ? (utilitySubmission.checks || []).map(ch => [ch.check, ch.value, ch.target, String(ch.status || '').toUpperCase(), ch.note || ''])
+      : [['Utility submission validator', 'N/A', 'Export mode required', 'N/A', 'No-export workflow selected.']];
+    const utilityStatusRows = utilitySubmission.applicable
+      ? [
+          ['Missing required documents', utilitySubmission.missingDocuments.length ? utilitySubmission.missingDocuments.join('; ') : 'None'],
+          ['Submission blockers', utilitySubmission.blockers.length ? utilitySubmission.blockers.join('; ') : 'None'],
+          ['Strict export gate', utilityGate]
+        ]
+      : [
+          ['Missing required documents', 'Not applicable'],
+          ['Submission blockers', 'Not applicable'],
+          ['Strict export gate', utilityGate]
+        ];
 
     const checks = [
       {
@@ -1838,6 +2172,9 @@ const HybridSetup = (() => {
       ['Surge duration requirement', `${surgeDuration_s.toFixed(1)} s`, 'Compared against inverter and battery peak-duration limits.'],
       ['Export mode', exportMode === 'export' ? 'Export enabled' : 'No export', 'Determines utility approval check path.'],
       ['Utility profile', cat.profile ? cat.profile.label : 'Off-grid', 'Submitted and commissioned profile match target.'],
+      ['Utility submission gate', utilityGate, 'Strict PASS/FAIL blocker gate for export-enabled utility workflow.'],
+      ['Utility submission docs', `${utilitySubmission.docProvided || 0}/${utilitySubmission.docTotal || 0}`, 'Required CEB/LECO package document completeness.'],
+      ['Utility blocker count', `${(utilitySubmission.blockers || []).length}`, 'Must be zero before export enablement.'],
       ['Daily load', `${i.dailyEnergy_kWh.toFixed(2)} kWh/day`, 'Measured/estimated AC energy demand.'],
       ['Autonomy', `${i.autonomyDays.toFixed(2)} day`, 'Battery support duration during low PV input.'],
       ['Battery chemistry', r.chemistryLabel, 'Defines typical DoD and efficiency behavior.'],
@@ -1902,7 +2239,21 @@ const HybridSetup = (() => {
 
     const smartClauses = _selectSmartClauses(r, { acdc, cRate, dodBand });
 
-    return { checks, assumptions, formulaRows, workedSteps, limitRows, calcRows, sourceRows, smartClauses, acdc, cRate };
+    return {
+      checks,
+      assumptions,
+      formulaRows,
+      workedSteps,
+      limitRows,
+      calcRows,
+      sourceRows,
+      smartClauses,
+      utilityRows,
+      utilityStatusRows,
+      utilityGate,
+      acdc,
+      cRate
+    };
   }
 
   function _statusFromRule(condPass, condWarn) {
@@ -1973,6 +2324,15 @@ const HybridSetup = (() => {
       if (r.catalogue && r.catalogue.approvalRequired) {
         add('ceb-leco', 'Current configuration still needs explicit utility approval confirmation before export enablement.');
       }
+      const us = r.catalogue && r.catalogue.utilitySubmission ? r.catalogue.utilitySubmission : null;
+      if (us && !us.strictPass) {
+        if (Array.isArray(us.missingDocuments) && us.missingDocuments.length) {
+          add('ceb-leco', `Utility submission documents missing: ${us.missingDocuments.join(', ')}.`);
+        }
+        if (Array.isArray(us.gateBlockers) && us.gateBlockers.length) {
+          add('ceb-leco', `Utility gate blockers present: ${us.gateBlockers.join(', ')}.`);
+        }
+      }
     } else if (metrics.acdc >= 0.80 && metrics.acdc <= 1.10) {
       add('ceb-leco', 'Sizing pattern is consistent with export-capable hybrid designs; utility approval workflow may apply if export is enabled.');
     }
@@ -2002,6 +2362,310 @@ const HybridSetup = (() => {
 
   function _reportBaseName(r) {
     return `SolarPV_HybridLearning_${_safePart(r.chemistryLabel, 'Hybrid')}_${_safePart(r.date, 'date')}`;
+  }
+
+  function _projectPackBaseName(r) {
+    return `SolarPV_ProjectPack_${_safePart(r.chemistryLabel, 'Hybrid')}_${_safePart(r.date, 'date')}`;
+  }
+
+  function _estimateInstalledModuleCount(r) {
+    const cat = r.catalogue || {};
+    const panel = cat.panelModel || null;
+    const inv = cat.inverterModel || null;
+    const i = r.inputs || {};
+    const modulesPerString = Math.max(0, Math.round(_num(i.modulesPerString, 0)));
+    const stringsPerMppt = Math.max(0, Math.round(_num(i.stringsPerMppt, 0)));
+    const mpptCount = Math.max(1, Math.round(_num(inv && inv.mpptCount, 1)));
+    if (modulesPerString > 0 && stringsPerMppt > 0) {
+      return modulesPerString * stringsPerMppt * mpptCount;
+    }
+    if (panel && Number.isFinite(panel.Pmax) && panel.Pmax > 0) {
+      return Math.max(1, Math.ceil((r.pv.recommended_kWp * 1000) / panel.Pmax));
+    }
+    return 0;
+  }
+
+  function _buildProjectPack(r) {
+    const cat = r.catalogue || {};
+    const i = r.inputs || {};
+    const inv = cat.inverterModel || null;
+    const bat = cat.batteryModel || null;
+    const panel = cat.panelModel || null;
+    const profile = cat.profile || _profileById(i.utilityProfile);
+    const us = cat.utilitySubmission || {
+      applicable: false,
+      checks: [],
+      missingDocuments: [],
+      gateBlockers: [],
+      blockers: [],
+      strictPass: true,
+      docProvided: 0,
+      docTotal: UTILITY_SUBMISSION_DOCS.length
+    };
+    const audit = _standardsAuditMeta();
+    const exportedAt = new Date().toISOString();
+    const moduleCount = _estimateInstalledModuleCount(r);
+    const modulesPerString = Math.max(0, Math.round(_num(i.modulesPerString, 0)));
+    const stringsPerMppt = Math.max(0, Math.round(_num(i.stringsPerMppt, 0)));
+    const mpptCount = Math.max(1, Math.round(_num(inv && inv.mpptCount, 1)));
+    const stringCount = modulesPerString > 0 && stringsPerMppt > 0 ? stringsPerMppt * mpptCount : 0;
+    const batteryParallel = Math.max(1, Math.round(_num(i.batteryParallel, 1)));
+    const batteryModuleKWh = bat ? (bat.nominalV * bat.capacityAh) / 1000 : 0;
+    const batteryInstalledNominal_kWh = batteryModuleKWh > 0 ? batteryModuleKWh * batteryParallel : 0;
+    const utilityListed = !!(inv && profile && profile.id !== 'offgrid' && inv.utilityListed && inv.utilityListed[profile.id] === true);
+    const utilityListingRef = inv && profile && inv.listingSource && inv.listingSource[profile.id]
+      ? String(inv.listingSource[profile.id])
+      : '';
+    const topology = i.exportMode === 'export' ? 'Grid-Tied Hybrid (Export-Enabled)' : 'Hybrid (No Export / Backup Priority)';
+
+    const summary = {
+      date: r.date,
+      exportedAt,
+      topology,
+      chemistry: r.chemistryLabel,
+      badges: r.badges || [],
+      requiredBatteryNominal_kWh: Number(r.battery.requiredNominal_kWh.toFixed(3)),
+      requiredBatteryUsable_kWh: Number(r.battery.requiredUsable_kWh.toFixed(3)),
+      batteryEquivalent_Ah: Number(r.batteryAh.toFixed(1)),
+      recommendedPv_kWp: Number(r.pv.recommended_kWp.toFixed(3)),
+      inverterContinuous_kW: Number(r.inverter.requiredContinuous_kW.toFixed(3)),
+      inverterSurge_kW: Number(r.inverter.requiredSurge_kW.toFixed(3)),
+      estimatedCharge_A: Number(r.charge.current_A.toFixed(2)),
+      utilityProfile: profile ? profile.label : 'Off-grid',
+      strictUtilityGate: us.applicable ? (us.strictPass ? 'PASS' : 'FAIL') : 'N/A',
+      catalogueSummary: {
+        pass: cat.summary && Number.isFinite(cat.summary.pass) ? cat.summary.pass : 0,
+        warn: cat.summary && Number.isFinite(cat.summary.warn) ? cat.summary.warn : 0,
+        fail: cat.summary && Number.isFinite(cat.summary.fail) ? cat.summary.fail : 0,
+      }
+    };
+
+    const sld = {
+      title: 'Single-Line Diagram (Auto-Generated Pre-Design)',
+      topology,
+      mermaid: [
+        'graph LR',
+        `PV["PV Array${moduleCount > 0 ? `\\n~${moduleCount} modules` : ''}"] --> DC["DC Isolator + DC SPD"]`,
+        `DC --> INV["Hybrid Inverter${inv ? `\\n${inv.manufacturer} ${inv.model}` : ''}"]`,
+        `BAT["Battery Bank${bat ? `\\n${bat.manufacturer} ${bat.model} x${batteryParallel}` : ''}"] --> INV`,
+        'INV --> AC["Main AC DB / Essential Loads"]',
+        i.exportMode === 'export'
+          ? `GRID["${profile && profile.utility ? profile.utility : 'Utility'} Meter / Grid"] <--> AC`
+          : 'GRID["Grid (Import Priority / No Export)"] --> AC',
+      ].join('\n'),
+      notes: [
+        'Diagram is a pre-design representation. Final SLD must be project-specific and utility-approved.',
+        'Protection, conductor sizes, breaker/fuse coordination, and earthing must be finalized in detailed design.',
+      ]
+    };
+
+    const bom = [];
+    function addBom(item, qty, spec, note, source) {
+      bom.push({ item, qty, spec, note, source });
+    }
+    if (panel) {
+      addBom(
+        'PV module',
+        moduleCount || 'TBD',
+        `${panel.manufacturer} ${panel.model} (${panel.Pmax}W, Voc ${panel.Voc}V, Isc ${panel.Isc}A)`,
+        moduleCount > 0 ? 'Derived from string layout and selected inverter MPPT count.' : 'Provide string layout to finalize quantity.',
+        panel.datasheetRev ? `Panel datasheet (${panel.datasheetRev})` : 'Panel database'
+      );
+    } else {
+      addBom('PV module', 'TBD', 'Model not selected', 'Select module to produce datasheet-backed BOM.', 'Workflow');
+    }
+    addBom(
+      'Hybrid inverter',
+      1,
+      inv ? `${inv.manufacturer} ${inv.model} (${inv.acRated_kW}kW AC, ${inv.batteryBus_V}V battery bus)` : 'Model not selected',
+      inv ? 'Selected model from inverter catalog.' : 'Select inverter model for strict compatibility checks.',
+      inv && inv.datasheetRev ? `Inverter datasheet (${inv.datasheetRev})` : 'Inverter catalog'
+    );
+    if (bat) {
+      addBom(
+        'Battery module',
+        batteryParallel,
+        `${bat.manufacturer} ${bat.model} (${bat.nominalV}V, ${bat.capacityAh}Ah, ${batteryModuleKWh.toFixed(2)}kWh/module)`,
+        `Installed nominal energy approx. ${batteryInstalledNominal_kWh.toFixed(2)}kWh.`,
+        bat.datasheetRev ? `Battery datasheet (${bat.datasheetRev})` : 'Battery catalog'
+      );
+    } else {
+      addBom('Battery module', 'TBD', 'Model not selected', 'Select battery model for BMS-limited current and energy checks.', 'Workflow');
+    }
+    addBom('DC isolator', 1, 'PV DC rated isolator (voltage/current per final design)', 'Required near inverter/DC interface.', 'IEC 60364-7-712 / SLS 1522');
+    addBom('AC isolator', 1, 'AC rated isolator near inverter output', 'Required for safe maintenance and utility access.', 'IEC 60364-7-712 / SLS 1522');
+    addBom('DC SPD', 1, 'Type II PV SPD, UC >= 1.2 x cold string Voc', 'Select exact MCOV from final string Voc.', 'SLS 1522 / IEC 61643-32');
+    addBom('AC SPD', 1, 'Type II AC SPD at main board/inverter AC interface', 'Coordinate with earthing and board architecture.', 'IEC 60364 / SLS 1522');
+    if (stringCount > 1) {
+      addBom('String fuses', stringCount, 'PV fuse-links coordinated to string Isc and reverse current', 'Confirm fuse-link class and selectivity in detailed design.', 'IEC 60269-6');
+      addBom('PV combiner box', 1, `${stringCount} string inputs (estimated)`, 'Required when strings are paralleled before inverter input.', 'IEC 60364-7-712');
+    }
+    addBom('Earthing and bonding set', 1, 'Earth electrode, conductors, clamps, bonding links', 'Finalize conductor size with adiabatic and fault-current checks.', 'IEC 60364 / SLS 1522 / IEC 62305');
+
+    const settingsSheet = [
+      ['Export mode', i.exportMode === 'export' ? 'Export enabled' : 'No export'],
+      ['Utility profile', profile ? profile.label : 'Off-grid'],
+      ['Utility voltage window', profile ? profile.voltageWindow : 'N/A'],
+      ['Utility frequency window', profile ? profile.frequencyWindow : 'N/A'],
+      ['Utility reconnect delay', profile ? `${profile.reconnect_s}s` : 'N/A'],
+      ['Inverter model', inv ? `${inv.manufacturer} ${inv.model}` : 'Not selected'],
+      ['Utility listing status', i.exportMode === 'export' ? (utilityListed ? 'LISTED' : 'NOT LISTED') : 'N/A'],
+      ['Listing reference', utilityListingRef || 'N/A'],
+      ['Commissioned settings match submitted settings', i.utilitySettingsMatched ? 'YES' : 'NO'],
+      ['Strict utility submission gate', us.applicable ? (us.strictPass ? 'PASS' : 'FAIL') : 'N/A'],
+      ['Design battery bus', `${_num(i.batteryVoltage_V, 0).toFixed(0)}V`],
+      ['Inverter continuous requirement', `${r.inverter.requiredContinuous_kW.toFixed(2)}kW`],
+      ['Inverter surge requirement', `${r.inverter.requiredSurge_kW.toFixed(2)}kW`],
+      ['Estimated charge current', `${r.charge.current_A.toFixed(1)}A`],
+    ];
+    UTILITY_SUBMISSION_ITEMS.forEach(item => {
+      settingsSheet.push([`Submission item: ${item.label}`, i[item.key] === true ? 'YES' : 'NO']);
+    });
+
+    const complianceChecklist = [];
+    function addCompliance(area, requirement, status, evidence, note) {
+      complianceChecklist.push({ area, requirement, status, evidence, note });
+    }
+    addCompliance(
+      'Catalogue checks',
+      'All critical catalogue checks pass',
+      (cat.summary && cat.summary.fail > 0) ? 'FAIL' : ((cat.summary && cat.summary.warn > 0) ? 'CHECK' : 'PASS'),
+      `PASS ${cat.summary && cat.summary.pass ? cat.summary.pass : 0} | CHECK ${cat.summary && cat.summary.warn ? cat.summary.warn : 0} | FAIL ${cat.summary && cat.summary.fail ? cat.summary.fail : 0}`,
+      'Resolve FAIL items before release.'
+    );
+    addCompliance(
+      'Utility submission',
+      'Strict utility gate before export enablement',
+      us.applicable ? (us.strictPass ? 'PASS' : 'FAIL') : 'N/A',
+      us.applicable
+        ? `Docs ${us.docProvided || 0}/${us.docTotal || 0}; blockers ${(us.blockers || []).length}`
+        : 'No-export workflow',
+      us.applicable && !us.strictPass ? (us.blockers || []).join(' | ') : 'No blockers recorded.'
+    );
+    (cat.checks || []).forEach(ch => {
+      addCompliance(
+        'Detailed check',
+        ch.check,
+        String(ch.status || '').toUpperCase(),
+        `${ch.value} vs ${ch.target}`,
+        ch.note
+      );
+    });
+    (r.warnings || []).forEach(w => {
+      addCompliance('Design warning', 'Engineering warning', 'CHECK', 'Warning generated by calculator', w);
+    });
+
+    return {
+      format: 'solarpv.project-pack.v1',
+      meta: {
+        module: 'hybrid',
+        generatedAt: exportedAt,
+        dateTag: r.date,
+        standardsProfileId: audit.profileId,
+        standardsProfileLabel: audit.profileLabel,
+        standardsRulesVersion: audit.rulesVersion,
+      },
+      summary,
+      sld,
+      bom,
+      settingsSheet,
+      complianceChecklist,
+      assumptions: {
+        dailyEnergy_kWh: _num(i.dailyEnergy_kWh, 0),
+        autonomyDays: _num(i.autonomyDays, 0),
+        psh: _num(i.psh, 0),
+        systemPR: _num(i.systemPR, 0),
+        pvOversize: _num(i.pvOversize, 0),
+        inverterSafetyFactor: _num(i.inverterSafetyFactor, 0),
+        chargeMargin: _num(i.chargeMargin, 0),
+      }
+    };
+  }
+
+  function _buildProjectPackHTML(r) {
+    const pack = _buildProjectPack(r);
+    const summaryRows = Object.entries(pack.summary || {})
+      .map(([k, v]) => `<tr><td><strong>${_esc(k)}</strong></td><td>${_esc(typeof v === 'object' ? JSON.stringify(v) : String(v))}</td></tr>`)
+      .join('');
+    const bomRows = (pack.bom || [])
+      .map(row => `<tr><td>${_esc(row.item)}</td><td>${_esc(row.qty)}</td><td>${_esc(row.spec)}</td><td>${_esc(row.note)}</td><td>${_esc(row.source)}</td></tr>`)
+      .join('');
+    const settingsRows = (pack.settingsSheet || [])
+      .map(row => `<tr><td>${_esc(row[0])}</td><td>${_esc(row[1])}</td></tr>`)
+      .join('');
+    const complianceRows = (pack.complianceChecklist || [])
+      .map(row => `<tr><td>${_esc(row.area)}</td><td>${_esc(row.requirement)}</td><td>${_esc(row.status)}</td><td>${_esc(row.evidence)}</td><td>${_esc(row.note)}</td></tr>`)
+      .join('');
+    return `<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>Hybrid Project Pack</title>
+  <style>
+    body { font-family: Arial, sans-serif; color: #111; margin: 20px; font-size: 12px; }
+    h1,h2 { margin: 0 0 8px 0; }
+    h1 { font-size: 20px; color: #b45309; }
+    h2 { margin-top: 18px; font-size: 14px; color: #1f2937; border-bottom: 1px solid #ddd; padding-bottom: 4px; }
+    table { width: 100%; border-collapse: collapse; margin-top: 6px; }
+    th, td { border: 1px solid #ddd; padding: 6px; text-align: left; vertical-align: top; }
+    th { background: #f3f4f6; }
+    pre { background: #f8fafc; border: 1px solid #e5e7eb; padding: 10px; white-space: pre-wrap; }
+    .meta { color: #4b5563; margin-bottom: 10px; }
+    .note { border: 1px solid #fde68a; background: #fffbeb; padding: 8px; margin-top: 8px; color: #92400e; }
+  </style>
+</head>
+<body>
+  <h1>Hybrid Project Pack</h1>
+  <div class="meta">Generated: ${_esc(pack.meta.generatedAt)} | Date tag: ${_esc(pack.meta.dateTag)} | Rules: ${_esc(pack.meta.standardsRulesVersion)}</div>
+  <div class="meta">Standards profile: ${_esc(pack.meta.standardsProfileLabel)} [${_esc(pack.meta.standardsProfileId)}]</div>
+
+  <h2>Summary</h2>
+  <table><tr><th>Item</th><th>Value</th></tr>${summaryRows}</table>
+
+  <h2>Auto-Generated Single-Line Diagram (Pre-Design)</h2>
+  <pre>${_esc(pack.sld.mermaid)}</pre>
+  ${(pack.sld.notes || []).map(n => `<div class="note">${_esc(n)}</div>`).join('')}
+
+  <h2>Bill of Materials (Preliminary)</h2>
+  <table>
+    <tr><th>Item</th><th>Qty</th><th>Specification</th><th>Design Note</th><th>Source</th></tr>
+    ${bomRows}
+  </table>
+
+  <h2>Settings Sheet</h2>
+  <table><tr><th>Setting</th><th>Value</th></tr>${settingsRows}</table>
+
+  <h2>Compliance Checklist</h2>
+  <table>
+    <tr><th>Area</th><th>Requirement</th><th>Status</th><th>Evidence</th><th>Action/Note</th></tr>
+    ${complianceRows}
+  </table>
+</body>
+</html>`;
+  }
+
+  function _printProjectPack(r) {
+    const html = _buildProjectPackHTML(r);
+    const win = window.open('', '_blank');
+    if (!win) {
+      App.toast('Pop-up blocked. Allow pop-ups to print.', 'warning');
+      return;
+    }
+    win.document.open();
+    win.document.write(html);
+    win.document.close();
+    setTimeout(() => {
+      win.focus();
+      win.print();
+    }, 300);
+  }
+
+  function _exportProjectPackJSON(r) {
+    const pack = _buildProjectPack(r);
+    const filename = `${_projectPackBaseName(r)}.json`;
+    const blob = new Blob([JSON.stringify(pack, null, 2)], { type: 'application/json' });
+    _downloadBlob(filename, blob);
+    App.toast(`Project pack JSON saved: ${filename}`, 'success');
   }
 
   function _standardsAuditMeta() {
@@ -2056,6 +2720,8 @@ const HybridSetup = (() => {
     const formulaRows = c.formulaRows.map(f => `<tr><td><strong>${_esc(f[0])}</strong></td><td><code>${_esc(f[1])}</code></td></tr>`).join('');
     const workedRows = c.workedSteps.map(s => `<tr><td><strong>${_esc(s[0])}</strong></td><td><code>${_esc(s[1])}</code></td></tr>`).join('');
     const checksRows = c.checks.map(x => `<tr><td><strong>${_esc(x.check)}</strong></td><td>${_esc(x.value)}</td><td>${_esc(x.target)}</td><td>${_esc(x.status.toUpperCase())}</td><td>${_esc(x.note)}</td></tr>`).join('');
+    const utilityRows = (c.utilityRows || []).map(x => `<tr><td><strong>${_esc(x[0])}</strong></td><td>${_esc(x[1])}</td><td>${_esc(x[2])}</td><td>${_esc(x[3])}</td><td>${_esc(x[4])}</td></tr>`).join('');
+    const utilityStatusRows = (c.utilityStatusRows || []).map(x => `<tr><td><strong>${_esc(x[0])}</strong></td><td>${_esc(x[1])}</td></tr>`).join('');
     const limitsRows = c.limitRows.map(l => `<tr><td>${_esc(l[0])}</td><td><strong>${_esc(l[1])}</strong></td><td>${_esc(l[2])}</td><td>${_esc(l[3])}</td></tr>`).join('');
     const sourceRows = c.sourceRows.map(s => `<tr><td>${_esc(s[0])}</td><td><strong>${_esc(s[1])}</strong></td><td><a href="${_esc(s[2])}" target="_blank" rel="noopener noreferrer">${_esc(s[2])}</a></td><td>${_esc(s[3])}</td></tr>`).join('');
     const calcRows = c.calcRows.map(k => `<tr><td>${_esc(k[0])}</td><td><strong>${_esc(k[1])}</strong></td><td><code>${_esc(k[2])}</code></td><td>${_esc(k[3])}</td></tr>`).join('');
@@ -2101,6 +2767,7 @@ const HybridSetup = (() => {
     <tr><td><strong>Selected panel</strong></td><td>${_esc(panName)}</td></tr>
     <tr><td><strong>Utility profile</strong></td><td>${_esc(cat.profile ? cat.profile.label : 'Off-grid')}</td></tr>
     <tr><td><strong>Catalogue checks</strong></td><td>PASS ${_esc(cat.summary.pass)} | CHECK ${_esc(cat.summary.warn)} | FAIL ${_esc(cat.summary.fail)}</td></tr>
+    <tr><td><strong>Utility submission gate</strong></td><td>${_esc(c.utilityGate)}</td></tr>
   </table>
 
   <h2>Assumptions</h2>
@@ -2125,6 +2792,16 @@ const HybridSetup = (() => {
   <table>
     <tr><th>Check</th><th>Current</th><th>Target / Limit</th><th>Status</th><th>Note</th></tr>
     ${checksRows}
+  </table>
+
+  <h2>Utility Submission Validator</h2>
+  <table>
+    <tr><th>Requirement</th><th>Current</th><th>Target</th><th>Status</th><th>Note</th></tr>
+    ${utilityRows}
+  </table>
+  <table>
+    <tr><th>Gate Item</th><th>Status</th></tr>
+    ${utilityStatusRows}
   </table>
 
   <h2>Auto-Attached Standard Clauses (Smart Filter)</h2>
@@ -2236,6 +2913,7 @@ const HybridSetup = (() => {
         ['Selected panel', panName],
         ['Utility profile', cat.profile ? cat.profile.label : 'Off-grid'],
         ['Catalogue checks', `PASS ${cat.summary.pass} | CHECK ${cat.summary.warn} | FAIL ${cat.summary.fail}`],
+        ['Utility submission gate', ctx.utilityGate],
       ]
     ));
 
@@ -2252,6 +2930,16 @@ const HybridSetup = (() => {
     content.push(table(
       ['Check', 'Current', 'Target', 'Status', 'Note'],
       ctx.checks.map(c => [c.check, c.value, c.target, c.status.toUpperCase(), c.note])
+    ));
+
+    content.push(heading('Utility Submission Validator'));
+    content.push(table(
+      ['Requirement', 'Current', 'Target', 'Status', 'Note'],
+      ctx.utilityRows || []
+    ));
+    content.push(table(
+      ['Gate Item', 'Status'],
+      ctx.utilityStatusRows || []
     ));
 
     content.push(heading('Auto-Attached Standard Clauses (Smart Filter)'));
@@ -2341,7 +3029,8 @@ const HybridSetup = (() => {
       ['Selected battery', batName],
       ['Selected panel', panName],
       ['Utility profile', cat.profile ? cat.profile.label : 'Off-grid'],
-      ['Catalogue checks', `PASS ${cat.summary.pass} | CHECK ${cat.summary.warn} | FAIL ${cat.summary.fail}`]
+      ['Catalogue checks', `PASS ${cat.summary.pass} | CHECK ${cat.summary.warn} | FAIL ${cat.summary.fail}`],
+      ['Utility submission gate', ctx.utilityGate]
     ];
 
     const autoTable = typeof doc.autoTable === 'function' ? doc.autoTable.bind(doc) : null;
@@ -2406,6 +3095,24 @@ const HybridSetup = (() => {
     });
     y = doc.lastAutoTable.finalY + 4;
 
+    section('Utility Submission Validator');
+    autoTable({
+      startY: y, margin: { left: margin, right: margin },
+      head: [['Requirement', 'Current', 'Target', 'Status', 'Note']],
+      body: ctx.utilityRows || [],
+      styles: { fontSize: 7.0, cellPadding: 1.8 },
+      headStyles: { fillColor: [217, 119, 6], textColor: [255, 255, 255], fontSize: 8 }
+    });
+    y = doc.lastAutoTable.finalY + 4;
+    autoTable({
+      startY: y, margin: { left: margin, right: margin },
+      head: [['Gate Item', 'Status']],
+      body: ctx.utilityStatusRows || [],
+      styles: { fontSize: 7.0, cellPadding: 1.8 },
+      headStyles: { fillColor: [217, 119, 6], textColor: [255, 255, 255], fontSize: 8 }
+    });
+    y = doc.lastAutoTable.finalY + 4;
+
     section('Auto-Attached Standard Clauses');
     const smartRows = [];
     ctx.smartClauses.forEach(s => {
@@ -2454,5 +3161,13 @@ const HybridSetup = (() => {
     App.toast(`PDF saved: ${filename}`, 'success');
   }
 
-  return { render, openUtilityManager, getCatalogSummary };
+  return {
+    render,
+    openUtilityManager,
+    getCatalogSummary,
+    __test: {
+      evaluateUtilitySubmission: _evaluateUtilitySubmission,
+      buildProjectPack: _buildProjectPack,
+    }
+  };
 })();
