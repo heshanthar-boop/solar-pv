@@ -233,7 +233,7 @@ const Inspection = (() => {
       <!-- SYSTEM-LEVEL CHECKS (IEC 62446-1 / PUCSL) -->
       <div class="card">
         <div class="card-title">&#9989; System Checks — IEC 62446-1 / PUCSL</div>
-        <div class="info-box">Per IEC 62446-1:2016 commissioning requirements &amp; PUCSL Rooftop Solar Guidelines. Pass = compliant, Fail = action required.</div>
+        <div class="info-box">Per IEC 62446-1:2016 + AMD1:2018 commissioning requirements &amp; PUCSL Rooftop Solar Guidelines. Pass = compliant, Fail = action required.</div>
 
         <div class="section-title">Protection &amp; Safety (SLS 1522 / IEC 61643-32)</div>
         <div class="form-row cols-2">

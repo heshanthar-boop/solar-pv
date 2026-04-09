@@ -21,7 +21,7 @@ const PVCalc = (() => {
   const FIELD_TEST_PROFILES = {
     iec62446_2016: {
       id: 'iec62446_2016',
-      label: 'IEC 62446-1:2016',
+      label: 'IEC 62446-1:2016 + AMD1:2018',
       vocTolPct: 2,
       iscTolPct: 5,
       note: 'Voc checked after temperature correction. Isc checked after irradiance and temperature correction.',

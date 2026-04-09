@@ -68,7 +68,7 @@ const HybridSetup = (() => {
   const STANDARDS = [
     {
       id: 'iec62446',
-      code: 'IEC 62446-1:2016',
+      code: 'IEC 62446-1:2016 + AMD1:2018',
       title: 'Commissioning Tests and Documentation',
       scope: 'Defines field-test and documentation baseline before energization.',
       points: [
@@ -90,7 +90,7 @@ const HybridSetup = (() => {
     },
     {
       id: 'iec60364',
-      code: 'IEC 60364-7-712:2017',
+      code: 'IEC 60364-7-712:2025',
       title: 'Electrical Installations - PV Power Systems',
       scope: 'Wiring, isolation, protection, earthing, and cable sizing for PV/hybrid systems.',
       points: [
@@ -134,7 +134,7 @@ const HybridSetup = (() => {
     },
     {
       id: 'iec61427-62619',
-      code: 'IEC 61427 / IEC 62619',
+      code: 'IEC 61427-1/-2 / IEC 62619:2022',
       title: 'Battery Performance and Safety',
       scope: 'Storage performance and safety reference for hybrid and backup systems.',
       points: [
@@ -281,8 +281,13 @@ const HybridSetup = (() => {
         },
         {
           t: 'PUCSL Guidelines on Rooftop Solar PV Installation for Utility Providers (Revision 1, Sep 2022)',
-          u: 'https://www.pucsl.gov.lk/wp-content/uploads/2022/10/Guidelines-on-Rooftop-Solar-PV-installation-for-Utility-Providers_Revision-1.pdf',
+          u: 'https://www.pucsl.gov.lk/wp-content/uploads/2022/10/Guidelines-on-Rooftop-Solar-PV-installation-for-Utility-Providers_Revision-01.pdf',
           n: 'Application package, process timeline, commissioning witness, agreement, and authorization flow.'
+        },
+        {
+          t: 'PUCSL Guidelines on Rooftop Solar PV Installation for Service Providers (2024)',
+          u: 'https://www.pucsl.gov.lk/wp-content/uploads/2024/09/Guidelines-on-Rooftop-Solar-PV-installation-for-Service-Providers.pdf',
+          n: 'Latest publicly posted PUCSL service-provider guidance update.'
         },
         {
           t: 'CEB Net Metering/Net Accounting/Net Plus Addendum',
@@ -1643,7 +1648,7 @@ const HybridSetup = (() => {
       `Selected panel: ${pan}`,
       `Catalogue checks: PASS ${pass}, CHECK ${warn}, FAIL ${fail}`,
       '',
-      'References: IEC 60364-7-712, IEC 62109, IEC 62446-1, IEC 61427/62619, SLS 1522, PUCSL, SLS 1543, SLS 1547, CEB inverter settings (2025-02-25), CEB Grid Connection Code (2024)'
+      'References: IEC 60364-7-712:2025, IEC 62109, IEC 62446-1:2016+AMD1:2018, IEC 61427-1/-2, IEC 62619:2022, SLS 1522, PUCSL, SLS 1543, SLS 1547, CEB inverter settings (2025-02-25), CEB Grid Connection Code (2024)'
     ].join('\n');
   }
 

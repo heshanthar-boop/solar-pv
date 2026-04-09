@@ -1,4 +1,4 @@
-﻿/**
+/**
  * field-test.js - Field Test vs STC Comparison
  * Enter measured Voc/Isc per string + site conditions.
  * Corrects to STC and compares using selectable standards profile.
@@ -38,7 +38,7 @@ const FieldTest = (() => {
     return {
       iec62446_2016: {
         id: 'iec62446_2016',
-        label: 'IEC 62446-1:2016',
+        label: 'IEC 62446-1:2016 + AMD1:2018',
         vocTolPct: 2,
         iscTolPct: 5,
       }

@@ -24,7 +24,7 @@ const Standards = (() => {
   const STANDARDS = [
     {
       id: 'iec62446',
-      code: 'IEC 62446-1:2016',
+      code: 'IEC 62446-1:2016 + AMD1:2018',
       title: 'Grid-Connected PV Systems — Commissioning Tests & Documentation',
       scope: 'Defines minimum documentation and tests required when commissioning a grid-tied PV system. Mandatory for any professional installation.',
       keyPoints: [
@@ -40,6 +40,13 @@ const Standards = (() => {
         { param: 'Min Insulation Resistance', value: '1 MΩ', note: 'At 500V DC, DC+ and DC− to earth separately' },
         { param: 'Voc tolerance', value: '±2% of expected', note: 'After temperature correction' },
         { param: 'Isc tolerance', value: '±5% of expected', note: 'After irradiance correction' },
+      ],
+      sources: [
+        {
+          title: 'IEC 62446-1:2016+AMD1:2018 CSV (IEC Webstore)',
+          url: 'https://webstore.iec.ch/en/publication/29052',
+          note: 'Current consolidated publication used for commissioning limits.'
+        }
       ],
       calcs: ['ir_test', 'voc_check', 'isc_check']
     },
@@ -87,7 +94,7 @@ const Standards = (() => {
     },
     {
       id: 'iec60364',
-      code: 'IEC 60364-7-712:2017',
+      code: 'IEC 60364-7-712:2025',
       title: 'Electrical Installations — Solar PV Power Supply Systems',
       scope: 'Wiring rules, protection, and earthing requirements specifically for PV systems as part of building electrical installations.',
       keyPoints: [
@@ -105,11 +112,18 @@ const Standards = (() => {
         { param: 'DC cable current capacity', value: '≥ 1.25 × Isc', note: 'Continuous current, apply derating' },
         { param: 'String fuse rating', value: '≤ Series Fuse Rating on module label', note: 'Never exceed module reverse current limit' },
       ],
+      sources: [
+        {
+          title: 'IEC 60364-7-712:2025 (IEC Webstore)',
+          url: 'https://webstore.iec.ch/en/publication/65748',
+          note: 'Latest published edition for PV electrical installations.'
+        }
+      ],
       calcs: ['cable_sizing', 'cable_selector_adv', 'string_fuse', 'earth_resistance']
     },
     {
       id: 'iec61643',
-      code: 'IEC 61643-32:2019 / SLS 1522:2016',
+      code: 'IEC 61643-32:2017 + COR1:2019 / SLS 1522:2016',
       title: 'DC-Side Surge Protective Devices (SPD) — PV Systems',
       scope: 'Requirements for SPDs on the DC side of PV installations. SLS 1522 is the Sri Lankan equivalent. Both are mandatory in Sri Lanka per PUCSL guidelines.',
       keyPoints: [
@@ -126,7 +140,86 @@ const Standards = (() => {
         { param: 'Min discharge current (In)', value: '≥ 5 kA', note: '20 kA recommended for exposed/rural' },
         { param: 'Protection level (Up)', value: '< inverter DC withstand', note: 'Typically ≤ 2.5 kV' },
       ],
+      sources: [
+        {
+          title: 'IEC 61643-32:2017 (IEC Webstore)',
+          url: 'https://webstore.iec.ch/en/publication/26432',
+          note: 'PV DC-side SPD product standard; app labels include published corrigendum context.'
+        }
+      ],
       calcs: ['spd_uc_rating', 'spd_summary']
+    },
+    {
+      id: 'iec62305',
+      code: 'IEC 62305-1/-2/-3/-4:2024',
+      title: 'Lightning Protection and Coordination for PV Installations',
+      scope: 'Defines lightning risk management, LPS design, and surge protection coordination for structures with PV systems.',
+      keyPoints: [
+        'Use IEC 62305-2 risk management to determine required lightning protection measures.',
+        'IEC 62305-3 governs external LPS design: air terminals, down conductors, and earth termination.',
+        'IEC 62305-4 governs surge protection measures (SPM) and coordinated SPD placement.',
+        'PV systems increase exposure through roof-mounted metalwork and DC cable entry routes.',
+        'Coordinate Type 1/Type 2 SPDs between service entrance, inverter AC side, and PV DC side.',
+      ],
+      limits: [
+        { param: 'Rolling sphere radius (LPL I/II/III/IV)', value: '20 m / 30 m / 45 m / 60 m', note: 'Used when selecting interception geometry for external LPS.' },
+        { param: 'Risk basis', value: 'Nd = Ng × Aeq × Cd × 1e-6', note: 'Screening form from IEC 62305-2 event frequency concept.' },
+        { param: 'Coordination requirement', value: 'Type 1+2 and Type 2 SPD coordination', note: 'As applicable to exposure and incoming line conditions.' },
+      ],
+      sources: [
+        {
+          title: 'IEC 62305-1:2024 (General principles)',
+          url: 'https://webstore.iec.ch/en/publication/27136',
+          note: 'Core principles and lightning parameters.'
+        },
+        {
+          title: 'IEC 62305-2:2024 (Risk management)',
+          url: 'https://webstore.iec.ch/publication/28137',
+          note: 'Risk-management method used for protection decision-making.'
+        },
+        {
+          title: 'IEC 62305-3:2024 (Physical damage and life hazard)',
+          url: 'https://webstore.iec.ch/en/publication/33680',
+          note: 'External LPS requirements for structures.'
+        },
+        {
+          title: 'IEC 62305-4:2024 (Electrical/electronic systems)',
+          url: 'https://webstore.iec.ch/en/publication/29590',
+          note: 'Internal surge protection coordination, including PV-related guidance.'
+        }
+      ],
+      calcs: ['lightning_risk_screen']
+    },
+    {
+      id: 'iec60269_6',
+      code: 'IEC 60269-6:2010 + AMD1:2021',
+      title: 'PV Fuse-Links (gPV) for String and Array Protection',
+      scope: 'Supplementary requirements for low-voltage fuse-links used to protect PV strings/arrays, coordinated with PV array design rules.',
+      keyPoints: [
+        'Use gPV utilization class fuse-links for photovoltaic string/array protection.',
+        'Coordinate fuse current rating with module Isc and module series-fuse maximum rating.',
+        'Check fuse voltage rating against maximum string Voc at minimum site temperature.',
+        'Check fuse breaking capacity against prospective DC fault current at installation point.',
+        'Apply fusing where required by string parallel configuration and reverse-current risk.',
+      ],
+      limits: [
+        { param: 'Utilization class', value: 'gPV', note: 'PV-dedicated fuse-link class per IEC 60269-6.' },
+        { param: 'Current selection window', value: '1.25 × 1.25 × Isc ≤ In ≤ module max series fuse', note: 'Coordination with IEC 62548-1 and module datasheet.' },
+        { param: 'Voltage and breaking checks', value: 'Ue_fuse ≥ Voc_string_tmin and Icn_fuse ≥ I_fault', note: 'Mandatory device selection checks before approval.' },
+      ],
+      sources: [
+        {
+          title: 'IEC 60269-6:2010+AMD1:2021 CSV (IEC Webstore)',
+          url: 'https://webstore.iec.ch/en/publication/68843',
+          note: 'Current consolidated publication for PV fuse-links.'
+        },
+        {
+          title: 'IEC 60269-6:2010 (base publication)',
+          url: 'https://webstore.iec.ch/en/publication/1245',
+          note: 'Original supplementary requirements for PV fuse-links.'
+        }
+      ],
+      calcs: ['pv_fuse_link_check']
     },
     {
       id: 'iec61724',
@@ -170,7 +263,7 @@ const Standards = (() => {
     },
     {
       id: 'iec62548',
-      code: 'IEC 62548:2016',
+      code: 'IEC 62548-1:2023 + AMD1:2025',
       title: 'PV Array Design Requirements',
       scope: 'Requirements for the design of PV arrays including string sizing, protection, earthing, and labelling. The primary design standard for PV arrays.',
       keyPoints: [
@@ -186,6 +279,13 @@ const Standards = (() => {
         { param: 'String Voc at Tmin', value: '≤ inverter Vmax', note: 'Critical sizing constraint' },
         { param: 'String Vmp at Tmax_cell', value: '≥ inverter MPPT Vmin', note: 'Ensures MPPT tracking' },
         { param: 'String fuse required when', value: '> 3 strings in parallel', note: 'Per combiner MPPT' },
+      ],
+      sources: [
+        {
+          title: 'IEC 62548-1:2023+AMD1:2025 CSV (IEC Webstore)',
+          url: 'https://webstore.iec.ch/en/publication/92565',
+          note: 'Latest published PV array design requirements.'
+        }
       ],
       calcs: ['string_voc_tmin', 'string_vmp_tmax', 'max_strings_no_fuse']
     },
@@ -254,7 +354,7 @@ const Standards = (() => {
         },
         {
           title: 'PUCSL - Guidelines on Rooftop Solar PV Installation for Utility Providers (Revision 1, Sep 2022)',
-          url: 'https://www.pucsl.gov.lk/wp-content/uploads/2022/10/Guidelines-on-Rooftop-Solar-PV-installation-for-Utility-Providers_Revision-1.pdf',
+          url: 'https://www.pucsl.gov.lk/wp-content/uploads/2022/10/Guidelines-on-Rooftop-Solar-PV-installation-for-Utility-Providers_Revision-01.pdf',
           note: 'Process steps, initial clearance, commissioning witness, agreement, and parallel-operation authorization.'
         },
         {
@@ -330,8 +430,44 @@ const Standards = (() => {
       calcs: ['spd_uc_rating', 'inverter_sizing', 'cable_vdrop', 'cable_selector_adv', 'dc_fuse_sizing']
     },
     {
+      id: 'sl_supporting_pack',
+      code: 'Sri Lanka Supporting Standards Pack (SLS set)',
+      title: 'Supporting SLS References for Solar Installation Hardware',
+      scope: 'Supporting Sri Lanka standards used with SLS 1522 for PV cables, enclosures, switchgear, BOS durability, and supplier quality systems.',
+      keyPoints: [
+        'SLS 1542 (IEC 60227-6 / IEC 62930) covers PV cable suitability for solar DC wiring.',
+        'SLS 1554 references low-voltage switchgear assemblies used in combiner and distribution boards.',
+        'SLS 1544 (IEC 62208) applies to empty enclosures used for protective assemblies.',
+        'SLS 1637 (IEC 62093) is referenced for PV balance-of-system design qualification.',
+        'SLS 1472 (ISO 9001) and SLS 1473 (ISO 14001) are listed quality/environment management references for supply-chain control.'
+      ],
+      limits: [
+        { param: 'PV cable compliance', value: 'SLS 1542 / IEC 62930', note: 'Use UV-resistant, DC-rated PV cable selected for the installation method.' },
+        { param: 'Switchgear/enclosure compliance', value: 'SLS 1554 + SLS 1544', note: 'Combiner/DB assemblies should match LV switchgear and enclosure standards.' },
+        { param: 'BOS qualification reference', value: 'SLS 1637 / IEC 62093', note: 'Use qualified BOS components for long-term reliability.' },
+      ],
+      sources: [
+        {
+          title: 'Sri Lanka Supporting Standards for Solar System (SLSEA)',
+          url: 'https://www.energy.gov.lk/images/soorya-bala/sri-lanka-supporting-standards%20for-solar-system.pdf',
+          note: 'Government-published supporting standards list for solar systems.'
+        },
+        {
+          title: 'PUCSL Guidelines for Utility Providers (Revision 01, 2022)',
+          url: 'https://www.pucsl.gov.lk/wp-content/uploads/2022/10/Guidelines-on-Rooftop-Solar-PV-installation-for-Utility-Providers_Revision-01.pdf',
+          note: 'Regulatory process baseline for rooftop PV interconnection.'
+        },
+        {
+          title: 'PUCSL Guidelines for Service Providers (2024)',
+          url: 'https://www.pucsl.gov.lk/wp-content/uploads/2024/09/Guidelines-on-Rooftop-Solar-PV-installation-for-Service-Providers.pdf',
+          note: 'Latest publicly posted service-provider guideline update.'
+        }
+      ],
+      calcs: ['cable_selector_adv']
+    },
+    {
       id: 'sls1543',
-      code: 'SLS 1543 / IEC 62109:2010',
+      code: 'SLS 1543 / IEC 62109-1/-2',
       title: 'Safety of Power Converters for Use in PV Power Systems',
       scope: 'Safety requirements for inverters, charge controllers, and converters used in PV systems. Covers electrical safety, thermal limits, insulation, and protection. This standard is the basis for CEB/LECO inverter type approval in Sri Lanka.',
       keyPoints: [
@@ -435,6 +571,9 @@ const Standards = (() => {
         <div class="info-box">
           ${STANDARDS.length} standards covered — IEC international &amp; Sri Lanka (PUCSL / SLS 1522 / SLS 1543 / SLS 1547).
           Each standard: summary, key limits, and interactive formula calculators with step-by-step working.
+        </div>
+        <div class="info-box" style="margin-top:8px">
+          Standards version check updated on 2026-04-09 for key installation references (IEC 60364-7-712:2025, IEC 62548-1:2023+AMD1:2025, IEC 61643-32:2017 family) and current Sri Lanka utility publications.
         </div>
 
         <!-- SEARCH -->
@@ -556,6 +695,8 @@ const Standards = (() => {
       cable_selector_adv:   'AC/DC Cable Size Selector',
       spd_uc_rating:        'SPD Voltage Rating',
       spd_summary:          'SPD Selection Guide',
+      lightning_risk_screen:'Lightning Risk Screen',
+      pv_fuse_link_check:   'PV Fuse-Link Check (gPV)',
       pr_calc:              'Performance Ratio',
       specific_yield:       'Specific Yield',
       capacity_factor:      'Capacity Factor',
@@ -669,7 +810,7 @@ const Standards = (() => {
         <div id="calc-result"></div>`;
 
       case 'reverse_current': return `
-        <div class="info-box">IEC 61730 / IEC 62548: Max reverse current through any module = 1.35 × Series Fuse Rating. Exceeding this destroys bypass diodes.</div>
+        <div class="info-box">IEC 61730 / IEC 62548-1: Max reverse current through any module = 1.35 × Series Fuse Rating. Exceeding this destroys bypass diodes.</div>
         <div class="form-group">
           <label class="form-label">Select Module</label>
           <select class="form-select" id="c-panel">${pOpts}</select>
@@ -709,7 +850,7 @@ const Standards = (() => {
         <div id="calc-result"></div>`;
 
       case 'string_fuse': return `
-        <div class="info-box">IEC 62548 / IEC 60364-7-712: String fuse ≤ Series Fuse Rating on module label. Fuse also must be > 1.5 × Isc to avoid nuisance blowing.</div>
+        <div class="info-box">IEC 62548-1 / IEC 60364-7-712: String fuse ≤ Series Fuse Rating on module label. Fuse also must be > 1.5 × Isc to avoid nuisance blowing.</div>
         <div class="form-group">
           <label class="form-label">Select Module</label>
           <select class="form-select" id="c-panel">${pOpts}</select>
@@ -757,6 +898,54 @@ const Standards = (() => {
           </select>
         </div>
         <button class="btn btn-primary btn-sm calc-run-btn">Generate SPD Spec</button>
+        <div id="calc-result"></div>`;
+
+      case 'lightning_risk_screen': return `
+        <div class="info-box">IEC 62305 screening method: Nd = Ng x Aeq x Cd x 10^-6 (events/year), where Aeq = LxW + 2H(L+W) + piH^2. Use as pre-design screening before full IEC 62305-2 risk analysis.</div>
+        <div class="form-row cols-2">
+          ${_inp('c-lr-ng', 'Lightning Ground Flash Density Ng (flashes/km2/year)', '6', '6', 'Use national map/local utility data for exact site value')}
+          ${_inp('c-lr-l', 'Structure Length L (m)', '20', '20', 'Building/array footprint length')}
+          ${_inp('c-lr-w', 'Structure Width W (m)', '10', '10', 'Building/array footprint width')}
+          ${_inp('c-lr-h', 'Structure Height H (m)', '8', '8', 'Highest point including PV structure')}
+          ${_inp('c-lr-rt', 'Screening Threshold Rt (events/year)', '0.03', '0.03', 'Lower threshold = more conservative LPS decision gate')}
+        </div>
+        <div class="form-group">
+          <label class="form-label">Location / Surroundings Factor Cd</label>
+          <select class="form-select" id="c-lr-cd">
+            <option value="0.25">0.25 - surrounded by taller structures</option>
+            <option value="0.5">0.50 - surrounded by structures of similar height</option>
+            <option value="1" selected>1.00 - isolated structure</option>
+            <option value="2">2.00 - isolated hilltop/exposed ridge</option>
+          </select>
+        </div>
+        <button class="btn btn-primary btn-sm calc-run-btn">Run Lightning Screening</button>
+        <div id="calc-result"></div>`;
+
+      case 'pv_fuse_link_check': return `
+        <div class="info-box">IEC 60269-6 gPV selection with IEC 62548-1 coordination. Checks current window, voltage rating, and breaking capacity.</div>
+        <div class="form-group">
+          <label class="form-label">Select Module (optional but recommended)</label>
+          <select class="form-select" id="c-pvf-panel">${pOpts}</select>
+        </div>
+        <div class="form-row cols-2">
+          ${_inp('c-pvf-isc', 'Module Isc (A)', '', '', 'If blank and module selected, app uses module database Isc')}
+          ${_inp('c-pvf-fmax', 'Module Max Series Fuse (A)', '', '', 'If blank and module selected, app uses module series fuse if available')}
+          ${_inp('c-pvf-nmod', 'Modules per String', '20', '20', 'Used for Voc max estimate when module is selected')}
+          ${_inp('c-pvf-tmin', 'Minimum Site Temperature (C)', '10', '10', 'Used for string Voc at Tmin when module is selected')}
+          ${_inp('c-pvf-vocmax', 'String Voc max at Tmin (V) [manual override]', '', '', 'If entered, this overrides calculated Voc max')}
+          ${_inp('c-pvf-npar', 'Parallel Strings at Combiner/MPPT', '4', '4', 'String fusing is typically required for >3 parallel strings')}
+          ${_inp('c-pvf-vfuse', 'Fuse Rated Voltage Ue (V DC)', '1000', '1000', 'Must be >= maximum string Voc at Tmin')}
+          ${_inp('c-pvf-ifault', 'Prospective DC Fault Current (kA)', '5', '5', 'Estimated prospective short-circuit current at fuse location')}
+          ${_inp('c-pvf-ibreak', 'Fuse Breaking Capacity Icn (kA)', '20', '20', 'From fuse datasheet')}
+        </div>
+        <div class="form-group">
+          <label class="form-label">Fuse Utilization Class</label>
+          <select class="form-select" id="c-pvf-util">
+            <option value="gpv" selected>gPV (required for PV string/array fusing)</option>
+            <option value="other">Other class (not preferred for PV string protection)</option>
+          </select>
+        </div>
+        <button class="btn btn-primary btn-sm calc-run-btn">Check Fuse Compliance</button>
         <div id="calc-result"></div>`;
 
       case 'pr_calc': return `
@@ -812,7 +1001,7 @@ const Standards = (() => {
         <div id="calc-result"></div>`;
 
       case 'string_voc_tmin': return `
-        <div class="info-box">IEC 62548: String Voc at Tmin = n × Voc_stc × (1 + αVoc × (Tmin − 25)). Must be ≤ inverter max DC input voltage.</div>
+        <div class="info-box">IEC 62548-1: String Voc at Tmin = n × Voc_stc × (1 + αVoc × (Tmin − 25)). Must be ≤ inverter max DC input voltage.</div>
         <div class="form-group">
           <label class="form-label">Select Module</label>
           <select class="form-select" id="c-panel">${pOpts}</select>
@@ -826,7 +1015,7 @@ const Standards = (() => {
         <div id="calc-result"></div>`;
 
       case 'string_vmp_tmax': return `
-        <div class="info-box">IEC 62548: String Vmp at Tmax_cell = n × Vmp_stc × (1 + αVoc × (Tcell − 25)). Must be ≥ inverter MPPT minimum voltage.</div>
+        <div class="info-box">IEC 62548-1: String Vmp at Tmax_cell = n × Vmp_stc × (1 + αVoc × (Tcell − 25)). Must be ≥ inverter MPPT minimum voltage.</div>
         <div class="form-group">
           <label class="form-label">Select Module</label>
           <select class="form-select" id="c-panel">${pOpts}</select>
@@ -840,7 +1029,7 @@ const Standards = (() => {
         <div id="calc-result"></div>`;
 
       case 'max_strings_no_fuse': return `
-        <div class="info-box">IEC 62548 Cl.9.4: String fuses are NOT required if the number of parallel strings ≤ 3 (when each string's Isc_max_reverse ≤ module fuse rating). For &gt; 3 strings, fuses are required.</div>
+        <div class="info-box">IEC 62548-1 Cl.9.4: String fuses are NOT required if the number of parallel strings ≤ 3 (when each string's Isc_max_reverse ≤ module fuse rating). For &gt; 3 strings, fuses are required.</div>
         ${_inp('c-nstr', 'Number of Parallel Strings', '', '', 'Strings connected to same MPPT input')}
         <button class="btn btn-primary btn-sm calc-run-btn">Check</button>
         <div id="calc-result"></div>`;
@@ -1010,7 +1199,7 @@ const Standards = (() => {
         <div id="calc-result"></div>`;
 
       case 'dc_fuse_sizing': return `
-        <div class="info-box">IEC 62548 / SLS 1522: DC string fuse = 1.25 × 1.25 × Isc (double 1.25 factor — one for continuous current, one for fault tolerance). Must also be ≤ module Series Fuse Rating.</div>
+        <div class="info-box">IEC 62548-1 / SLS 1522: DC string fuse = 1.25 × 1.25 × Isc (double 1.25 factor — one for continuous current, one for fault tolerance). Must also be ≤ module Series Fuse Rating.</div>
         <div class="form-group">
           <label class="form-label">Select Module</label>
           <select class="form-select" id="c-panel">${pOpts}</select>
@@ -1289,7 +1478,7 @@ const Standards = (() => {
           result.innerHTML = _steps([
             p ? `Module: ${p.manufacturer} ${p.model}, Isc = ${Isc} A` : 'No module selected',
             `Step 1: Min fuse rating (to avoid nuisance blowing) = 1.5 × Isc = 1.5 × ${isNaN(Isc)?'?':Isc} = ${min_fuse} A`,
-            `Step 2: Max fuse rating (IEC 62548) = Series Fuse Rating on label = ${max_fuse} A`,
+            `Step 2: Max fuse rating (IEC 62548-1) = Series Fuse Rating on label = ${max_fuse} A`,
             `Step 3: Select a standard fuse rating between ${min_fuse} A and ${max_fuse} A`,
             `Standard fuse ratings: 10A, 12A, 15A, 16A, 20A, 25A`,
             `Common choice: 15A for modules with Isc ~10A, 20A for Isc ~13–15A`
@@ -1353,6 +1542,126 @@ const Standards = (() => {
             `Both DC+ and DC− to earth — 2 SPD units per location (or combined unit)`,
             `SLS 1522:2016 compliance required for Sri Lanka grid-tied systems`
           ], `SPD: ${type}, UC ≥ ${UC_min} V, In ≥ ${In_min} kA`, 'alert-warn');
+          break;
+        }
+
+        case 'lightning_risk_screen': {
+          const Ng = _g(area, 'c-lr-ng');
+          const L = _g(area, 'c-lr-l');
+          const W = _g(area, 'c-lr-w');
+          const H = _g(area, 'c-lr-h');
+          const Cd = _g(area, 'c-lr-cd');
+          const RtInput = _g(area, 'c-lr-rt');
+
+          if ([Ng, L, W, H, Cd].some(v => isNaN(v) || v <= 0)) {
+            result.innerHTML = '<div class="danger-box">Enter valid Ng, dimensions, and Cd factor</div>';
+            break;
+          }
+
+          const Aeq = (L * W) + (2 * H * (L + W)) + (Math.PI * H * H);
+          const Nd = Ng * Aeq * Cd * 1e-6;
+          const Rt = (isNaN(RtInput) || RtInput <= 0) ? 0.03 : RtInput;
+          const yearsPerEvent = Nd > 0 ? (1 / Nd) : Infinity;
+          const exceeds = Nd > Rt;
+
+          let lpl = 'IV';
+          if (Nd >= 0.10) lpl = 'II';
+          else if (Nd >= 0.03) lpl = 'III';
+
+          const rollingSphere = lpl === 'II' ? 30 : lpl === 'III' ? 45 : 60;
+          const spdNote = Nd >= 0.03
+            ? 'Recommend coordinated Type 1+2 at AC service entry plus Type 2 near inverter/PV DC entry.'
+            : 'At minimum, keep coordinated Type 2 SPDs; verify if Type 1 is needed from utility/supplier lightning study.';
+          const cls = exceeds ? 'alert-unsafe' : (Nd >= 0.01 ? 'alert-warn' : 'alert-safe');
+
+          result.innerHTML = _steps([
+            `IEC 62305-2 screening frequency: Nd = Ng × Aeq × Cd × 10^-6`,
+            `Step 1: Equivalent collection area Aeq = L×W + 2H(L+W) + piH^2`,
+            `         = ${L}×${W} + 2×${H}×(${L}+${W}) + pi×${H}^2 = ${Aeq.toFixed(2)} m2`,
+            `Step 2: Ng = ${Ng} flashes/km2/year, Cd = ${Cd}`,
+            `Step 3: Nd = ${Ng} × ${Aeq.toFixed(2)} × ${Cd} × 10^-6 = ${Nd.toFixed(6)} events/year`,
+            `Step 4: Mean interval = 1 / Nd = ${Number.isFinite(yearsPerEvent) ? yearsPerEvent.toFixed(1) : 'infinite'} years/event`,
+            `Step 5: Screening threshold Rt = ${Rt.toFixed(4)} events/year`,
+            exceeds ? `Nd (${Nd.toFixed(6)}) > Rt (${Rt.toFixed(4)}) -> Full IEC 62305-2 risk study + external LPS design required.` : `Nd (${Nd.toFixed(6)}) <= Rt (${Rt.toFixed(4)}) -> Screening level acceptable, but keep surge coordination.`,
+            `Indicative LPL from screening frequency: LPL ${lpl}, rolling sphere radius ~${rollingSphere} m`,
+            spdNote,
+            'Note: this is a pre-design screening check, not a replacement for complete IEC 62305 risk assessment.'
+          ], `Nd = ${Nd.toFixed(5)} /year (about 1 event every ${Number.isFinite(yearsPerEvent) ? yearsPerEvent.toFixed(1) : '∞'} years)`, cls);
+          break;
+        }
+
+        case 'pv_fuse_link_check': {
+          const panelId = _gs(area, 'c-pvf-panel');
+          const p = panelId ? DB.getById(panelId) : null;
+          const nmod = _g(area, 'c-pvf-nmod');
+          const Tmin = _g(area, 'c-pvf-tmin');
+          const IscManual = _g(area, 'c-pvf-isc');
+          const fmaxManual = _g(area, 'c-pvf-fmax');
+          const VocManual = _g(area, 'c-pvf-vocmax');
+          const npar = _g(area, 'c-pvf-npar');
+          const Vfuse = _g(area, 'c-pvf-vfuse');
+          const Ifault = _g(area, 'c-pvf-ifault');
+          const Ibreak = _g(area, 'c-pvf-ibreak');
+          const util = _gs(area, 'c-pvf-util');
+
+          const Isc = !isNaN(IscManual) ? IscManual : (p ? Number(p.Isc) : NaN);
+          const fmaxFromPanel = (p && Number.isFinite(Number(p.seriesFuseA)) && Number(p.seriesFuseA) > 0) ? Number(p.seriesFuseA) : NaN;
+          const fmax = !isNaN(fmaxManual) ? fmaxManual : fmaxFromPanel;
+          const VocCalc = (p && !isNaN(nmod) && !isNaN(Tmin)) ? PVCalc.vocAtTemp(p.Voc, p.coeffVoc, Tmin) * nmod : NaN;
+          const VocMax = !isNaN(VocManual) ? VocManual : VocCalc;
+
+          if ([Isc, npar, Vfuse, Ifault, Ibreak].some(v => isNaN(v) || v <= 0)) {
+            result.innerHTML = '<div class="danger-box">Enter Isc, parallel strings, fuse voltage, prospective fault current, and fuse breaking capacity</div>';
+            break;
+          }
+
+          const needFuse = npar > 3;
+          const Idesign = 1.25 * Isc;
+          const Imin = 1.25 * Idesign;
+          const Imax = !isNaN(fmax) ? fmax : Infinity;
+          const stdFuses = [10, 12, 15, 16, 20, 25, 30, 32, 35, 40, 50, 63];
+          const candidates = stdFuses.filter(f => f >= Imin && f <= Imax);
+          const selectedIn = candidates.length ? candidates[0] : NaN;
+          const Ireverse = Math.max(0, (npar - 1) * 1.25 * Isc);
+          const voltagePass = isNaN(VocMax) ? null : Vfuse >= VocMax;
+          const breakPass = Ibreak >= Ifault;
+          const utilPass = util === 'gpv';
+          const reverseDriveWarn = !isNaN(selectedIn) && npar > 1 && Ireverse <= selectedIn;
+
+          const failReasons = [];
+          if (!utilPass) failReasons.push('Fuse class is not gPV');
+          if (!breakPass) failReasons.push('Fuse breaking capacity is below prospective fault current');
+          if (voltagePass === false) failReasons.push('Fuse voltage rating is below maximum string Voc');
+          if (needFuse && !candidates.length) failReasons.push('No standard fuse rating fits required current window');
+
+          const warnReasons = [];
+          if (!needFuse) warnReasons.push('Parallel strings <= 3: verify if fusing is required by reverse-current check and local design practice');
+          if (isNaN(fmax)) warnReasons.push('Module maximum series fuse not provided; upper current limit could not be fully checked');
+          if (isNaN(VocMax)) warnReasons.push('String Voc max not provided; voltage rating check is incomplete');
+          if (reverseDriveWarn) warnReasons.push('Estimated reverse current may be too low to drive rapid fuse operation; verify protection coordination');
+
+          const cls = failReasons.length ? 'alert-unsafe' : (warnReasons.length ? 'alert-warn' : 'alert-safe');
+          const verdict = failReasons.length
+            ? `FAIL (${failReasons.length} blocking check${failReasons.length > 1 ? 's' : ''})`
+            : (warnReasons.length ? `CHECK (${warnReasons.length} warning${warnReasons.length > 1 ? 's' : ''})` : 'PASS - gPV fuse checks satisfied');
+
+          result.innerHTML = _steps([
+            `IEC 60269-6 gPV + IEC 62548-1 coordination`,
+            p ? `Module: ${p.manufacturer} ${p.model}` : 'Module: not selected (manual inputs used)',
+            `Step 1: Isc used = ${Isc.toFixed(3)} A`,
+            `Step 2: Design current = 1.25 x Isc = 1.25 x ${Isc.toFixed(3)} = ${Idesign.toFixed(3)} A`,
+            `Step 3: Minimum fuse current = 1.25 x design current = ${Imin.toFixed(3)} A`,
+            `Step 4: Maximum fuse current from module = ${Number.isFinite(fmax) ? fmax.toFixed(3) + ' A' : 'not available'}`,
+            `Step 5: Candidate standard fuse ratings in window = ${candidates.length ? candidates.join('A, ') + 'A' : 'none'}`,
+            `Step 6: Recommended nominal In = ${Number.isFinite(selectedIn) ? selectedIn + ' A' : 'N/A'}`,
+            `Step 7: String Voc max at Tmin = ${!isNaN(VocMax) ? VocMax.toFixed(2) + ' V' : 'not available'}, fuse Ue = ${Vfuse.toFixed(1)} V -> ${voltagePass === null ? 'CHECK (insufficient data)' : (voltagePass ? 'PASS' : 'FAIL')}`,
+            `Step 8: Breaking capacity check: Icn = ${Ibreak.toFixed(2)} kA, I_fault = ${Ifault.toFixed(2)} kA -> ${breakPass ? 'PASS' : 'FAIL'}`,
+            `Step 9: Reverse current estimate = (Npar - 1) x 1.25 x Isc = (${npar} - 1) x 1.25 x ${Isc.toFixed(3)} = ${Ireverse.toFixed(3)} A`,
+            `Step 10: Utilization class check = ${utilPass ? 'gPV PASS' : 'not gPV FAIL'}`,
+            needFuse ? `String fusing required check: Npar = ${npar} > 3 -> fuse REQUIRED` : `String fusing required check: Npar = ${npar} <= 3 -> conditional; verify reverse-current criteria`,
+            ...failReasons.map((x, i) => `Blocking ${i + 1}: ${x}`),
+            ...warnReasons.map((x, i) => `Warning ${i + 1}: ${x}`)
+          ], verdict, cls);
           break;
         }
 
@@ -1463,7 +1772,7 @@ const Standards = (() => {
           const Voc_tmin = p.Voc * factor * n;
           const pass = Voc_tmin <= Vmax;
           result.innerHTML = _steps([
-            `IEC 62548 Formula: V_string_Tmin = n × Voc_stc × (1 + αVoc × (Tmin − 25))`,
+            `IEC 62548-1 Formula: V_string_Tmin = n × Voc_stc × (1 + αVoc × (Tmin − 25))`,
             `Module: ${p.manufacturer} ${p.model}`,
             `Step 1: αVoc = ${(p.coeffVoc*100).toFixed(3)} %/°C = ${p.coeffVoc.toFixed(5)} /°C`,
             `Step 2: ΔT = Tmin − 25 = ${Tmin} − 25 = ${Tmin-25} °C`,
@@ -1487,7 +1796,7 @@ const Standards = (() => {
           const Vmp_tmax = p.Vmp * factor * n;
           const pass = Vmp_tmax >= Vmppt;
           result.innerHTML = _steps([
-            `IEC 62548 / IEC 61853 Formula: V_string_Vmp_Tmax = n × Vmp_stc × (1 + αVoc × (Tcell_max − 25))`,
+            `IEC 62548-1 / IEC 61853 Formula: V_string_Vmp_Tmax = n × Vmp_stc × (1 + αVoc × (Tcell_max − 25))`,
             `Module: ${p.manufacturer} ${p.model}, NOCT = ${p.NOCT}°C`,
             `Step 1: Cell temp at max ambient: Tcell = Tamb + (NOCT−20)/800 × G`,
             `         Tcell = ${Tamb} + (${p.NOCT}−20)/800 × 1000 = ${Tcell.toFixed(1)} °C`,
@@ -1505,7 +1814,7 @@ const Standards = (() => {
           if (isNaN(n)) { result.innerHTML = '<div class="danger-box">Enter number of strings</div>'; break; }
           const fuse_req = n > 3;
           result.innerHTML = _steps([
-            `IEC 62548 Cl.9.4.1: String fuses not required if parallel strings ≤ 3`,
+            `IEC 62548-1 Cl.9.4.1: String fuses not required if parallel strings ≤ 3`,
             `(Condition: each module's max reverse current ≤ module Series Fuse Rating)`,
             `Number of parallel strings = ${n}`,
             fuse_req ? `${n} > 3 → String fuses ARE required` : `${n} ≤ 3 → String fuses not required (verify module reverse current rating still satisfied)`,
@@ -1905,11 +2214,11 @@ const Standards = (() => {
           const stdFuses = [10, 12, 15, 16, 20, 25, 30, 32];
           const candidates = stdFuses.filter(f => f >= I_min && (I_max === null || f <= I_max));
           result.innerHTML = _steps([
-            `IEC 62548 / SLS 1522 Formula: I_fuse = 1.25 × 1.25 × Isc`,
+            `IEC 62548-1 / SLS 1522 Formula: I_fuse = 1.25 × 1.25 × Isc`,
             `Module: ${p.manufacturer} ${p.model}, Isc = ${p.Isc} A`,
             `Step 1: First 1.25 factor — continuous current derating (IEC 60364-7-712)`,
             `         I_cont = 1.25 × ${p.Isc} = ${(1.25*p.Isc).toFixed(2)} A`,
-            `Step 2: Second 1.25 factor — fault tolerance / safety margin (IEC 62548)`,
+            `Step 2: Second 1.25 factor — fault tolerance / safety margin (IEC 62548-1)`,
             `         I_fuse_min = 1.25 × ${(1.25*p.Isc).toFixed(2)} = ${I_min.toFixed(2)} A`,
             `Step 3: Maximum fuse rating = Series Fuse Rating on module label = ${I_max !== null ? I_max + ' A' : 'not entered'}`,
             `Step 4: Select standard fuse ≥ ${I_min.toFixed(1)} A${I_max ? ' and ≤ ' + I_max + ' A' : ''}`,

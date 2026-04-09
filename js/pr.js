@@ -100,7 +100,7 @@ const PRCalc = (() => {
         <div class="card">
           <div class="card-title">Insulation Resistance (IR) Test — IEC 62446-1</div>
           <div class="info-box">
-            Minimum 1 MΩ at 500V DC test voltage (IEC 62446-1:2016 Cl. 5.3.3). Test DC+ to earth and DC− to earth separately.
+            Minimum 1 MΩ at 500V DC test voltage (IEC 62446-1:2016 + AMD1:2018 Cl. 5.3.3). Test DC+ to earth and DC− to earth separately.
           </div>
           <div class="form-row cols-2">
             <div class="form-group">
@@ -131,11 +131,11 @@ const PRCalc = (() => {
           <table class="status-table">
             <thead><tr><th>Standard</th><th>Scope</th><th>Key Limit / Requirement</th></tr></thead>
             <tbody>
-              <tr><td><strong>IEC 62446-1:2016</strong></td><td>Commissioning tests &amp; documentation</td><td>IR ≥ 1 MΩ, Voc ±2%, Isc ±5% of STC</td></tr>
+              <tr><td><strong>IEC 62446-1:2016 + AMD1:2018</strong></td><td>Commissioning tests &amp; documentation</td><td>IR ≥ 1 MΩ, Voc ±2%, Isc ±5% of STC</td></tr>
               <tr><td><strong>IEC 61215:2021</strong></td><td>Module design qualification</td><td>Performance &amp; durability testing</td></tr>
               <tr><td><strong>IEC 61730:2023</strong></td><td>Module safety qualification</td><td>Earthing, insulation, mechanical</td></tr>
-              <tr><td><strong>IEC 60364-7-712:2017</strong></td><td>PV electrical installation</td><td>Earthing resistance &lt;1Ω</td></tr>
-              <tr><td><strong>IEC 61643-32:2019</strong></td><td>DC-side SPD</td><td>SPD required at array &amp; inverter DC input</td></tr>
+              <tr><td><strong>IEC 60364-7-712:2025</strong></td><td>PV electrical installation</td><td>Earthing resistance &lt;1Ω</td></tr>
+              <tr><td><strong>IEC 61643-32:2017 + COR1:2019</strong></td><td>DC-side SPD</td><td>SPD required at array &amp; inverter DC input</td></tr>
               <tr><td><strong>IEC TS 62804-1:2025</strong></td><td>PID detection</td><td>Negative grounding or PID protection required</td></tr>
               <tr><td><strong>IEC 61724-1</strong></td><td>Performance monitoring</td><td>PR = E_AC / (H_poa × P_stc/G_stc)</td></tr>
               <tr><td><strong>SLS 1522:2016</strong></td><td>Sri Lanka SPD standard</td><td>SPD compliance for AC &amp; DC sides</td></tr>
@@ -274,7 +274,7 @@ const PRCalc = (() => {
         </tbody>
       </table>
       <div class="info-box" style="margin-top:8px;font-size:0.78rem">
-        IEC 62446-1:2016 Cl. 5.3.3: Minimum insulation resistance ≥ 1 MΩ at 500V DC test voltage.
+        IEC 62446-1:2016 + AMD1:2018 Cl. 5.3.3: Minimum insulation resistance ≥ 1 MΩ at 500V DC test voltage.
         Test both polarities. Values below 1 MΩ indicate earth fault — do not energise.
       </div>
     `;
