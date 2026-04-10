@@ -2,7 +2,7 @@
  * sw.js — Service Worker (cache-first offline support)
  */
 
-const CACHE_NAME = 'solarpv-v15';
+const CACHE_NAME = 'solarpv-v16';
 const CACHE_PREFIX = 'solarpv-v';
 
 const LOCAL_ASSETS = [
@@ -39,6 +39,7 @@ const LOCAL_ASSETS = [
   './js/pv-inspector.js',
   './js/fault-ai.js',
   './js/checklist.js',
+  './js/report-builder.js',
   './js/firebase-sync.js',
   './js/app.js',
 ];

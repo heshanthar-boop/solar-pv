@@ -73,6 +73,11 @@ const Reports = (() => {
     return new window.jspdf.jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
   }
 
+  function _companyName() {
+    try { return JSON.parse(localStorage.getItem('solarpv_settings') || '{}').company || 'Heshan Engineering Solution'; }
+    catch { return 'Heshan Engineering Solution'; }
+  }
+
   function _addHeader(doc, title, subtitle, auditMeta) {
     // Color bar
     doc.setFillColor(...PRIMARY);
@@ -85,7 +90,7 @@ const Reports = (() => {
 
     doc.setFontSize(8);
     doc.setFont('helvetica', 'normal');
-    doc.text('Heshan Engineering Solution', PAGE_W - MARGIN, 11, { align: 'right' });
+    doc.text(_companyName(), PAGE_W - MARGIN, 11, { align: 'right' });
 
     // Title block
     doc.setTextColor(...DARK);
@@ -128,7 +133,7 @@ const Reports = (() => {
       doc.setTextColor(...MUTED);
       doc.text(`Page ${i} of ${pages}`, PAGE_W / 2, 291, { align: 'center' });
       doc.text(`Generated: ${new Date().toLocaleString()}`, MARGIN, 291);
-      doc.text('SolarPV Field Tool — Heshan Engineering Solution', PAGE_W - MARGIN, 291, { align: 'right' });
+      doc.text('SolarPV Field Tool — ' + _companyName(), PAGE_W - MARGIN, 291, { align: 'right' });
     }
   }
 

@@ -4,7 +4,7 @@
  * IEC 62446-1 / PUCSL guideline aligned.
  */
 
-const Checklist = (() => {
+var Checklist = (() => {
   const STORAGE_KEY = 'solarpv_checklists_v1';
 
   function _esc(v) {
@@ -445,7 +445,8 @@ const Checklist = (() => {
     doc.setFontSize(13); doc.setFont('helvetica', 'bold');
     doc.text('COMMISSIONING CHECKLIST', margin, 14);
     doc.setFontSize(9); doc.setFont('helvetica', 'normal');
-    doc.text('SolarPV Field Tool', W - margin, 14, { align: 'right' });
+    const companyName = (() => { try { return JSON.parse(localStorage.getItem('solarpv_settings') || '{}').company || 'Heshan Engineering Solution'; } catch { return 'Heshan Engineering Solution'; } })();
+    doc.text(companyName, W - margin, 14, { align: 'right' });
     doc.setTextColor(0, 0, 0);
     y = 28;
 
@@ -537,7 +538,7 @@ const Checklist = (() => {
 
     // Footer on last page
     doc.setFontSize(8); doc.setTextColor(156, 163, 175);
-    doc.text(`Generated: ${new Date().toLocaleString()} | SolarPV Field Tool`, margin, 290);
+    doc.text(`Generated: ${new Date().toLocaleString()} | ${companyName}`, margin, 290);
 
     const projSlug = (ck.projectName || 'checklist').replace(/[^a-zA-Z0-9]/g, '_').slice(0, 30);
     doc.save(`commissioning_${projSlug}_${ck.date || 'nodate'}.pdf`);

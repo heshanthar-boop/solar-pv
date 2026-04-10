@@ -41,6 +41,7 @@ const App = (() => {
     inspector:   { title: 'PV Inspection Analyzer',    render: (c) => PVInspector.render(c) },
     faultai:     { title: 'Fault Detection',            render: (c) => FaultAI.render(c) },
     checklist:   { title: 'Commissioning Checklist',   render: (c) => Checklist.render(c) },
+    reportbuilder: { title: 'Report Builder',          render: (c) => ReportBuilder.render(c) },
     settings:    { title: 'Settings',                   render: (c) => _renderSettings(c) },
   };
 
@@ -51,23 +52,23 @@ const App = (() => {
     },
     gridTie: {
       label: 'Grid-Tie System',
-      pages: ['database', 'sizing', 'wirecalc', 'utilityvalidator', 'temp', 'fieldtest', 'fault', 'inspection', 'pr', 'checklist', 'inverter', 'shading', 'yield', 'inspector', 'standards', 'settings'],
+      pages: ['database', 'sizing', 'wirecalc', 'utilityvalidator', 'temp', 'fieldtest', 'fault', 'inspection', 'pr', 'checklist', 'inverter', 'shading', 'yield', 'inspector', 'standards', 'reportbuilder', 'settings'],
     },
     gridTieHybrid: {
       label: 'Grid-Tie Hybrid System',
-      pages: ['database', 'sizing', 'wirecalc', 'hybrid', 'utilityvalidator', 'temp', 'fieldtest', 'fault', 'inspection', 'pr', 'checklist', 'inverter', 'shading', 'yield', 'inspector', 'degradation', 'fieldanalysis', 'diagnostics', 'faultai', 'standards', 'settings'],
+      pages: ['database', 'sizing', 'wirecalc', 'hybrid', 'utilityvalidator', 'temp', 'fieldtest', 'fault', 'inspection', 'pr', 'checklist', 'inverter', 'shading', 'yield', 'inspector', 'degradation', 'fieldanalysis', 'diagnostics', 'faultai', 'standards', 'reportbuilder', 'settings'],
     },
     fullyHybrid: {
       label: 'Fully Hybrid System',
-      pages: ['database', 'wirecalc', 'hybrid', 'utilityvalidator', 'temp', 'fieldtest', 'fault', 'inspection', 'pr', 'checklist', 'degradation', 'fieldanalysis', 'diagnostics', 'yield', 'standards', 'settings'],
+      pages: ['database', 'wirecalc', 'hybrid', 'utilityvalidator', 'temp', 'fieldtest', 'fault', 'inspection', 'pr', 'checklist', 'degradation', 'fieldanalysis', 'diagnostics', 'yield', 'standards', 'reportbuilder', 'settings'],
     },
     groundMount: {
       label: 'Ground Mount Solar System',
-      pages: ['database', 'sizing', 'wirecalc', 'utilityvalidator', 'temp', 'fieldtest', 'fault', 'inspection', 'pr', 'checklist', 'inverter', 'shading', 'yield', 'inspector', 'fieldanalysis', 'diagnostics', 'standards', 'settings'],
+      pages: ['database', 'sizing', 'wirecalc', 'utilityvalidator', 'temp', 'fieldtest', 'fault', 'inspection', 'pr', 'checklist', 'inverter', 'shading', 'yield', 'inspector', 'fieldanalysis', 'diagnostics', 'standards', 'reportbuilder', 'settings'],
     },
     battery: {
       label: 'Battery Focus',
-      pages: ['database', 'wirecalc', 'hybrid', 'utilityvalidator', 'fieldtest', 'fault', 'pr', 'checklist', 'standards', 'settings'],
+      pages: ['database', 'wirecalc', 'hybrid', 'utilityvalidator', 'fieldtest', 'fault', 'pr', 'checklist', 'standards', 'reportbuilder', 'settings'],
     },
     standardsOnly: {
       label: 'Standards',
@@ -118,8 +119,9 @@ const App = (() => {
     {
       group: 'Reference & Settings',
       tiles: [
-        { page: 'standards', icon: '&#128218;', label: 'Standards Reference',  desc: 'IEC / SLS / PUCSL' },
-        { page: 'settings',  icon: '&#9881;',   label: 'Settings',             desc: 'Profile & data mgmt' },
+        { page: 'standards',     icon: '&#128218;', label: 'Standards Reference', desc: 'IEC / SLS / PUCSL' },
+        { page: 'reportbuilder', icon: '&#128196;', label: 'Report Builder',       desc: 'Combined PDF report' },
+        { page: 'settings',      icon: '&#9881;',   label: 'Settings',             desc: 'Profile & data mgmt' },
       ]
     },
   ];
@@ -756,6 +758,14 @@ const App = (() => {
         </div>` : `<div class="text-muted" style="font-size:0.82rem;padding:4px 0">Set project details to pre-fill forms across all modules.</div>`}
       </div>`;
 
+    const backupDays = _backupAgeDays();
+    const backupWarnHtml = (backupDays === null || backupDays > 30)
+      ? `<div class="warn-box" style="margin-bottom:14px;cursor:pointer" id="home-backup-warn">
+           &#9888; ${backupDays === null ? 'No backup made yet.' : `Last backup ${backupDays} days ago.`}
+           <strong>Export a backup in Settings &rarr;</strong>
+         </div>`
+      : '';
+
     const groups = HOME_TILES.map(group => {
       const visibleTiles = group.tiles.filter(t => allowed.has(t.page));
       if (!visibleTiles.length) return '';
@@ -775,6 +785,7 @@ const App = (() => {
     container.innerHTML = `
       <div class="home-screen">
         ${projectCardHtml}
+        ${backupWarnHtml}
         <div class="home-filter">
           <label class="home-filter-label">Tool Filter</label>
           <select class="form-select" id="home-project-mode">${projectTypeOptions}</select>
@@ -794,6 +805,9 @@ const App = (() => {
     container.querySelector('#home-project-edit-btn').addEventListener('click', () => {
       _showProjectModal(container);
     });
+
+    const backupWarn = container.querySelector('#home-backup-warn');
+    if (backupWarn) backupWarn.addEventListener('click', () => navigate('settings'));
 
     container.querySelectorAll('.home-tile').forEach(btn => {
       btn.addEventListener('click', () => navigate(btn.dataset.page));
@@ -978,6 +992,84 @@ const App = (() => {
   }
 
   // -----------------------------------------------------------------------
+  // DATA BACKUP / RESTORE
+  // -----------------------------------------------------------------------
+
+  const BACKUP_KEYS = [
+    'solarpv_panels',
+    'solarpv_sessions',
+    'solarpv_settings',
+    'solarpv_project_type',
+    'solarpv_active_project',
+    'solarpv_theme',
+    'solarpv_checklists_v1',
+    'solarpv_catalog_inverters_v1',
+    'solarpv_catalog_batteries_v1',
+    'solarpv_import_history_v1',
+  ];
+  const BACKUP_TS_KEY = 'solarpv_last_backup_ts';
+
+  function _exportBackup() {
+    const data = { version: '1.1', exportedAt: new Date().toISOString(), data: {} };
+    BACKUP_KEYS.forEach(k => {
+      const v = localStorage.getItem(k);
+      if (v !== null) data.data[k] = v;
+    });
+    const json = JSON.stringify(data, null, 2);
+    const blob = new Blob([json], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    const stamp = new Date().toISOString().slice(0, 10);
+    a.href = url;
+    a.download = `solarpv_backup_${stamp}.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    localStorage.setItem(BACKUP_TS_KEY, new Date().toISOString());
+    toast('Backup exported', 'success');
+  }
+
+  function _importBackup(file, container) {
+    const reader = new FileReader();
+    reader.onload = e => {
+      try {
+        const parsed = JSON.parse(e.target.result);
+        if (!parsed || !parsed.data || typeof parsed.data !== 'object') {
+          toast('Invalid backup file', 'error'); return;
+        }
+        if (!confirm(`Restore backup from ${parsed.exportedAt || 'unknown date'}?\n\nThis will overwrite all local data including inspections, checklists and panel database. Cannot be undone.`)) return;
+        Object.entries(parsed.data).forEach(([k, v]) => {
+          if (typeof v === 'string') localStorage.setItem(k, v);
+        });
+        localStorage.setItem(BACKUP_TS_KEY, new Date().toISOString());
+        toast('Backup restored — reloading…', 'success');
+        setTimeout(() => window.location.reload(), 1200);
+      } catch {
+        toast('Failed to read backup file', 'error');
+      }
+    };
+    reader.readAsText(file);
+  }
+
+  function _backupAgeDays() {
+    const ts = localStorage.getItem(BACKUP_TS_KEY);
+    if (!ts) return null;
+    return Math.floor((Date.now() - Date.parse(ts)) / (1000 * 60 * 60 * 24));
+  }
+
+  function _backupAgeHtml() {
+    const days = _backupAgeDays();
+    if (days === null) {
+      return `<div class="warn-box" style="margin:8px 0 0">&#9888; No backup made yet. Export a backup to protect your data.</div>`;
+    }
+    if (days > 30) {
+      return `<div class="warn-box" style="margin:8px 0 0">&#9888; Last backup was ${days} days ago. Consider exporting a fresh backup.</div>`;
+    }
+    return `<div class="info-box" style="margin:8px 0 0">&#10003; Last backup: ${days === 0 ? 'today' : days + ' day' + (days > 1 ? 's' : '') + ' ago'}</div>`;
+  }
+
+  // -----------------------------------------------------------------------
   // SETTINGS PAGE
   // -----------------------------------------------------------------------
 
@@ -1131,11 +1223,22 @@ const App = (() => {
         </div>
 
         <div class="card">
+          <div class="card-title">Data Backup &amp; Restore</div>
+          ${_backupAgeHtml()}
+          <div class="text-muted mt-4" style="font-size:0.82rem">Backup saves all inspections, checklists, PV module database, settings and project data to a single JSON file. Restore from a previous backup — this overwrites current local data.</div>
+          <div class="btn-group mt-8">
+            <button class="btn btn-primary btn-sm" id="set-backup-btn">&#128190; Export Backup</button>
+            <button class="btn btn-secondary btn-sm" id="set-restore-btn">&#128228; Restore from Backup</button>
+          </div>
+          <input type="file" id="set-restore-file" accept=".json" style="display:none" />
+        </div>
+
+        <div class="card">
           <div class="card-title">About</div>
           <div class="text-sm">
-            <div><strong>SolarPV Field Tool</strong> v1.0</div>
+            <div><strong>SolarPV Field Tool</strong> v1.1</div>
             <div class="text-muted mt-4">Solar string sizing, temperature correction, field test analysis, and inspection logging.</div>
-            <div class="text-muted mt-4">Built for: Heshan Engineering Solution</div>
+            <div class="text-muted mt-4">Built for: ${escapeHTML(safeCompany || 'Heshan Engineering Solution')}</div>
             <div class="divider"></div>
             <div>Modules: ${DB.getAll().length} panels in database</div>
             <div class="mt-4">Serve with: <code style="background:var(--bg-3);padding:2px 6px;border-radius:4px">py -m http.server 8090</code></div>
@@ -1162,6 +1265,20 @@ const App = (() => {
       FirebaseSync.saveSettings(s);
       toast('Settings saved', 'success');
     });
+
+    const backupBtn = container.querySelector('#set-backup-btn');
+    if (backupBtn) backupBtn.addEventListener('click', () => _exportBackup());
+
+    const restoreBtn = container.querySelector('#set-restore-btn');
+    const restoreFile = container.querySelector('#set-restore-file');
+    if (restoreBtn && restoreFile) {
+      restoreBtn.addEventListener('click', () => restoreFile.click());
+      restoreFile.addEventListener('change', e => {
+        const file = e.target.files && e.target.files[0];
+        if (file) _importBackup(file, container);
+        restoreFile.value = '';
+      });
+    }
 
     container.querySelector('#set-clear-sessions').addEventListener('click', () => {
       if (!confirm('Delete ALL saved inspections? Cannot be undone.')) return;
