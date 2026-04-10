@@ -467,6 +467,7 @@ const WireCalc = (() => {
         <button class="btn btn-primary" id="wc-print-btn">Print</button>
         <button class="btn btn-secondary" id="wc-pdf-btn">Export PDF</button>
         <button class="btn btn-secondary" id="wc-docx-btn">Export DOCX</button>
+        <button class="btn btn-secondary" id="wc-schedule-btn">&#128203; Add to Cable Schedule</button>
       </div>
     `;
 
@@ -481,6 +482,21 @@ const WireCalc = (() => {
 
     const docxBtn = out.querySelector('#wc-docx-btn');
     if (docxBtn) docxBtn.addEventListener('click', () => _exportDOCX(r));
+
+    const scheduleBtn = out.querySelector('#wc-schedule-btn');
+    if (scheduleBtn) {
+      scheduleBtn.addEventListener('click', () => {
+        if (typeof CableSchedule === 'undefined' || typeof CableSchedule.addFromWireResult !== 'function') {
+          App.toast('Cable schedule module not loaded', 'error');
+          return;
+        }
+        if (CableSchedule.addFromWireResult(r)) {
+          App.toast('Added to cable schedule', 'success');
+        } else {
+          App.toast('Could not add to cable schedule', 'error');
+        }
+      });
+    }
   }
 
   function _summaryText(r) {

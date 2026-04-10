@@ -268,6 +268,31 @@ button { cursor: pointer; border: none; background: none; }
 .badge-pass { background: #dcfce7; color: #15803d; }
 .badge-fail { background: #fee2e2; color: #991b1b; }
 
+/* ===== FIELD TEST ===== */
+.ft-row-indicator {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 26px; height: 26px; border-radius: 50%;
+  font-size: 0.85rem; font-weight: 700; cursor: default;
+  transition: background 0.2s, color 0.2s;
+}
+.ft-row-empty { background: var(--border); color: var(--text-muted); }
+.ft-row-pass { background: #dcfce7; color: #15803d; }
+.ft-row-fail { background: #fee2e2; color: #991b1b; }
+tr.ft-row-pass td { background: rgba(22, 163, 74, 0.06); }
+tr.ft-row-fail td { background: rgba(220, 38, 38, 0.07); }
+
+.result-mini {
+  background: var(--bg-alt); border-radius: var(--radius); padding: 10px 12px;
+  text-align: center;
+}
+.result-mini-val { font-size: 1.6rem; font-weight: 700; color: var(--primary); line-height: 1.1; }
+.result-mini-label { font-size: 0.72rem; color: var(--text-muted); margin-top: 2px; text-transform: uppercase; letter-spacing: 0.04em; }
+
+[data-theme="dark"] .ft-row-pass { background: #052e16; color: #4ade80; }
+[data-theme="dark"] .ft-row-fail { background: #1f0a0a; color: #f87171; }
+[data-theme="dark"] tr.ft-row-pass td { background: rgba(74, 222, 128, 0.06); }
+[data-theme="dark"] tr.ft-row-fail td { background: rgba(248, 113, 113, 0.08); }
+
 /* ===== PANEL DATABASE ===== */
 .panel-card {
   background: var(--bg); border: 1.5px solid var(--border); border-radius: var(--radius-lg);

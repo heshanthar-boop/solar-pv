@@ -42,6 +42,7 @@ const App = (() => {
     faultai:     { title: 'Fault Detection',            render: (c) => FaultAI.render(c) },
     checklist:   { title: 'Commissioning Checklist',   render: (c) => Checklist.render(c) },
     reportbuilder: { title: 'Report Builder',          render: (c) => ReportBuilder.render(c) },
+    cableschedule: { title: 'Cable Schedule',          render: (c) => CableSchedule.render(c) },
     settings:    { title: 'Settings',                   render: (c) => _renderSettings(c) },
   };
 
@@ -52,31 +53,31 @@ const App = (() => {
     },
     gridTie: {
       label: 'Grid-Tie System',
-      pages: ['database', 'sizing', 'wirecalc', 'utilityvalidator', 'temp', 'fieldtest', 'fault', 'inspection', 'pr', 'checklist', 'inverter', 'shading', 'yield', 'inspector', 'standards', 'reportbuilder', 'settings'],
+      pages: ['database', 'sizing', 'wirecalc', 'cableschedule', 'utilityvalidator', 'temp', 'fieldtest', 'fault', 'inspection', 'pr', 'checklist', 'inverter', 'shading', 'yield', 'inspector', 'standards', 'reportbuilder', 'settings'],
     },
     gridTieHybrid: {
       label: 'Grid-Tie Hybrid System',
-      pages: ['database', 'sizing', 'wirecalc', 'hybrid', 'utilityvalidator', 'temp', 'fieldtest', 'fault', 'inspection', 'pr', 'checklist', 'inverter', 'shading', 'yield', 'inspector', 'degradation', 'fieldanalysis', 'diagnostics', 'faultai', 'standards', 'reportbuilder', 'settings'],
+      pages: ['database', 'sizing', 'wirecalc', 'cableschedule', 'hybrid', 'utilityvalidator', 'temp', 'fieldtest', 'fault', 'inspection', 'pr', 'checklist', 'inverter', 'shading', 'yield', 'inspector', 'degradation', 'fieldanalysis', 'diagnostics', 'faultai', 'standards', 'reportbuilder', 'settings'],
     },
     fullyHybrid: {
       label: 'Fully Hybrid System',
-      pages: ['database', 'wirecalc', 'hybrid', 'utilityvalidator', 'temp', 'fieldtest', 'fault', 'inspection', 'pr', 'checklist', 'degradation', 'fieldanalysis', 'diagnostics', 'yield', 'standards', 'reportbuilder', 'settings'],
+      pages: ['database', 'wirecalc', 'cableschedule', 'hybrid', 'utilityvalidator', 'temp', 'fieldtest', 'fault', 'inspection', 'pr', 'checklist', 'degradation', 'fieldanalysis', 'diagnostics', 'yield', 'standards', 'reportbuilder', 'settings'],
     },
     groundMount: {
       label: 'Ground Mount Solar System',
-      pages: ['database', 'sizing', 'wirecalc', 'utilityvalidator', 'temp', 'fieldtest', 'fault', 'inspection', 'pr', 'checklist', 'inverter', 'shading', 'yield', 'inspector', 'fieldanalysis', 'diagnostics', 'standards', 'reportbuilder', 'settings'],
+      pages: ['database', 'sizing', 'wirecalc', 'cableschedule', 'utilityvalidator', 'temp', 'fieldtest', 'fault', 'inspection', 'pr', 'checklist', 'inverter', 'shading', 'yield', 'inspector', 'fieldanalysis', 'diagnostics', 'standards', 'reportbuilder', 'settings'],
     },
     battery: {
       label: 'Battery Focus',
-      pages: ['database', 'wirecalc', 'hybrid', 'utilityvalidator', 'fieldtest', 'fault', 'pr', 'checklist', 'standards', 'reportbuilder', 'settings'],
+      pages: ['database', 'wirecalc', 'cableschedule', 'hybrid', 'utilityvalidator', 'fieldtest', 'fault', 'pr', 'checklist', 'standards', 'reportbuilder', 'settings'],
     },
     standardsOnly: {
       label: 'Standards',
-      pages: ['standards', 'wirecalc', 'checklist', 'settings'],
+      pages: ['standards', 'wirecalc', 'cableschedule', 'checklist', 'settings'],
     },
     pvAnalysis: {
       label: 'PV Analysis',
-      pages: ['fieldanalysis', 'diagnostics', 'pr', 'degradation', 'yield', 'inverter', 'shading', 'faultai', 'standards', 'wirecalc', 'settings'],
+      pages: ['fieldanalysis', 'diagnostics', 'pr', 'degradation', 'yield', 'inverter', 'shading', 'faultai', 'standards', 'wirecalc', 'cableschedule', 'settings'],
     },
   };
 
@@ -88,6 +89,7 @@ const App = (() => {
         { page: 'database',    icon: '&#128230;', label: 'Database',            desc: 'PV, inverter, battery catalogs' },
         { page: 'sizing',      icon: '&#9889;',   label: 'String Sizing',        desc: 'Voltage & current limits' },
         { page: 'wirecalc',    icon: '&#128268;', label: 'Wire Calculation',     desc: 'Cable sizing & losses' },
+        { page: 'cableschedule', icon: '&#128200;', label: 'Cable Schedule',     desc: 'Panel schedule & export' },
         { page: 'hybrid',      icon: '&#128267;', label: 'Hybrid Setup',         desc: 'Battery & inverter check' },
         { page: 'utilityvalidator', icon: '&#128221;', label: 'Utility Validator', desc: 'CEB/LECO submission gate' },
         { page: 'yield',       icon: '&#9728;',   label: 'Yield Estimator',      desc: 'Monthly kWh simulation' },
