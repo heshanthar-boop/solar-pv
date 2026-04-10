@@ -922,9 +922,8 @@ const HybridSetup = (() => {
     return `<span class="status-badge ${_esc(cls)}" style="margin-right:6px">${_esc(text)}</span>`;
   }
 
-  function render(container) {
-    _ensureCatalogLoaded(container);
-    const defaults = {
+  function _defaultInputs() {
+    return {
       dailyEnergy_kWh: 18, peakLoad_kW: 5, surgeLoad_kW: 8, autonomyDays: 1,
       batteryVoltage_V: 48, chemistry: 'lifepo4', dod: CHEMISTRY.lifepo4.dod, etaBatt: CHEMISTRY.lifepo4.etaBatt,
       etaInv: 0.93, tempDerate: 0.90, reserveFactor: 1.15, psh: 4.8, systemPR: 0.75,
@@ -943,8 +942,23 @@ const HybridSetup = (() => {
       utilitySettingsMatched: false,
       utilityFinalAcceptance: false,
     };
-    const s = { ...defaults, ...(App.state.hybridInputs || {}) };
-    UTILITY_SUBMISSION_KEYS.forEach(key => { s[key] = _bool(s[key], defaults[key]); });
+  }
+
+  function _normalizeHybridInputState(raw) {
+    const defaults = _defaultInputs();
+    const out = { ...defaults, ...(raw || {}) };
+    out.exportMode = out.exportMode === 'export' ? 'export' : 'no_export';
+    out.utilityProfile = UTILITY_PROFILES[out.utilityProfile] ? out.utilityProfile : 'offgrid';
+    out.inverterModelId = _cleanText(out.inverterModelId || CATALOG_NONE, 120) || CATALOG_NONE;
+    out.batteryModelId = _cleanText(out.batteryModelId || CATALOG_NONE, 120) || CATALOG_NONE;
+    out.panelId = _cleanText(out.panelId || CATALOG_NONE, 120) || CATALOG_NONE;
+    UTILITY_SUBMISSION_KEYS.forEach(key => { out[key] = _bool(out[key], defaults[key]); });
+    return out;
+  }
+
+  function render(container) {
+    _ensureCatalogLoaded(container);
+    const s = _normalizeHybridInputState(App.state.hybridInputs || {});
     const inverterCatalog = _catalogInverters();
     const batteryCatalog = _catalogBatteries();
     const loadingLabel = catalogState.loading && !catalogState.loaded
@@ -1012,6 +1026,7 @@ const HybridSetup = (() => {
           <div class="info-box">${_esc(loadingLabel)}</div>
           <div class="btn-group" style="margin-top:8px">
             <button class="btn btn-secondary btn-sm" id="hy-utility-manager-btn">Utility List Manager</button>
+            <button class="btn btn-secondary btn-sm" id="hy-open-validator-btn">Open Utility Validator Screen</button>
           </div>
           <div class="form-row cols-2">
             <div class="form-group">
@@ -1065,6 +1080,14 @@ const HybridSetup = (() => {
     });
     const utilityMgrBtn = container.querySelector('#hy-utility-manager-btn');
     if (utilityMgrBtn) utilityMgrBtn.addEventListener('click', () => _openUtilityListManager(container));
+    const openValidatorBtn = container.querySelector('#hy-open-validator-btn');
+    if (openValidatorBtn) {
+      openValidatorBtn.addEventListener('click', () => {
+        if (typeof App !== 'undefined' && App && typeof App.navigate === 'function') {
+          App.navigate('utilityvalidator');
+        }
+      });
+    }
     container.querySelector('#hy-calc-btn').addEventListener('click', () => _calculate(container));
     _bindChecklistVisualState(container, '#hy-utility-checklist');
     _applyChemistryDefaults(container, false);
@@ -1367,6 +1390,90 @@ const HybridSetup = (() => {
       inverterSource: catalogState.inverterMeta && catalogState.inverterMeta.source ? catalogState.inverterMeta.source : '',
       batterySource: catalogState.batteryMeta && catalogState.batteryMeta.source ? catalogState.batteryMeta.source : '',
     };
+  }
+
+  async function ensureCatalogLoaded() {
+    await _ensureCatalogLoaded(null);
+  }
+
+  function getUtilitySubmissionViewModel() {
+    const inputs = _normalizeHybridInputState((typeof App !== 'undefined' && App && App.state) ? App.state.hybridInputs : {});
+    const profile = _profileById(inputs.utilityProfile);
+    const inverterModel = _getInverter(inputs.inverterModelId);
+    const us = _evaluateUtilitySubmission(inputs, profile, inverterModel);
+
+    return {
+      inputs,
+      profile,
+      inverterModel,
+      utilitySubmission: us,
+      summaryHint: _submissionChecklistHint(inputs, inputs.exportMode),
+      profiles: Object.values(UTILITY_PROFILES).map(p => ({
+        id: p.id,
+        label: p.label,
+        utility: p.utility,
+        exportEnabled: !!p.exportEnabled,
+        voltageWindow: p.voltageWindow,
+        frequencyWindow: p.frequencyWindow,
+        reconnect_s: p.reconnect_s
+      })),
+      inverters: _catalogInverters().map(inv => ({
+        id: inv.id,
+        manufacturer: inv.manufacturer,
+        model: inv.model,
+        acRated_kW: inv.acRated_kW,
+        utilityListed: inv.utilityListed && typeof inv.utilityListed === 'object' ? { ...inv.utilityListed } : {}
+      })),
+      docs: UTILITY_SUBMISSION_DOCS.map(item => ({
+        key: item.key,
+        label: item.label,
+        note: item.note,
+        checked: inputs[item.key] === true
+      })),
+      gates: UTILITY_SUBMISSION_GATES.map(item => ({
+        key: item.key,
+        label: item.label,
+        note: item.note,
+        blocker: item.blocker,
+        checked: inputs[item.key] === true
+      })),
+      catalog: getCatalogSummary(),
+      resultReady: !!((typeof App !== 'undefined' && App && App.state && App.state.hybridResult)
+        && App.state.hybridResult.inputs
+        && App.state.hybridResult.battery
+        && App.state.hybridResult.pv
+        && App.state.hybridResult.inverter),
+    };
+  }
+
+  function updateUtilitySubmissionState(patch) {
+    const current = _normalizeHybridInputState((typeof App !== 'undefined' && App && App.state) ? App.state.hybridInputs : {});
+    const next = _normalizeHybridInputState({ ...current, ...(patch || {}) });
+    if (typeof App !== 'undefined' && App && App.state) {
+      App.state.hybridInputs = next;
+    }
+    return getUtilitySubmissionViewModel();
+  }
+
+  function getFinalProjectPackState() {
+    const vm = getUtilitySubmissionViewModel();
+    const us = vm.utilitySubmission || {};
+    const ready = vm.resultReady && (!us.applicable || us.strictPass === true);
+    return {
+      ready,
+      resultReady: !!vm.resultReady,
+      strictPass: !us.applicable || us.strictPass === true,
+      applicable: !!us.applicable,
+      docProvided: us.docProvided || 0,
+      docTotal: us.docTotal || UTILITY_SUBMISSION_DOCS.length,
+      blockers: Array.isArray(us.blockers) ? us.blockers.slice() : [],
+      missingDocuments: Array.isArray(us.missingDocuments) ? us.missingDocuments.slice() : [],
+      gateReason: _utilityGateFailureText(us),
+    };
+  }
+
+  async function exportFinalProjectPack(format) {
+    return _attemptFinalProjectPackExport(format, null);
   }
 
   function _v(container, id) { return parseFloat(container.querySelector(id).value); }
@@ -1902,13 +2009,102 @@ const HybridSetup = (() => {
     };
   }
 
+  function _utilityGateFailureText(us) {
+    if (!us || !us.applicable) return '';
+    const parts = [];
+    if (Array.isArray(us.missingDocuments) && us.missingDocuments.length) {
+      parts.push(`Missing documents: ${us.missingDocuments.join('; ')}`);
+    }
+    if (Array.isArray(us.gateBlockers) && us.gateBlockers.length) {
+      parts.push(`Gate blockers: ${us.gateBlockers.join('; ')}`);
+    }
+    if (!parts.length && Array.isArray(us.blockers) && us.blockers.length) {
+      parts.push(`Blockers: ${us.blockers.join('; ')}`);
+    }
+    return parts.join(' | ');
+  }
+
+  function _composeProjectPackContext(sourceResult) {
+    const base = sourceResult || (typeof App !== 'undefined' && App && App.state ? App.state.hybridResult : null);
+    if (!base) {
+      return {
+        ok: false,
+        error: 'Run Hybrid Setup calculation first to generate design outputs before exporting final package.',
+      };
+    }
+
+    const stateInputs = (typeof App !== 'undefined' && App && App.state) ? (App.state.hybridInputs || {}) : {};
+    const inputs = _normalizeHybridInputState({ ...(base.inputs || {}), ...stateInputs });
+    const profile = _profileById(inputs.utilityProfile);
+    const inverterModel = _getInverter(inputs.inverterModelId);
+    const us = _evaluateUtilitySubmission(inputs, profile, inverterModel);
+
+    const catBase = base.catalogue && typeof base.catalogue === 'object'
+      ? base.catalogue
+      : { checks: [], summary: { pass: 0, warn: 0, fail: 0 } };
+    const catalogue = {
+      ...catBase,
+      profile,
+      utilitySubmission: us,
+    };
+
+    const result = {
+      ...base,
+      inputs,
+      catalogue,
+    };
+
+    return {
+      ok: true,
+      result,
+      utilitySubmission: us,
+      canRelease: !us.applicable || us.strictPass === true,
+      gateReason: _utilityGateFailureText(us),
+    };
+  }
+
+  async function _attemptFinalProjectPackExport(format, sourceResult) {
+    const ctx = _composeProjectPackContext(sourceResult);
+    if (!ctx.ok) {
+      App.toast(ctx.error, 'warning');
+      return { ok: false, error: ctx.error };
+    }
+
+    const us = ctx.utilitySubmission || {};
+    if (us.applicable && !us.strictPass) {
+      const reason = ctx.gateReason || 'Utility submission strict gate is FAIL.';
+      App.toast(`Final export blocked: ${reason}`, 'error');
+      return { ok: false, blocked: true, error: reason };
+    }
+
+    if (format === 'print') _printProjectPack(ctx.result);
+    else if (format === 'pdf') _exportProjectPackPDF(ctx.result);
+    else if (format === 'docx') await _exportProjectPackDOCX(ctx.result);
+    else if (format === 'zip') await _exportProjectPackBundleZIP(ctx.result);
+    else if (format === 'json') _exportProjectPackJSON(ctx.result);
+    else {
+      const err = `Unknown final package format: ${String(format || '')}`;
+      App.toast(err, 'error');
+      return { ok: false, error: err };
+    }
+    return { ok: true };
+  }
+
   function _renderResults(container, r) {
     const out = container.querySelector('#hy-results');
     out.classList.remove('hidden');
+    const packGate = _composeProjectPackContext(r);
+    const packBlocked = !!(packGate.ok && packGate.utilitySubmission && packGate.utilitySubmission.applicable && !packGate.utilitySubmission.strictPass);
+    const packBlockHint = packBlocked
+      ? _utilityGateFailureText(packGate.utilitySubmission) || 'Utility submission strict gate must be PASS before final export package generation.'
+      : '';
     const summary = _summaryText(r);
     const warnings = Array.isArray(r.warnings) ? r.warnings : [];
     const warningHtml = warnings.length ? `<div class="card">${warnings.map(w => `<div class="warn-box">${_esc(w)}</div>`).join('')}</div>` : '';
     const badgeHtml = (r.badges || []).length ? `<div class="info-box" style="margin-bottom:10px">${(r.badges || []).map(b => _badgeChip(b, b === 'Approval required' ? 'badge-fail' : (b === 'Heuristic' ? 'badge-warn' : 'badge-pass'))).join('')}</div>` : '';
+    const packGateHtml = packBlocked
+      ? `<div class="warn-box" style="margin-top:8px"><strong>Final package export blocked:</strong> ${_esc(packBlockHint)}</div>`
+      : '';
     const catalogueCard = _catalogueChecksCard(r);
     const utilityCard = _utilitySubmissionCard(r);
     out.innerHTML = `
@@ -1930,12 +2126,13 @@ const HybridSetup = (() => {
           <button class="btn btn-secondary btn-sm" id="hy-print-btn">Print Learning Report</button>
           <button class="btn btn-success btn-sm" id="hy-pdf-btn">Export PDF</button>
           <button class="btn btn-secondary btn-sm" id="hy-docx-btn">Export DOCX</button>
-          <button class="btn btn-secondary btn-sm" id="hy-pack-print-btn">Print Project Pack</button>
-          <button class="btn btn-secondary btn-sm" id="hy-pack-pdf-btn">Export Project Pack PDF</button>
-          <button class="btn btn-secondary btn-sm" id="hy-pack-docx-btn">Export Project Pack DOCX</button>
-          <button class="btn btn-secondary btn-sm" id="hy-pack-zip-btn">Export Project Pack ZIP</button>
-          <button class="btn btn-secondary btn-sm" id="hy-pack-json-btn">Export Project Pack JSON</button>
+          <button class="btn btn-secondary btn-sm" id="hy-pack-print-btn" ${packBlocked ? 'disabled' : ''}>Print Project Pack</button>
+          <button class="btn btn-secondary btn-sm" id="hy-pack-pdf-btn" ${packBlocked ? 'disabled' : ''}>Export Project Pack PDF</button>
+          <button class="btn btn-secondary btn-sm" id="hy-pack-docx-btn" ${packBlocked ? 'disabled' : ''}>Export Project Pack DOCX</button>
+          <button class="btn btn-secondary btn-sm" id="hy-pack-zip-btn" ${packBlocked ? 'disabled' : ''}>Export Project Pack ZIP</button>
+          <button class="btn btn-secondary btn-sm" id="hy-pack-json-btn" ${packBlocked ? 'disabled' : ''}>Export Project Pack JSON</button>
         </div>
+        ${packGateHtml}
       </div>
       ${catalogueCard}
       ${utilityCard}
@@ -1958,19 +2155,19 @@ const HybridSetup = (() => {
     if (docxBtn) docxBtn.addEventListener('click', () => _exportLearningDOCX(r));
 
     const packPrintBtn = out.querySelector('#hy-pack-print-btn');
-    if (packPrintBtn) packPrintBtn.addEventListener('click', () => _printProjectPack(r));
+    if (packPrintBtn) packPrintBtn.addEventListener('click', () => { void _attemptFinalProjectPackExport('print', r); });
 
     const packPdfBtn = out.querySelector('#hy-pack-pdf-btn');
-    if (packPdfBtn) packPdfBtn.addEventListener('click', () => _exportProjectPackPDF(r));
+    if (packPdfBtn) packPdfBtn.addEventListener('click', () => { void _attemptFinalProjectPackExport('pdf', r); });
 
     const packDocxBtn = out.querySelector('#hy-pack-docx-btn');
-    if (packDocxBtn) packDocxBtn.addEventListener('click', () => _exportProjectPackDOCX(r));
+    if (packDocxBtn) packDocxBtn.addEventListener('click', () => { void _attemptFinalProjectPackExport('docx', r); });
 
     const packZipBtn = out.querySelector('#hy-pack-zip-btn');
-    if (packZipBtn) packZipBtn.addEventListener('click', () => _exportProjectPackBundleZIP(r));
+    if (packZipBtn) packZipBtn.addEventListener('click', () => { void _attemptFinalProjectPackExport('zip', r); });
 
     const packJsonBtn = out.querySelector('#hy-pack-json-btn');
-    if (packJsonBtn) packJsonBtn.addEventListener('click', () => _exportProjectPackJSON(r));
+    if (packJsonBtn) packJsonBtn.addEventListener('click', () => { void _attemptFinalProjectPackExport('json', r); });
 
     out.scrollIntoView({ behavior: 'smooth', block: 'start' });
   }
@@ -3650,10 +3847,16 @@ const HybridSetup = (() => {
     render,
     openUtilityManager,
     getCatalogSummary,
+    ensureCatalogLoaded,
+    getUtilitySubmissionViewModel,
+    updateUtilitySubmissionState,
+    getFinalProjectPackState,
+    exportFinalProjectPack,
     __test: {
       evaluateUtilitySubmission: _evaluateUtilitySubmission,
       buildProjectPack: _buildProjectPack,
       projectPackCsvFiles: _projectPackCsvFiles,
+      composeProjectPackContext: _composeProjectPackContext,
     }
   };
 })();

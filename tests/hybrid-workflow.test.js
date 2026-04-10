@@ -216,3 +216,59 @@ test('project pack CSV export set includes summary/BOM/settings/compliance files
   assert.ok(files['PackBase_summary.csv'].includes('Item,Value'));
   assert.ok(files['PackBase_compliance.csv'].includes('Area,Requirement,Status,Evidence,Action/Note'));
 });
+
+test('project pack context blocks release when utility submission strict gate fails', () => {
+  const composeCtx = HybridSetup.__test.composeProjectPackContext;
+  const result = {
+    date: '2026-04-10',
+    battery: { requiredNominal_kWh: 10, requiredUsable_kWh: 8, totalEfficiency: 0.8 },
+    batteryAh: 200,
+    pv: { recommended_kWp: 4 },
+    inverter: { requiredContinuous_kW: 3.5, requiredSurge_kW: 5.5 },
+    charge: { current_A: 80 },
+    inputs: {
+      exportMode: 'export',
+      utilityProfile: 'ceb_2025',
+      inverterModelId: '__none__',
+      ...allSubmissionTrue(),
+      utilityDocSld: false
+    },
+    warnings: [],
+    catalogue: {
+      summary: { pass: 2, warn: 0, fail: 0 },
+      checks: []
+    }
+  };
+
+  const ctx = composeCtx(result);
+  assert.equal(ctx.ok, true);
+  assert.equal(ctx.canRelease, false);
+  assert.ok(/Missing documents/i.test(ctx.gateReason));
+});
+
+test('project pack context allows release for no-export workflow', () => {
+  const composeCtx = HybridSetup.__test.composeProjectPackContext;
+  const result = {
+    date: '2026-04-10',
+    battery: { requiredNominal_kWh: 10, requiredUsable_kWh: 8, totalEfficiency: 0.8 },
+    batteryAh: 200,
+    pv: { recommended_kWp: 4 },
+    inverter: { requiredContinuous_kW: 3.5, requiredSurge_kW: 5.5 },
+    charge: { current_A: 80 },
+    inputs: {
+      exportMode: 'no_export',
+      utilityProfile: 'offgrid',
+      inverterModelId: '__none__',
+      ...allSubmissionTrue()
+    },
+    warnings: [],
+    catalogue: {
+      summary: { pass: 2, warn: 0, fail: 0 },
+      checks: []
+    }
+  };
+
+  const ctx = composeCtx(result);
+  assert.equal(ctx.ok, true);
+  assert.equal(ctx.canRelease, true);
+});
