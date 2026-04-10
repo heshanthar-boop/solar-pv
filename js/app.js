@@ -137,6 +137,7 @@ const App = (() => {
   // Active project — shared across all modules via App.getProject()
   const _defaultProject = () => ({
     name: '', client: '', siteAddress: '', systemKwp: '', systemType: 'grid-tie',
+    lat: '', lon: '',
     updatedAt: new Date().toISOString()
   });
 
@@ -736,6 +737,20 @@ const App = (() => {
   // HOME SCREEN
   // -----------------------------------------------------------------------
 
+  const ONBOARD_DISMISS_KEY = 'solarpv_onboard_dismissed';
+
+  function _onboardSteps() {
+    const p = _project;
+    const hasProject = !!(p.name || p.client || p.siteAddress);
+    const hasPanel = typeof DB !== 'undefined' && DB.getAll().length > 0;
+    const hasSizing = !!(state.sizingResult);
+    return [
+      { title: 'Set your project', desc: 'Name, client, site address, system size', done: hasProject, action: 'project' },
+      { title: 'Add a PV module', desc: 'Import or enter module datasheet values', done: hasPanel, action: 'database' },
+      { title: 'Run string sizing', desc: 'Verify voltage & current limits for your inverter', done: hasSizing, action: 'sizing' },
+    ];
+  }
+
   function _renderHome(container) {
     const allowed = _allowedPages();
     const projectTypeOptions = Object.entries(PROJECT_TYPES).map(([k, v]) =>
@@ -743,21 +758,31 @@ const App = (() => {
     ).join('');
 
     const p = _project;
-    const hasProject = p.name || p.client || p.siteAddress;
+    const hasProject = !!(p.name || p.client || p.siteAddress);
+
+    // System type display label
+    const typeLabels = {
+      'grid-tie': 'Grid-Tie', 'hybrid': 'Hybrid', 'off-grid': 'Off-Grid', 'ground-mount': 'Ground Mount'
+    };
+    const typeLabel = typeLabels[p.systemType] || p.systemType || '';
+
     const projectCardHtml = `
       <div class="project-card card" id="home-project-card">
         <div class="project-card-header">
           <span class="project-card-icon">&#128736;</span>
-          <span class="project-card-title">${hasProject ? escapeHTML(p.name || 'Unnamed Project') : 'Active Project'}</span>
-          <button class="btn btn-sm btn-secondary" id="home-project-edit-btn" style="margin-left:auto">${hasProject ? 'Edit' : '+ Set Project'}</button>
+          <span class="project-card-title">${hasProject ? escapeHTML(p.name || 'Unnamed Project') : 'No Active Project'}</span>
+          <button class="btn btn-sm btn-secondary" id="home-project-edit-btn" style="margin-left:auto;flex-shrink:0">${hasProject ? '&#9998; Edit' : '+ Set Project'}</button>
         </div>
         ${hasProject ? `
-        <div class="project-card-meta">
+        <div class="project-card-meta" style="margin-bottom:6px">
           ${p.client ? `<span>&#128100; ${escapeHTML(p.client)}</span>` : ''}
           ${p.siteAddress ? `<span>&#128205; ${escapeHTML(p.siteAddress)}</span>` : ''}
-          ${p.systemKwp ? `<span>&#9889; ${escapeHTML(p.systemKwp)} kWp</span>` : ''}
-          ${p.systemType ? `<span>&#128268; ${escapeHTML(p.systemType)}</span>` : ''}
-        </div>` : `<div class="text-muted" style="font-size:0.82rem;padding:4px 0">Set project details to pre-fill forms across all modules.</div>`}
+        </div>
+        <div style="display:flex;flex-wrap:wrap;gap:6px;align-items:center">
+          ${p.systemKwp ? `<span class="project-card-kwp">&#9889; ${escapeHTML(p.systemKwp)} kWp</span>` : ''}
+          ${typeLabel ? `<span class="project-card-type">&#128268; ${escapeHTML(typeLabel)}</span>` : ''}
+          ${(p.lat && p.lon) ? `<span class="project-card-loc">&#127757; ${parseFloat(p.lat).toFixed(4)}, ${parseFloat(p.lon).toFixed(4)}</span>` : ''}
+        </div>` : `<div class="text-muted" style="font-size:0.82rem;padding:4px 0">Set project details to pre-fill forms and reports across all modules.</div>`}
       </div>`;
 
     const backupDays = _backupAgeDays();
@@ -767,6 +792,27 @@ const App = (() => {
            <strong>Export a backup in Settings &rarr;</strong>
          </div>`
       : '';
+
+    // Onboarding banner — show if not dismissed and not all steps done
+    const dismissed = localStorage.getItem(ONBOARD_DISMISS_KEY) === '1';
+    const steps = _onboardSteps();
+    const allDone = steps.every(s => s.done);
+    const onboardHtml = (!dismissed && !allDone) ? `
+      <div class="home-onboard" id="home-onboard">
+        <div class="home-onboard-title">&#128640; Get started — 3 quick steps</div>
+        <div class="home-onboard-steps">
+          ${steps.map((s, i) => `
+            <div class="home-onboard-step ${s.done ? 'done' : ''}" data-onboard-action="${s.action}">
+              <div class="home-onboard-num">${s.done ? '&#10003;' : (i + 1)}</div>
+              <div class="home-onboard-step-text">
+                <div class="home-onboard-step-title">${escapeHTML(s.title)}</div>
+                <div class="home-onboard-step-desc">${escapeHTML(s.desc)}</div>
+              </div>
+              ${!s.done ? '<span style="color:var(--text-muted);font-size:1rem">&#8250;</span>' : ''}
+            </div>`).join('')}
+        </div>
+        <div class="home-onboard-dismiss" id="home-onboard-dismiss">Dismiss &times;</div>
+      </div>` : '';
 
     const groups = HOME_TILES.map(group => {
       const visibleTiles = group.tiles.filter(t => allowed.has(t.page));
@@ -784,16 +830,20 @@ const App = (() => {
         </div>`;
     }).join('');
 
+    const settings = (() => { try { return JSON.parse(localStorage.getItem('solarpv_settings') || '{}'); } catch { return {}; } })();
+    const footerCompany = escapeHTML(settings.company || 'Heshan Engineering Solution');
+
     container.innerHTML = `
       <div class="home-screen">
         ${projectCardHtml}
         ${backupWarnHtml}
+        ${onboardHtml}
         <div class="home-filter">
-          <label class="home-filter-label">Tool Filter</label>
+          <label class="home-filter-label">&#128268; Tool Filter</label>
           <select class="form-select" id="home-project-mode">${projectTypeOptions}</select>
         </div>
         ${groups}
-        <div class="home-footer">v1.1 &bull; Heshan Engineering Solution</div>
+        <div class="home-footer">Solar PV Field Tool &bull; ${footerCompany}</div>
       </div>`;
 
     container.querySelector('#home-project-mode').addEventListener('change', e => {
@@ -810,6 +860,23 @@ const App = (() => {
 
     const backupWarn = container.querySelector('#home-backup-warn');
     if (backupWarn) backupWarn.addEventListener('click', () => navigate('settings'));
+
+    // Onboarding step clicks
+    container.querySelectorAll('[data-onboard-action]').forEach(el => {
+      if (el.classList.contains('done')) return;
+      el.addEventListener('click', () => {
+        const action = el.dataset.onboardAction;
+        if (action === 'project') _showProjectModal(container);
+        else navigate(action);
+      });
+    });
+    const dismissBtn = container.querySelector('#home-onboard-dismiss');
+    if (dismissBtn) {
+      dismissBtn.addEventListener('click', () => {
+        localStorage.setItem(ONBOARD_DISMISS_KEY, '1');
+        container.querySelector('#home-onboard').remove();
+      });
+    }
 
     container.querySelectorAll('.home-tile').forEach(btn => {
       btn.addEventListener('click', () => navigate(btn.dataset.page));
@@ -847,10 +914,21 @@ const App = (() => {
           <label class="form-label">System Type</label>
           <select class="form-select" id="proj-type">${typeOptions}</select>
         </div>
+      </div>
+      <div class="form-group">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px">
+          <label class="form-label" style="margin:0">Site Location (GPS)</label>
+          <button class="btn btn-secondary btn-sm" id="proj-gps-btn" type="button">&#127757; Detect GPS</button>
+        </div>
+        <div class="form-row cols-2">
+          <input class="form-input" id="proj-lat" type="number" step="0.0001" value="${escapeHTML(p.lat || '')}" placeholder="Latitude (e.g. 7.2906)" />
+          <input class="form-input" id="proj-lon" type="number" step="0.0001" value="${escapeHTML(p.lon || '')}" placeholder="Longitude (e.g. 80.6337)" />
+        </div>
+        <div class="form-hint" id="proj-gps-hint">Used by Sun Angle estimator &amp; Yield calculator. Sri Lanka ≈ 6–9&deg;N, 79–82&deg;E</div>
       </div>`,
       [
         { label: 'Cancel', cls: 'btn-secondary', action: 'close' },
-        { label: 'Clear Project', cls: 'btn-secondary', action: () => {
+        { label: 'Clear', cls: 'btn-secondary', action: () => {
           _project = _defaultProject();
           _saveProject();
           _renderHome(homeContainer);
@@ -862,6 +940,10 @@ const App = (() => {
           _project.siteAddress = document.getElementById('proj-address').value.trim();
           _project.systemKwp = document.getElementById('proj-kwp').value.trim();
           _project.systemType = document.getElementById('proj-type').value;
+          const latVal = document.getElementById('proj-lat').value.trim();
+          const lonVal = document.getElementById('proj-lon').value.trim();
+          _project.lat = latVal;
+          _project.lon = lonVal;
           _saveProject();
           _renderHome(homeContainer);
           toast('Project saved', 'success');
@@ -869,6 +951,35 @@ const App = (() => {
         }},
       ]
     );
+
+    // Wire up GPS detect button after modal is shown
+    const gpsBtn = document.getElementById('proj-gps-btn');
+    const gpsHint = document.getElementById('proj-gps-hint');
+    if (gpsBtn) {
+      gpsBtn.addEventListener('click', () => {
+        if (!navigator.geolocation) {
+          gpsHint.textContent = 'GPS not available on this device.';
+          return;
+        }
+        gpsBtn.textContent = '⏳ Detecting…';
+        gpsBtn.disabled = true;
+        navigator.geolocation.getCurrentPosition(
+          (pos) => {
+            document.getElementById('proj-lat').value = pos.coords.latitude.toFixed(4);
+            document.getElementById('proj-lon').value = pos.coords.longitude.toFixed(4);
+            gpsHint.textContent = `Detected: ${pos.coords.latitude.toFixed(4)}, ${pos.coords.longitude.toFixed(4)} (±${Math.round(pos.coords.accuracy)}m)`;
+            gpsBtn.textContent = '✓ Got GPS';
+            gpsBtn.disabled = false;
+          },
+          (err) => {
+            gpsHint.textContent = 'GPS error: ' + (err.message || 'Permission denied. Enter manually.');
+            gpsBtn.textContent = '🌍 Detect GPS';
+            gpsBtn.disabled = false;
+          },
+          { enableHighAccuracy: true, timeout: 10000, maximumAge: 60000 }
+        );
+      });
+    }
   }
 
   // -----------------------------------------------------------------------
