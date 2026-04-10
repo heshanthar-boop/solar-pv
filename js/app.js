@@ -687,6 +687,7 @@ const App = (() => {
       homeBtn.classList.add('hidden');
       main.scrollTop = 0;
       _renderHome(main);
+      _updateBottomNav('home');
       return;
     }
 
@@ -697,6 +698,7 @@ const App = (() => {
     state.currentPage = pageId;
     titleEl.textContent = page.title;
     homeBtn.classList.remove('hidden');
+    _updateBottomNav(pageId);
     main.scrollTop = 0;
     page.render(main);
   }
@@ -796,6 +798,83 @@ const App = (() => {
   }
 
   // -----------------------------------------------------------------------
+  // THEME (DARK MODE)
+  // -----------------------------------------------------------------------
+
+  function _applyTheme(theme) {
+    document.documentElement.setAttribute('data-theme', theme);
+    localStorage.setItem('solarpv_theme', theme);
+    // Update meta theme-color for browser chrome
+    const meta = document.querySelector('meta[name="theme-color"]');
+    if (meta) meta.content = theme === 'dark' ? '#1a1a1a' : '#d97706';
+  }
+
+  function _initTheme() {
+    const saved = localStorage.getItem('solarpv_theme') || 'light';
+    _applyTheme(saved);
+  }
+
+  // -----------------------------------------------------------------------
+  // BOTTOM NAV
+  // -----------------------------------------------------------------------
+
+  function _initBottomNav() {
+    const nav = document.createElement('nav');
+    nav.id = 'bottom-nav';
+    nav.setAttribute('role', 'navigation');
+    nav.setAttribute('aria-label', 'Main navigation');
+    nav.innerHTML = `
+      <button class="nav-item" id="nav-home" data-nav="home" aria-label="Home">
+        <span class="nav-item-icon">&#8962;</span>
+        <span class="nav-item-label">Home</span>
+      </button>
+      <button class="nav-item" id="nav-back" data-nav="back" aria-label="Back" style="display:none">
+        <span class="nav-item-icon">&#8592;</span>
+        <span class="nav-item-label">Back</span>
+      </button>
+      <button class="nav-item" id="nav-database" data-nav="database" aria-label="Database">
+        <span class="nav-item-icon">&#128230;</span>
+        <span class="nav-item-label">Database</span>
+      </button>
+      <button class="nav-item" id="nav-settings" data-nav="settings" aria-label="Settings">
+        <span class="nav-item-icon">&#9881;</span>
+        <span class="nav-item-label">Settings</span>
+      </button>
+    `;
+    document.body.appendChild(nav);
+
+    nav.addEventListener('click', e => {
+      const btn = e.target.closest('[data-nav]');
+      if (!btn) return;
+      const target = btn.dataset.nav;
+      if (target === 'back') {
+        navigate('home');
+      } else {
+        navigate(target);
+      }
+    });
+  }
+
+  function _updateBottomNav(page) {
+    const homeBtn = document.getElementById('nav-home');
+    const backBtn = document.getElementById('nav-back');
+    const dbBtn = document.getElementById('nav-database');
+    const setBtn = document.getElementById('nav-settings');
+    if (!homeBtn) return;
+
+    // Show back button on non-home pages, hide home button
+    const onHome = (page === 'home');
+    homeBtn.style.display = onHome ? '' : 'none';
+    backBtn.style.display = onHome ? 'none' : '';
+
+    // Active state
+    [homeBtn, dbBtn, setBtn].forEach(b => b && b.classList.remove('active'));
+    if (page === 'home') homeBtn.classList.add('active');
+    if (page === 'database') dbBtn && dbBtn.classList.add('active');
+    if (page === 'settings') setBtn && setBtn.classList.add('active');
+  }
+
+  // -----------------------------------------------------------------------
   // SETTINGS PAGE
   // -----------------------------------------------------------------------
 
@@ -838,9 +917,24 @@ const App = (() => {
           `).join('')
       : '<tr><td colspan="6" class="text-muted">No imports recorded yet.</td></tr>';
 
+    const darkActive = document.documentElement.getAttribute('data-theme') === 'dark';
     container.innerHTML = `
       <div class="page">
         <div class="page-title">&#9881; Settings</div>
+
+        <div class="card">
+          <div class="card-title">Display</div>
+          <div style="display:flex;align-items:center;justify-content:space-between;padding:4px 0">
+            <div>
+              <div style="font-weight:700;font-size:0.95rem">Dark Mode</div>
+              <div class="text-muted" style="font-size:0.8rem">Reduces glare in bright sunlight</div>
+            </div>
+            <label class="toggle-switch" aria-label="Dark mode">
+              <input type="checkbox" id="set-dark-mode" ${darkActive ? 'checked' : ''} />
+              <span class="toggle-track"><span class="toggle-thumb"></span></span>
+            </label>
+          </div>
+        </div>
 
         <div class="card">
           <div class="card-title">Inspector Details</div>
@@ -946,6 +1040,14 @@ const App = (() => {
         </div>
       </div>
     `;
+
+    const darkModeToggle = container.querySelector('#set-dark-mode');
+    if (darkModeToggle) {
+      darkModeToggle.addEventListener('change', () => {
+        const dark = darkModeToggle.checked;
+        _applyTheme(dark ? 'dark' : 'light');
+      });
+    }
 
     container.querySelector('#set-save-btn').addEventListener('click', () => {
       const s = {
@@ -1362,6 +1464,9 @@ const App = (() => {
     DB.init();
     _initModalClose();
     _initSW();
+    _initTheme();
+    _initBottomNav();
+    _initAutoValidation();
 
     // Restore saved project type
     const savedType = localStorage.getItem('solarpv_project_type');
@@ -1386,6 +1491,61 @@ const App = (() => {
     init();
   }
 
+  // -----------------------------------------------------------------------
+  // LIVE VALIDATION UTILITY
+  // -----------------------------------------------------------------------
+  // Call App.attachLiveValidation(container) after rendering a form to
+  // automatically wire up real-time validation on all .form-input[type=number]
+  // and .form-input[required] elements. Reads data-min / data-max / required attrs.
+
+  function attachLiveValidation(container) {
+    const inputs = (container || document).querySelectorAll('.form-input, .form-select');
+    inputs.forEach(el => {
+      if (el.dataset.liveValidated) return;
+      el.dataset.liveValidated = '1';
+
+      const validate = () => {
+        const val = el.value.trim();
+        let ok = true;
+        let msg = '';
+
+        if (el.required && val === '') {
+          ok = false; msg = 'Required';
+        } else if (el.type === 'number' && val !== '') {
+          const num = parseFloat(val);
+          if (isNaN(num)) {
+            ok = false; msg = 'Enter a number';
+          } else {
+            const min = el.dataset.min !== undefined ? parseFloat(el.dataset.min) : null;
+            const max = el.dataset.max !== undefined ? parseFloat(el.dataset.max) : null;
+            if (min !== null && num < min) { ok = false; msg = `Min: ${min}`; }
+            else if (max !== null && num > max) { ok = false; msg = `Max: ${max}`; }
+          }
+        }
+
+        // Only show state if user has interacted (not on pristine empty optional fields)
+        const pristineEmpty = val === '' && !el.required;
+        el.classList.toggle('is-valid', !pristineEmpty && ok);
+        el.classList.toggle('is-invalid', !pristineEmpty && !ok);
+
+        // Update sibling error message if present
+        const errEl = el.parentElement && el.parentElement.querySelector('.form-error-msg');
+        if (errEl) errEl.textContent = msg;
+      };
+
+      el.addEventListener('input', validate);
+      el.addEventListener('blur', validate);
+    });
+  }
+
+  // Auto-attach on every page render (MutationObserver on main-content)
+  function _initAutoValidation() {
+    const observer = new MutationObserver(() => {
+      attachLiveValidation(main);
+    });
+    observer.observe(main, { childList: true, subtree: false });
+  }
+
   return {
     state,
     navigate,
@@ -1400,5 +1560,6 @@ const App = (() => {
     addImportHistory,
     getImportHistory,
     clearImportHistory,
+    attachLiveValidation,
   };
 })();

@@ -2,7 +2,7 @@
  * sw.js — Service Worker (cache-first offline support)
  */
 
-const CACHE_NAME = 'solarpv-v13';
+const CACHE_NAME = 'solarpv-v14';
 const CACHE_PREFIX = 'solarpv-v';
 
 const LOCAL_ASSETS = [
