@@ -436,6 +436,58 @@ button { cursor: pointer; border: none; background: none; }
   font-size: 0.78rem; color: var(--text-secondary); margin-bottom: 4px; line-height: 1.6;
 }
 
+/* ===== PROJECT CARD ===== */
+.project-card {
+  border-left: 4px solid var(--primary); margin-bottom: 14px; padding: 12px 14px;
+}
+.project-card-header {
+  display: flex; align-items: center; gap: 8px; margin-bottom: 6px;
+}
+.project-card-icon { font-size: 1.1rem; flex-shrink: 0; }
+.project-card-title {
+  font-weight: 700; font-size: 1rem; color: var(--text);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex: 1; min-width: 0;
+}
+.project-card-meta {
+  display: flex; flex-wrap: wrap; gap: 6px 14px; font-size: 0.8rem; color: var(--text-secondary);
+}
+.project-card-meta span { display: flex; align-items: center; gap: 4px; }
+
+/* ===== COMMISSIONING CHECKLIST ===== */
+.ck-items { display: flex; flex-direction: column; gap: 2px; }
+.ck-item {
+  padding: 10px 12px; border-radius: var(--radius);
+  background: var(--bg-2); border: 1.5px solid transparent;
+  transition: background var(--transition), border-color var(--transition);
+}
+.ck-item-done {
+  background: var(--valid-bg); border-color: rgba(22, 163, 74, 0.2);
+}
+.ck-item-label {
+  display: flex; align-items: flex-start; gap: 10px; cursor: pointer;
+}
+.ck-checkbox {
+  width: 22px; height: 22px; flex-shrink: 0; margin-top: 1px;
+  accent-color: var(--success); cursor: pointer;
+}
+.ck-item-text {
+  flex: 1; font-size: 0.9rem; line-height: 1.4; color: var(--text);
+}
+.ck-item-done .ck-item-text {
+  color: var(--text-secondary); text-decoration: line-through;
+}
+.ck-item-ts {
+  font-size: 0.72rem; color: var(--success); font-weight: 700;
+  white-space: nowrap; padding-top: 3px;
+}
+.ck-progress-bar {
+  height: 8px; background: var(--bg-3); border-radius: 99px; overflow: hidden;
+}
+.ck-progress-fill {
+  height: 100%; background: var(--primary); border-radius: 99px;
+  transition: width 0.4s ease;
+}
+
 /* ===== TOGGLE SWITCH ===== */
 .toggle-switch {
   position: relative; display: inline-flex; align-items: center;

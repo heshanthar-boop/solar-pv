@@ -40,6 +40,7 @@ const App = (() => {
     yield:       { title: 'Yield Estimator',            render: (c) => YieldEstimator.render(c) },
     inspector:   { title: 'PV Inspection Analyzer',    render: (c) => PVInspector.render(c) },
     faultai:     { title: 'Fault Detection',            render: (c) => FaultAI.render(c) },
+    checklist:   { title: 'Commissioning Checklist',   render: (c) => Checklist.render(c) },
     settings:    { title: 'Settings',                   render: (c) => _renderSettings(c) },
   };
 
@@ -50,27 +51,27 @@ const App = (() => {
     },
     gridTie: {
       label: 'Grid-Tie System',
-      pages: ['database', 'sizing', 'wirecalc', 'utilityvalidator', 'temp', 'fieldtest', 'fault', 'inspection', 'pr', 'inverter', 'shading', 'yield', 'inspector', 'standards', 'settings'],
+      pages: ['database', 'sizing', 'wirecalc', 'utilityvalidator', 'temp', 'fieldtest', 'fault', 'inspection', 'pr', 'checklist', 'inverter', 'shading', 'yield', 'inspector', 'standards', 'settings'],
     },
     gridTieHybrid: {
       label: 'Grid-Tie Hybrid System',
-      pages: ['database', 'sizing', 'wirecalc', 'hybrid', 'utilityvalidator', 'temp', 'fieldtest', 'fault', 'inspection', 'pr', 'inverter', 'shading', 'yield', 'inspector', 'degradation', 'fieldanalysis', 'diagnostics', 'faultai', 'standards', 'settings'],
+      pages: ['database', 'sizing', 'wirecalc', 'hybrid', 'utilityvalidator', 'temp', 'fieldtest', 'fault', 'inspection', 'pr', 'checklist', 'inverter', 'shading', 'yield', 'inspector', 'degradation', 'fieldanalysis', 'diagnostics', 'faultai', 'standards', 'settings'],
     },
     fullyHybrid: {
       label: 'Fully Hybrid System',
-      pages: ['database', 'wirecalc', 'hybrid', 'utilityvalidator', 'temp', 'fieldtest', 'fault', 'inspection', 'pr', 'degradation', 'fieldanalysis', 'diagnostics', 'yield', 'standards', 'settings'],
+      pages: ['database', 'wirecalc', 'hybrid', 'utilityvalidator', 'temp', 'fieldtest', 'fault', 'inspection', 'pr', 'checklist', 'degradation', 'fieldanalysis', 'diagnostics', 'yield', 'standards', 'settings'],
     },
     groundMount: {
       label: 'Ground Mount Solar System',
-      pages: ['database', 'sizing', 'wirecalc', 'utilityvalidator', 'temp', 'fieldtest', 'fault', 'inspection', 'pr', 'inverter', 'shading', 'yield', 'inspector', 'fieldanalysis', 'diagnostics', 'standards', 'settings'],
+      pages: ['database', 'sizing', 'wirecalc', 'utilityvalidator', 'temp', 'fieldtest', 'fault', 'inspection', 'pr', 'checklist', 'inverter', 'shading', 'yield', 'inspector', 'fieldanalysis', 'diagnostics', 'standards', 'settings'],
     },
     battery: {
       label: 'Battery Focus',
-      pages: ['database', 'wirecalc', 'hybrid', 'utilityvalidator', 'fieldtest', 'fault', 'pr', 'standards', 'settings'],
+      pages: ['database', 'wirecalc', 'hybrid', 'utilityvalidator', 'fieldtest', 'fault', 'pr', 'checklist', 'standards', 'settings'],
     },
     standardsOnly: {
       label: 'Standards',
-      pages: ['standards', 'wirecalc', 'settings'],
+      pages: ['standards', 'wirecalc', 'checklist', 'settings'],
     },
     pvAnalysis: {
       label: 'PV Analysis',
@@ -96,6 +97,7 @@ const App = (() => {
     {
       group: 'Field Testing',
       tiles: [
+        { page: 'checklist',   icon: '&#9989;',   label: 'Commissioning',        desc: 'Pre-energisation checklist' },
         { page: 'fieldtest',   icon: '&#128202;', label: 'Field Test vs STC',    desc: 'Voc/Isc correction' },
         { page: 'temp',        icon: '&#127777;', label: 'Temp Correction',      desc: 'Module temp derating' },
         { page: 'fault',       icon: '&#9888;',   label: 'Fault Checker',        desc: 'String fault patterns' },
@@ -126,6 +128,29 @@ const App = (() => {
   const IMPORT_HISTORY_KEY = 'solarpv_import_history_v1';
   const IMPORT_HISTORY_MODAL_PREFS_KEY = 'solarpv_import_history_modal_prefs_v1';
   const IMPORT_HISTORY_MAX = 60;
+  const PROJECT_KEY = 'solarpv_active_project';
+
+  // Active project — shared across all modules via App.getProject()
+  const _defaultProject = () => ({
+    name: '', client: '', siteAddress: '', systemKwp: '', systemType: 'grid-tie',
+    updatedAt: new Date().toISOString()
+  });
+
+  let _project = _defaultProject();
+
+  function _loadProject() {
+    try {
+      const raw = JSON.parse(localStorage.getItem(PROJECT_KEY) || 'null');
+      if (raw && typeof raw === 'object') _project = Object.assign(_defaultProject(), raw);
+    } catch (_) {}
+  }
+
+  function _saveProject() {
+    _project.updatedAt = new Date().toISOString();
+    localStorage.setItem(PROJECT_KEY, JSON.stringify(_project));
+  }
+
+  function getProject() { return Object.assign({}, _project); }
 
   function escapeHTML(value) {
     return String(value ?? '')
@@ -713,6 +738,24 @@ const App = (() => {
       `<option value="${k}" ${k === state.projectType ? 'selected' : ''}>${escapeHTML(v.label)}</option>`
     ).join('');
 
+    const p = _project;
+    const hasProject = p.name || p.client || p.siteAddress;
+    const projectCardHtml = `
+      <div class="project-card card" id="home-project-card">
+        <div class="project-card-header">
+          <span class="project-card-icon">&#128736;</span>
+          <span class="project-card-title">${hasProject ? escapeHTML(p.name || 'Unnamed Project') : 'Active Project'}</span>
+          <button class="btn btn-sm btn-secondary" id="home-project-edit-btn" style="margin-left:auto">${hasProject ? 'Edit' : '+ Set Project'}</button>
+        </div>
+        ${hasProject ? `
+        <div class="project-card-meta">
+          ${p.client ? `<span>&#128100; ${escapeHTML(p.client)}</span>` : ''}
+          ${p.siteAddress ? `<span>&#128205; ${escapeHTML(p.siteAddress)}</span>` : ''}
+          ${p.systemKwp ? `<span>&#9889; ${escapeHTML(p.systemKwp)} kWp</span>` : ''}
+          ${p.systemType ? `<span>&#128268; ${escapeHTML(p.systemType)}</span>` : ''}
+        </div>` : `<div class="text-muted" style="font-size:0.82rem;padding:4px 0">Set project details to pre-fill forms across all modules.</div>`}
+      </div>`;
+
     const groups = HOME_TILES.map(group => {
       const visibleTiles = group.tiles.filter(t => allowed.has(t.page));
       if (!visibleTiles.length) return '';
@@ -731,12 +774,13 @@ const App = (() => {
 
     container.innerHTML = `
       <div class="home-screen">
+        ${projectCardHtml}
         <div class="home-filter">
-          <label class="home-filter-label">Project View</label>
+          <label class="home-filter-label">Tool Filter</label>
           <select class="form-select" id="home-project-mode">${projectTypeOptions}</select>
         </div>
         ${groups}
-        <div class="home-footer">v1.0 &bull; Heshan Engineering Solution</div>
+        <div class="home-footer">v1.1 &bull; Heshan Engineering Solution</div>
       </div>`;
 
     container.querySelector('#home-project-mode').addEventListener('change', e => {
@@ -747,9 +791,68 @@ const App = (() => {
       _renderHome(container);
     });
 
+    container.querySelector('#home-project-edit-btn').addEventListener('click', () => {
+      _showProjectModal(container);
+    });
+
     container.querySelectorAll('.home-tile').forEach(btn => {
       btn.addEventListener('click', () => navigate(btn.dataset.page));
     });
+  }
+
+  function _showProjectModal(homeContainer) {
+    const p = _project;
+    const typeOptions = [
+      ['grid-tie', 'Grid-Tie'],
+      ['hybrid', 'Hybrid'],
+      ['off-grid', 'Off-Grid'],
+      ['ground-mount', 'Ground Mount'],
+    ].map(([v, l]) => `<option value="${v}" ${p.systemType === v ? 'selected' : ''}>${l}</option>`).join('');
+
+    showModal('Active Project', `
+      <div class="form-group">
+        <label class="form-label">Project Name / Site ID</label>
+        <input class="form-input" id="proj-name" value="${escapeHTML(p.name)}" placeholder="e.g. Colombo Rooftop 50kWp" />
+      </div>
+      <div class="form-group">
+        <label class="form-label">Client Name</label>
+        <input class="form-input" id="proj-client" value="${escapeHTML(p.client)}" placeholder="Client or company name" />
+      </div>
+      <div class="form-group">
+        <label class="form-label">Site Address</label>
+        <input class="form-input" id="proj-address" value="${escapeHTML(p.siteAddress)}" placeholder="Site location" />
+      </div>
+      <div class="form-row cols-2">
+        <div class="form-group">
+          <label class="form-label">System Size (kWp)</label>
+          <input class="form-input" id="proj-kwp" type="number" min="0.1" step="0.1" value="${escapeHTML(p.systemKwp)}" placeholder="e.g. 10.2" />
+        </div>
+        <div class="form-group">
+          <label class="form-label">System Type</label>
+          <select class="form-select" id="proj-type">${typeOptions}</select>
+        </div>
+      </div>`,
+      [
+        { label: 'Cancel', cls: 'btn-secondary', action: 'close' },
+        { label: 'Clear Project', cls: 'btn-secondary', action: () => {
+          _project = _defaultProject();
+          _saveProject();
+          _renderHome(homeContainer);
+          return true;
+        }},
+        { label: 'Save', cls: 'btn-primary', action: () => {
+          _project.name = document.getElementById('proj-name').value.trim();
+          _project.client = document.getElementById('proj-client').value.trim();
+          _project.siteAddress = document.getElementById('proj-address').value.trim();
+          _project.systemKwp = document.getElementById('proj-kwp').value.trim();
+          _project.systemType = document.getElementById('proj-type').value;
+          _saveProject();
+          _renderHome(homeContainer);
+          toast('Project saved', 'success');
+          return true;
+        }},
+      ]
+    );
   }
 
   // -----------------------------------------------------------------------
@@ -1464,6 +1567,7 @@ const App = (() => {
     DB.init();
     _initModalClose();
     _initSW();
+    _loadProject();
     _initTheme();
     _initBottomNav();
     _initAutoValidation();
@@ -1561,5 +1665,6 @@ const App = (() => {
     getImportHistory,
     clearImportHistory,
     attachLiveValidation,
+    getProject,
   };
 })();
