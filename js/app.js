@@ -4,6 +4,45 @@
  */
 
 const App = (() => {
+  // -----------------------------------------------------------------------
+  // APP MODE — 'basic' | 'advanced'
+  // -----------------------------------------------------------------------
+  const MODE_KEY = 'solarpv_app_mode';
+  let _mode = localStorage.getItem(MODE_KEY) === 'basic' ? 'basic' : 'advanced';
+
+  function getMode() { return _mode; }
+
+  function setMode(m) {
+    const next = (m === 'basic') ? 'basic' : 'advanced';
+    if (next === _mode) return;
+    _mode = next;
+    localStorage.setItem(MODE_KEY, _mode);
+    _updateModeToggleUI();
+    navigate('home');
+  }
+
+  function _updateModeToggleUI() {
+    const basicBtn = document.getElementById('mode-btn-basic');
+    const advBtn = document.getElementById('mode-btn-advanced');
+    if (basicBtn) basicBtn.classList.toggle('active', _mode === 'basic');
+    if (advBtn) advBtn.classList.toggle('active', _mode === 'advanced');
+  }
+
+  function _initModeToggle() {
+    const headerRight = document.getElementById('header-right');
+    if (!headerRight) return;
+    const wrap = document.createElement('div');
+    wrap.className = 'mode-toggle-wrap';
+    wrap.innerHTML = `
+      <button class="mode-toggle-btn${_mode === 'basic' ? ' active' : ''}" id="mode-btn-basic">Basic</button>
+      <button class="mode-toggle-btn${_mode === 'advanced' ? ' active' : ''}" id="mode-btn-advanced">Advanced</button>
+    `;
+    // Insert before Firebase sign-in button (prepend to headerRight)
+    headerRight.insertBefore(wrap, headerRight.firstChild);
+    wrap.querySelector('#mode-btn-basic').addEventListener('click', () => setMode('basic'));
+    wrap.querySelector('#mode-btn-advanced').addEventListener('click', () => setMode('advanced'));
+  }
+
   // Global state shared across modules
   const state = {
     currentPage: null,
@@ -43,6 +82,7 @@ const App = (() => {
     checklist:   { title: 'Commissioning Checklist',   render: (c) => Checklist.render(c) },
     reportbuilder: { title: 'Report Builder',          render: (c) => ReportBuilder.render(c) },
     cableschedule: { title: 'Cable Schedule',          render: (c) => CableSchedule.render(c) },
+    basiccalc:   { title: 'Quick Calculator',          render: (c) => BasicCalc.render(c) },
     settings:    { title: 'Settings',                   render: (c) => _renderSettings(c) },
   };
 
@@ -716,12 +756,22 @@ const App = (() => {
       titleEl.textContent = 'Solar PV Field Tool';
       homeBtn.classList.add('hidden');
       main.scrollTop = 0;
-      _renderHome(main);
+      if (_mode === 'basic') {
+        _renderBasicHome(main);
+      } else {
+        _renderHome(main);
+      }
       _updateBottomNav('home');
       return;
     }
 
-    if (!_isPageAllowed(pageId)) { navigate('home'); return; }
+    // In basic mode, only allow basiccalc and settings from internal nav
+    if (_mode === 'basic' && pageId !== 'basiccalc' && pageId !== 'settings') {
+      // Allow advanced modules when explicitly launched from Basic results "Next Steps"
+      // (setMode('advanced') is called first in that case, so _mode will be 'advanced')
+    }
+
+    if (!_isPageAllowed(pageId) && pageId !== 'basiccalc') { navigate('home'); return; }
     const page = PAGES[pageId];
     if (!page) return;
 
@@ -731,6 +781,81 @@ const App = (() => {
     _updateBottomNav(pageId);
     main.scrollTop = 0;
     page.render(main);
+  }
+
+  // -----------------------------------------------------------------------
+  // BASIC MODE HOME SCREEN
+  // -----------------------------------------------------------------------
+
+  function _renderBasicHome(container) {
+    const p = _project;
+    const hasProject = !!(p.name || p.client || p.siteAddress);
+    const typeLabels = { 'grid-tie': 'Grid-Tie', 'hybrid': 'Hybrid', 'off-grid': 'Off-Grid', 'ground-mount': 'Ground Mount' };
+
+    container.innerHTML = `
+      <div class="home-screen">
+        <div class="basic-home-hero">
+          <div class="basic-home-hero-title">&#9889; Solar PV Field Tool</div>
+          <div class="basic-home-hero-sub">Basic Mode &mdash; fast estimates, no complexity</div>
+          <button class="btn basic-home-switch-btn" id="basic-switch-advanced">Switch to Advanced &#8250;</button>
+        </div>
+
+        ${hasProject ? `
+        <div class="project-card card" style="margin-bottom:14px">
+          <div class="project-card-header">
+            <span class="project-card-icon">&#128736;</span>
+            <span class="project-card-title">${escapeHTML(p.name || 'Unnamed Project')}</span>
+            <button class="btn btn-sm btn-secondary" id="basic-project-edit-btn" style="margin-left:auto;flex-shrink:0">&#9998; Edit</button>
+          </div>
+          <div style="display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-top:4px">
+            ${p.systemKwp ? `<span class="project-card-kwp">&#9889; ${escapeHTML(p.systemKwp)} kWp</span>` : ''}
+            ${typeLabels[p.systemType] ? `<span class="project-card-type">&#128268; ${escapeHTML(typeLabels[p.systemType])}</span>` : ''}
+          </div>
+        </div>` : `
+        <div class="card" style="margin-bottom:14px">
+          <div class="text-muted" style="font-size:0.85rem;padding:4px 0">No active project. <button class="btn btn-sm btn-secondary" id="basic-project-set-btn" style="margin-left:6px">+ Set Project</button></div>
+        </div>`}
+
+        <div class="basic-home-tools">
+          <button class="basic-home-tile" data-page="basiccalc">
+            <span class="basic-home-tile-icon">&#128200;</span>
+            <div>
+              <div class="basic-home-tile-label">Quick Calculator</div>
+              <div class="basic-home-tile-desc">Panel count, inverter, battery, cable, cost</div>
+            </div>
+            <span class="basic-home-tile-arrow">&#8250;</span>
+          </button>
+          <button class="basic-home-tile" data-page="settings">
+            <span class="basic-home-tile-icon">&#9881;</span>
+            <div>
+              <div class="basic-home-tile-label">Settings</div>
+              <div class="basic-home-tile-desc">Inspector name, company, data</div>
+            </div>
+            <span class="basic-home-tile-arrow">&#8250;</span>
+          </button>
+        </div>
+
+        <div class="basic-home-advanced-hint">
+          Need detailed analysis, standards, field testing or commissioning?
+          <button class="btn btn-sm btn-secondary" id="basic-go-advanced" style="margin-top:8px;width:100%">&#128218; Open Advanced Mode</button>
+        </div>
+
+        <div class="home-footer">Solar PV Field Tool &bull; Basic Mode</div>
+      </div>
+    `;
+
+    container.querySelector('#basic-switch-advanced').addEventListener('click', () => setMode('advanced'));
+    const goAdv = container.querySelector('#basic-go-advanced');
+    if (goAdv) goAdv.addEventListener('click', () => setMode('advanced'));
+
+    const editBtn = container.querySelector('#basic-project-edit-btn');
+    if (editBtn) editBtn.addEventListener('click', () => _showProjectModal(container));
+    const setBtn = container.querySelector('#basic-project-set-btn');
+    if (setBtn) setBtn.addEventListener('click', () => _showProjectModal(container));
+
+    container.querySelectorAll('.basic-home-tile').forEach(btn => {
+      btn.addEventListener('click', () => navigate(btn.dataset.page));
+    });
   }
 
   // -----------------------------------------------------------------------
@@ -1801,6 +1926,7 @@ const App = (() => {
     _initTheme();
     _initBottomNav();
     _initAutoValidation();
+    _initModeToggle();
 
     // Restore saved project type
     const savedType = localStorage.getItem('solarpv_project_type');
@@ -1896,5 +2022,7 @@ const App = (() => {
     clearImportHistory,
     attachLiveValidation,
     getProject,
+    getMode,
+    setMode,
   };
 })();
