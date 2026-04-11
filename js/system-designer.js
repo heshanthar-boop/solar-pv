@@ -416,21 +416,23 @@ const SystemDesigner = (() => {
           <div class="card-title">3. Catalog Components</div>
           <div class="form-row cols-2">
             <div class="form-group">
-              <label class="form-label">PV Module (optional)</label>
+              <label class="form-label">PV Module (database)</label>
               <select class="form-select" id="sd-panel">
-                <option value="">Manual only</option>
+                <option value="">Select PV module...</option>
                 ${panels.map(p => `<option value="${_esc(p.id)}">${_esc(p.manufacturer)} ${_esc(p.model)} (${_esc(p.Pmax)}W)</option>`).join('')}
               </select>
+              <div class="form-hint">Required for module thermal and datasheet-backed simulation.</div>
             </div>
             <div class="form-group">
-              <label class="form-label">Inverter (optional)</label>
+              <label class="form-label">Inverter (database)</label>
               <select class="form-select" id="sd-inverter">
-                <option value="">Manual only</option>
+                <option value="">Select inverter...</option>
                 ${inverters.map(i => `<option value="${_esc(i.id)}">${_esc(i.manufacturer)} ${_esc(i.model)} (${_esc(i.acRated_kW)} kW)</option>`).join('')}
               </select>
+              <div class="form-hint">Required for AC rating and inverter limit checks.</div>
             </div>
             <div class="form-group">
-              <label class="form-label">Battery (optional)</label>
+              <label class="form-label">Battery (database)</label>
               <select class="form-select" id="sd-battery">
                 <option value="">No battery</option>
                 ${batteries.map(b => `<option value="${_esc(b.id)}">${_esc(b.manufacturer)} ${_esc(b.model)} (${_esc(b.nominalV)}V, ${_esc(b.capacityAh)}Ah)</option>`).join('')}
@@ -439,6 +441,7 @@ const SystemDesigner = (() => {
             <div class="form-group">
               <label class="form-label">Usable Battery (kWh)</label>
               <input class="form-input" id="sd-battery-kwh" type="number" min="0" step="0.1" value="0" />
+              <div class="form-hint" id="sd-battery-kwh-note">Auto-filled from selected battery record. Editable when no battery is selected.</div>
             </div>
           </div>
         </div>
@@ -503,6 +506,7 @@ const SystemDesigner = (() => {
     const noctEl = container.querySelector('#sd-noct');
     const gammaEl = container.querySelector('#sd-gamma');
     const batteryKwhEl = container.querySelector('#sd-battery-kwh');
+    const batteryKwhNoteEl = container.querySelector('#sd-battery-kwh-note');
 
     let _syncingLoad = false;
     const manual = {
@@ -574,7 +578,11 @@ const SystemDesigner = (() => {
 
     batterySel.addEventListener('change', () => {
       const bat = batteries.find(b => String(b.id) === String(batterySel.value));
-      if (!bat) return;
+      if (!bat) {
+        batteryKwhEl.readOnly = false;
+        if (batteryKwhNoteEl) batteryKwhNoteEl.textContent = 'No battery selected. Enter usable battery manually or keep 0.';
+        return;
+      }
       const nominal = Number(bat.nominalV);
       const ah = Number(bat.capacityAh);
       const dod = Number.isFinite(Number(bat.recommendedDod)) ? Number(bat.recommendedDod) : 0.8;
@@ -582,8 +590,11 @@ const SystemDesigner = (() => {
         const usable = nominal * ah * dod / 1000;
         batteryKwhEl.value = usable.toFixed(1);
       }
+      batteryKwhEl.readOnly = true;
+      if (batteryKwhNoteEl) batteryKwhNoteEl.textContent = 'Auto-filled from selected battery record (V x Ah x DoD).';
       if (typeof App !== 'undefined' && App) App.toast(`Battery loaded: ${bat.manufacturer} ${bat.model}`, 'success');
     });
+    batterySel.dispatchEvent(new Event('change'));
 
     container.querySelector('#sd-autosize').addEventListener('click', () => {
       const annualLoad = _num(annualLoadEl.value, 0);
@@ -664,6 +675,15 @@ const SystemDesigner = (() => {
       const panel = panels.find(p => String(p.id) === String(panelSel.value));
       const inverter = inverters.find(i => String(i.id) === String(inverterSel.value));
       const battery = batteries.find(b => String(b.id) === String(batterySel.value));
+
+      if (!panel) {
+        App.toast('Select PV module from database in Catalog Components', 'error');
+        return;
+      }
+      if (!inverter) {
+        App.toast('Select inverter from database in Catalog Components', 'error');
+        return;
+      }
 
       if (inverter) {
         const invMaxPv = Number(inverter.maxPv_kW);
