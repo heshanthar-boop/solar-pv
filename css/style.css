@@ -705,3 +705,24 @@ tr.ft-row-fail td { background: rgba(220, 38, 38, 0.07); }
   .btn-group { flex-direction: column; }
   .btn-group .btn { width: 100%; }
 }
+
+/* ===== BASIC CALC — SYSTEM TYPE TABS ===== */
+.bc-systype-tabs {
+  display: flex; gap: 8px; flex-wrap: wrap; margin-top: 4px;
+}
+.bc-tab {
+  flex: 1; min-width: 90px; padding: 8px 10px;
+  border: 1.5px solid var(--border); border-radius: var(--radius);
+  background: var(--bg-2); color: var(--text-secondary);
+  font-size: 0.85rem; font-weight: 600; cursor: pointer;
+  transition: all var(--transition); text-align: center;
+}
+.bc-tab:hover { border-color: var(--primary); color: var(--primary); }
+.bc-tab.active {
+  background: var(--primary); border-color: var(--primary);
+  color: #fff;
+}
+[data-theme="dark"] .bc-tab { background: var(--bg-3); }
+[data-theme="dark"] .bc-tab.active { color: #fff; }
+
+.form-hint { font-size: 0.75rem; color: var(--text-muted); margin-top: 3px; }
