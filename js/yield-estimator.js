@@ -643,7 +643,27 @@ const YieldEstimator = (() => {
             </div>
           </div>
 
-          <button class="btn btn-secondary btn-sm" id="ye-opt-tilt-btn">Find Optimal Tilt for Location</button>
+          <!-- PVGIS live fetch -->
+          <div style="margin-top:10px;padding-top:10px;border-top:1px solid var(--border)">
+            <div style="font-size:0.82rem;font-weight:600;margin-bottom:6px;color:var(--text-secondary)">&#127758; PVGIS Live Data (optional — overrides bundled GHI)</div>
+            <div class="form-row cols-2">
+              <div class="form-group">
+                <label class="form-label">Latitude (°N)</label>
+                <input class="form-input" id="ye-lat" type="number" step="0.0001" placeholder="e.g. 7.2" />
+              </div>
+              <div class="form-group">
+                <label class="form-label">Longitude (°E)</label>
+                <input class="form-input" id="ye-lon" type="number" step="0.0001" placeholder="e.g. 79.9" />
+              </div>
+            </div>
+            <div class="btn-group" style="gap:8px">
+              <button class="btn btn-secondary btn-sm" id="ye-gps-btn">&#127991; Use GPS</button>
+              <button class="btn btn-secondary btn-sm" id="ye-pvgis-btn">&#9729; Fetch PVGIS Data</button>
+            </div>
+            <div id="ye-pvgis-status" style="margin-top:6px;font-size:0.8rem"></div>
+          </div>
+
+          <button class="btn btn-secondary btn-sm" style="margin-top:8px" id="ye-opt-tilt-btn">Find Optimal Tilt for Location</button>
           <div id="ye-opt-tilt-result" style="margin-top:6px"></div>
         </div>
 
@@ -717,6 +737,20 @@ const YieldEstimator = (() => {
     container.querySelector('#ye-panel').addEventListener('change', () => _fillFromPanel(container));
     container.querySelector('#ye-opt-tilt-btn').addEventListener('click', () => _findOptimalTilt(container));
     container.querySelector('#ye-calc-btn').addEventListener('click', () => _runSimulation(container));
+    container.querySelector('#ye-gps-btn').addEventListener('click', () => _useGPS(container));
+    container.querySelector('#ye-pvgis-btn').addEventListener('click', () => _fetchPVGIS(container));
+
+    // Pre-fill lat/lon from project if available
+    const proj = (typeof App !== 'undefined') ? App.getProject() : null;
+    if (proj && proj.lat) container.querySelector('#ye-lat').value = proj.lat;
+    if (proj && proj.lon) container.querySelector('#ye-lon').value = proj.lon;
+
+    // Pre-select location matching project if possible
+    if (proj && proj.siteAddress) {
+      const lower = proj.siteAddress.toLowerCase();
+      const match = SL_LOCATIONS.find(l => lower.includes(l.id.replace('_', ' ')) || lower.includes(l.climateProfile));
+      if (match) container.querySelector('#ye-loc').value = match.id;
+    }
   }
 
   // =========================================================================
@@ -772,8 +806,10 @@ const YieldEstimator = (() => {
       App.toast('Fill all system inputs', 'error'); return;
     }
 
-    const loc = SL_LOCATIONS.find(l => l.id === locId);
+    // Use PVGIS live data if fetched, otherwise fall back to bundled static data
+    const loc = container._pvgisLoc || SL_LOCATIONS.find(l => l.id === locId);
     if (!loc) { App.toast('Select location', 'error'); return; }
+    if (container._pvgisLoc) App.toast('Using PVGIS live data for simulation', 'info');
 
     // coeffPmax stored as %/Â°C in input (e.g. -0.35), convert to decimal/Â°C
     const coeffPmax = coeffRaw / 100;
@@ -1119,6 +1155,148 @@ const YieldEstimator = (() => {
 
   function _rbox(value, label, cls) {
     return `<div class="result-box ${cls||''}"><div class="result-value">${_esc(value)}</div><div class="result-label">${_esc(label)}</div></div>`;
+  }
+
+  // =========================================================================
+  // PVGIS API INTEGRATION
+  // Source: https://re.jrc.ec.europa.eu/api/v5_2/ (EU JRC, free, CORS-enabled)
+  // Endpoint: /seriescalc gives monthly radiation stats
+  // No API key required. Rate-limited but adequate for single-user tool.
+  // =========================================================================
+
+  // Store PVGIS-fetched data per lat/lon key
+  const _pvgisCache = {};
+
+  function _useGPS(container) {
+    if (!navigator.geolocation) {
+      App.toast('GPS not available', 'error'); return;
+    }
+    const btn = container.querySelector('#ye-gps-btn');
+    btn.disabled = true; btn.textContent = '⏳ Getting GPS…';
+    navigator.geolocation.getCurrentPosition(
+      pos => {
+        container.querySelector('#ye-lat').value = pos.coords.latitude.toFixed(5);
+        container.querySelector('#ye-lon').value = pos.coords.longitude.toFixed(5);
+        btn.disabled = false; btn.textContent = '📍 Use GPS';
+        App.toast('Location set from GPS', 'success');
+      },
+      err => {
+        btn.disabled = false; btn.textContent = '📍 Use GPS';
+        App.toast('GPS error: ' + err.message, 'error');
+      },
+      { timeout: 10000 }
+    );
+  }
+
+  /**
+   * Fetch monthly irradiance from PVGIS v5.2 API.
+   * API returns PVGIS-ERA5 or PVGIS-SARAH2 dataset (auto-selected by region).
+   * For Sri Lanka, PVGIS-ERA5 is used.
+   *
+   * Endpoint: GET https://re.jrc.ec.europa.eu/api/v5_2/MRcalc
+   *   ?lat=LAT&lon=LON&startyear=2005&endyear=2020&outputformat=json&horirrad=1&mr_dni=1
+   *
+   * Response: outputs.monthly.fixed[m].H(h)_m = monthly mean daily irradiation (Wh/m²)
+   *
+   * We extract: H_h (horizontal global) = GHI, T2m = ambient temperature
+   * Then recompute Kt from extraterrestrial H0.
+   */
+  async function _fetchPVGIS(container) {
+    const lat = parseFloat(container.querySelector('#ye-lat').value);
+    const lon = parseFloat(container.querySelector('#ye-lon').value);
+    const statusEl = container.querySelector('#ye-pvgis-status');
+
+    if (isNaN(lat) || isNaN(lon)) {
+      statusEl.innerHTML = '<span style="color:var(--danger)">Enter latitude and longitude first, or use GPS.</span>';
+      return;
+    }
+    if (lat < -90 || lat > 90 || lon < -180 || lon > 180) {
+      statusEl.innerHTML = '<span style="color:var(--danger)">Invalid coordinates.</span>';
+      return;
+    }
+
+    const cacheKey = lat.toFixed(3) + ',' + lon.toFixed(3);
+    if (_pvgisCache[cacheKey]) {
+      _applyPVGISToSim(container, _pvgisCache[cacheKey], lat, lon);
+      return;
+    }
+
+    const btn = container.querySelector('#ye-pvgis-btn');
+    btn.disabled = true;
+    statusEl.innerHTML = '<span style="color:var(--info)">⏳ Fetching PVGIS data…</span>';
+
+    // PVGIS v5.2 MRcalc — monthly radiation statistics
+    // horirrad=1: horizontal irradiance, mr_dni=1: DNI
+    // T2m included by default in meteo output
+    const url = `https://re.jrc.ec.europa.eu/api/v5_2/MRcalc?lat=${lat}&lon=${lon}&startyear=2005&endyear=2020&outputformat=json&horirrad=1&mr_dni=1&browser=0`;
+
+    try {
+      const res = await fetch(url, { signal: AbortSignal.timeout(15000) });
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+      const json = await res.json();
+
+      // Parse PVGIS monthly output
+      // json.outputs.monthly: array of {month, H_h, H_d, H_i_opt, T2m, ...}
+      // H_h = global horiz irrad (Wh/m²/day monthly mean)
+      // T2m = 2m air temp (°C monthly mean)
+      const monthly = json.outputs && json.outputs.monthly;
+      if (!monthly || monthly.length < 12) throw new Error('Unexpected PVGIS response format');
+
+      const GHI_pvgis  = [];
+      const T_pvgis    = [];
+      const Kt_pvgis   = [];
+
+      // Extraterrestrial horizontal irradiance H0 for Kt calculation
+      // H0 = (24/π) × I_sc × (1 + 0.033cos(360n/365)) × (cosφcosδsinωs + ωs sinφsinδ)
+      // Simplified: use fixed monthly H0 for Sri Lanka latitude range
+      // Source: Duffie & Beckman Table 1.10.1 (interpolated for phi=7°N)
+      const H0_SL_kWh = [9.6,10.3,11.0,10.9,10.4,10.0,10.1,10.4,10.6,10.3,9.8,9.5]; // kWh/m²/day
+
+      monthly.forEach((row, i) => {
+        const H_h_kWh = row['H(h)_m'] / 1000; // Wh → kWh
+        const T2m = row['T2m'];
+        const Kt  = Math.min(0.85, H_h_kWh / (H0_SL_kWh[i] || 10.0));
+        GHI_pvgis.push(parseFloat(H_h_kWh.toFixed(2)));
+        T_pvgis.push(parseFloat((T2m || 28).toFixed(1)));
+        Kt_pvgis.push(parseFloat(Kt.toFixed(3)));
+      });
+
+      const pvgisData = { lat, lon, GHI: GHI_pvgis, T_amb: T_pvgis, Kt: Kt_pvgis, source: 'PVGIS-ERA5 (2005-2020)' };
+      _pvgisCache[cacheKey] = pvgisData;
+      _applyPVGISToSim(container, pvgisData, lat, lon);
+
+    } catch (err) {
+      btn.disabled = false;
+      const msg = err.name === 'TimeoutError' ? 'Request timed out. Check internet connection.' : err.message;
+      statusEl.innerHTML = `<span style="color:var(--danger)">⚠ PVGIS fetch failed: ${_esc(msg)}. Bundled data will be used.</span>`;
+    }
+  }
+
+  function _applyPVGISToSim(container, data, lat, lon) {
+    const btn = container.querySelector('#ye-pvgis-btn');
+    btn.disabled = false;
+
+    // Inject PVGIS data as a synthetic location object, stored on container for _runSimulation to use
+    container._pvgisLoc = {
+      id: 'pvgis_live',
+      name: `PVGIS Live (${lat.toFixed(3)}°N, ${lon.toFixed(3)}°E)`,
+      lat, lon,
+      GHI: data.GHI,
+      T_amb: data.T_amb,
+      Kt: data.Kt,
+      climateProfile: 'pvgis',
+    };
+
+    const annualGHI = data.GHI.reduce((s, v, i) => s + v * DAYS_IN_MONTH[i], 0).toFixed(0);
+    const statusEl = container.querySelector('#ye-pvgis-status');
+    statusEl.innerHTML = `
+      <div class="info-box" style="margin-top:4px">
+        ✅ <strong>PVGIS data loaded</strong> — Annual GHI: <strong>${annualGHI} kWh/m²/yr</strong>
+        &bull; Source: ${_esc(data.source)}
+        &bull; Monthly GHI: ${data.GHI.map(v => v.toFixed(1)).join(', ')} kWh/m²/day
+        <br><span style="font-size:0.75rem;color:var(--text-muted)">PVGIS data will override bundled values when you click Run Simulation.</span>
+      </div>`;
+    App.toast('PVGIS data loaded — ' + annualGHI + ' kWh/m²/yr', 'success');
   }
 
   // =========================================================================

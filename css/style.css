@@ -729,3 +729,7 @@ tr.ft-row-fail td { background: rgba(220, 38, 38, 0.07); }
 [data-theme="dark"] .bc-tab.active { color: #fff; }
 
 .form-hint { font-size: 0.75rem; color: var(--text-muted); margin-top: 3px; }
+
+/* ===== FINANCIALS ===== */
+.fi-warn .basic-result-val { color: var(--danger) !important; }
+.fi-warn .basic-result-label { color: var(--danger) !important; }

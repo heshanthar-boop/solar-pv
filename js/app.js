@@ -85,6 +85,8 @@ const App = (() => {
     reportbuilder: { title: 'Report Builder',          render: (c) => ReportBuilder.render(c) },
     cableschedule: { title: 'Cable Schedule',          render: (c) => CableSchedule.render(c) },
     basiccalc:   { title: 'Quick Calculator',          render: (c) => BasicCalc.render(c) },
+    financials:  { title: 'Financial Analysis',        render: (c) => Financials.render(c) },
+    rooflayout:  { title: 'Roof Layout Designer',      render: (c) => RoofLayout.render(c) },
     settings:    { title: 'Settings',                   render: (c) => _renderSettings(c) },
   };
 
@@ -95,11 +97,11 @@ const App = (() => {
     },
     gridTie: {
       label: 'Grid-Tie System',
-      pages: ['database', 'sizing', 'wirecalc', 'cableschedule', 'utilityvalidator', 'temp', 'fieldtest', 'fault', 'inspection', 'pr', 'checklist', 'inverter', 'shading', 'yield', 'systemdesigner', 'inspector', 'standards', 'reportbuilder', 'settings'],
+      pages: ['database', 'sizing', 'wirecalc', 'cableschedule', 'utilityvalidator', 'temp', 'fieldtest', 'fault', 'inspection', 'pr', 'checklist', 'inverter', 'shading', 'yield', 'financials', 'rooflayout', 'systemdesigner', 'inspector', 'standards', 'reportbuilder', 'settings'],
     },
     gridTieHybrid: {
       label: 'Grid-Tie Hybrid System',
-      pages: ['database', 'sizing', 'wirecalc', 'cableschedule', 'hybrid', 'utilityvalidator', 'temp', 'fieldtest', 'fault', 'inspection', 'pr', 'checklist', 'inverter', 'shading', 'yield', 'systemdesigner', 'inspector', 'degradation', 'fieldanalysis', 'diagnostics', 'faultai', 'standards', 'reportbuilder', 'settings'],
+      pages: ['database', 'sizing', 'wirecalc', 'cableschedule', 'hybrid', 'utilityvalidator', 'temp', 'fieldtest', 'fault', 'inspection', 'pr', 'checklist', 'inverter', 'shading', 'yield', 'financials', 'rooflayout', 'systemdesigner', 'inspector', 'degradation', 'fieldanalysis', 'diagnostics', 'faultai', 'standards', 'reportbuilder', 'settings'],
     },
     fullyHybrid: {
       label: 'Fully Hybrid System',
@@ -134,7 +136,9 @@ const App = (() => {
         { page: 'cableschedule', icon: '&#128200;', label: 'Cable Schedule',     desc: 'Panel schedule & export' },
         { page: 'hybrid',      icon: '&#128267;', label: 'Hybrid Setup',         desc: 'Battery & inverter check' },
         { page: 'utilityvalidator', icon: '&#128221;', label: 'Utility Validator', desc: 'CEB/LECO submission gate' },
-        { page: 'yield',       icon: '&#9728;',   label: 'Yield Estimator',      desc: 'Monthly kWh simulation' },
+        { page: 'yield',       icon: '&#9728;',   label: 'Yield Estimator',      desc: 'Monthly kWh simulation + PVGIS API' },
+        { page: 'financials',  icon: '&#128176;', label: 'Financial Analysis',   desc: 'ROI, payback, NPV, CEB tariffs' },
+        { page: 'rooflayout',  icon: '&#127968;', label: 'Roof Layout',          desc: 'Auto panel layout + shadow overlay' },
         { page: 'systemdesigner', icon: '&#129516;', label: 'System Designer',    desc: 'PV*SOL-style guided simulation flow' },
         { page: 'inspector',   icon: '&#128202;', label: 'PV Inspection Analyzer', desc: 'Metrel Excel import & analysis' },
         { page: 'shading',     icon: '&#127774;', label: 'Shading & Loss',       desc: 'AOI & irradiance loss' },
