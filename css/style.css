@@ -331,8 +331,9 @@ button { cursor: pointer; border: none; background: none; }
   padding: 3px; flex-shrink: 0; margin-right: 4px;
 }
 .mode-toggle-btn {
-  width: 30px; height: 26px; border-radius: 99px;
-  font-size: 0.7rem; font-weight: 800; letter-spacing: 0.02em;
+  min-width: 44px; height: 26px; border-radius: 99px;
+  padding: 0 10px; white-space: nowrap;
+  font-size: 0.64rem; font-weight: 800; letter-spacing: 0;
   color: rgba(255,255,255,0.65); background: transparent;
   transition: background var(--transition), color var(--transition);
   line-height: 1; display: flex; align-items: center; justify-content: center;

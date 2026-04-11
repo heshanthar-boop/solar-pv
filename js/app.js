@@ -35,8 +35,8 @@ const App = (() => {
     const wrap = document.createElement('div');
     wrap.className = 'mode-toggle-wrap';
     wrap.innerHTML = `
-      <button class="mode-toggle-btn${_mode === 'basic' ? ' active' : ''}" id="mode-btn-basic">B</button>
-      <button class="mode-toggle-btn${_mode === 'advanced' ? ' active' : ''}" id="mode-btn-advanced">A</button>
+      <button class="mode-toggle-btn${_mode === 'basic' ? ' active' : ''}" id="mode-btn-basic">Basic</button>
+      <button class="mode-toggle-btn${_mode === 'advanced' ? ' active' : ''}" id="mode-btn-advanced">Advance</button>
     `;
     header.insertBefore(wrap, header.firstChild);
     wrap.querySelector('#mode-btn-basic').addEventListener('click', () => setMode('basic'));
@@ -753,7 +753,7 @@ const App = (() => {
 
     if (pageId === 'home') {
       state.currentPage = 'home';
-      titleEl.textContent = 'Solar PV Field Tool';
+      titleEl.textContent = _mode === 'basic' ? 'Quick Calculator' : 'Solar PV Field Tool';
       homeBtn.classList.add('hidden');
       main.scrollTop = 0;
       if (_mode === 'basic') {
@@ -788,64 +788,18 @@ const App = (() => {
   // -----------------------------------------------------------------------
 
   function _renderBasicHome(container) {
-    const p = _project;
-    const hasProject = !!(p.name || p.client || p.siteAddress);
-    const typeLabels = { 'grid-tie': 'Grid-Tie', 'hybrid': 'Hybrid', 'off-grid': 'Off-Grid', 'ground-mount': 'Ground Mount' };
-
+    if (typeof BasicCalc !== 'undefined' && BasicCalc && typeof BasicCalc.render === 'function') {
+      BasicCalc.render(container);
+      return;
+    }
     container.innerHTML = `
-      <div class="home-screen">
-        <div class="basic-home-hero">
-          <div class="basic-home-hero-title">&#9889; Quick Calculator</div>
-          <div class="basic-home-hero-sub">Fast estimates &mdash; panel count, wiring, cost</div>
+      <div class="page">
+        <div class="card">
+          <div class="card-title">Basic Mode</div>
+          <div class="text-muted">Quick Calculator is unavailable. Reload the app and try again.</div>
         </div>
-
-        ${hasProject ? `
-        <div class="project-card card" style="margin-bottom:14px">
-          <div class="project-card-header">
-            <span class="project-card-icon">&#128736;</span>
-            <span class="project-card-title">${escapeHTML(p.name || 'Unnamed Project')}</span>
-            <button class="btn btn-sm btn-secondary" id="basic-project-edit-btn" style="margin-left:auto;flex-shrink:0">&#9998; Edit</button>
-          </div>
-          <div style="display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-top:4px">
-            ${p.systemKwp ? `<span class="project-card-kwp">&#9889; ${escapeHTML(p.systemKwp)} kWp</span>` : ''}
-            ${typeLabels[p.systemType] ? `<span class="project-card-type">&#128268; ${escapeHTML(typeLabels[p.systemType])}</span>` : ''}
-          </div>
-        </div>` : `
-        <div class="card" style="margin-bottom:14px">
-          <div class="text-muted" style="font-size:0.85rem;padding:4px 0">No active project. <button class="btn btn-sm btn-secondary" id="basic-project-set-btn" style="margin-left:6px">+ Set Project</button></div>
-        </div>`}
-
-        <div class="basic-home-tools">
-          <button class="basic-home-tile" data-page="basiccalc">
-            <span class="basic-home-tile-icon">&#128200;</span>
-            <div>
-              <div class="basic-home-tile-label">Quick Calculator</div>
-              <div class="basic-home-tile-desc">Panel count, inverter, battery, cable, cost</div>
-            </div>
-            <span class="basic-home-tile-arrow">&#8250;</span>
-          </button>
-          <button class="basic-home-tile" data-page="settings">
-            <span class="basic-home-tile-icon">&#9881;</span>
-            <div>
-              <div class="basic-home-tile-label">Settings</div>
-              <div class="basic-home-tile-desc">Inspector name, company, data</div>
-            </div>
-            <span class="basic-home-tile-arrow">&#8250;</span>
-          </button>
-        </div>
-
-        <div class="home-footer">Solar PV Field Tool</div>
       </div>
     `;
-
-    const editBtn = container.querySelector('#basic-project-edit-btn');
-    if (editBtn) editBtn.addEventListener('click', () => _showProjectModal(container));
-    const setBtn = container.querySelector('#basic-project-set-btn');
-    if (setBtn) setBtn.addEventListener('click', () => _showProjectModal(container));
-
-    container.querySelectorAll('.basic-home-tile').forEach(btn => {
-      btn.addEventListener('click', () => navigate(btn.dataset.page));
-    });
   }
 
   // -----------------------------------------------------------------------
