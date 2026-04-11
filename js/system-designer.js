@@ -118,6 +118,13 @@ const SystemDesigner = (() => {
     return [];
   }
 
+  async function _ensureCatalogLoaded() {
+    if (typeof CatalogStore === 'undefined' || !CatalogStore) return;
+    if (typeof CatalogStore.ensureLoaded === 'function') {
+      try { await CatalogStore.ensureLoaded(); } catch (_) {}
+    }
+  }
+
   function _suggestDcFromLoad(annualLoad) {
     if (!Number.isFinite(annualLoad) || annualLoad <= 0) return 0;
     return annualLoad / TARGET_SPECIFIC_YIELD;
@@ -319,7 +326,7 @@ const SystemDesigner = (() => {
     if (printBtn) printBtn.classList.remove('hidden');
   }
 
-  function render(container) {
+  async function render(container) {
     if (typeof YieldEstimator === 'undefined' || !YieldEstimator || typeof YieldEstimator.simulateMonthly !== 'function') {
       container.innerHTML = `
         <div class="page">
@@ -332,12 +339,29 @@ const SystemDesigner = (() => {
       return;
     }
 
+    container.innerHTML = `
+      <div class="page">
+        <div class="card">
+          <div class="card-title">System Designer</div>
+          <div class="text-muted">Loading database catalogs...</div>
+        </div>
+      </div>
+    `;
+
+    await _ensureCatalogLoaded();
+
     const locations = Array.isArray(YieldEstimator.SL_LOCATIONS) ? YieldEstimator.SL_LOCATIONS : [];
     const panels = _getPanels();
     const inverters = _getInverters();
     const batteries = _getBatteries();
     const defaultLoc = _nearestLocation(locations);
     const projectName = _projectLabel();
+    const catalogState = (typeof CatalogStore !== 'undefined' && CatalogStore && typeof CatalogStore.getState === 'function')
+      ? (CatalogStore.getState() || {})
+      : {};
+    const catalogWarnHtml = catalogState && catalogState.loadError
+      ? `<div class="warn-box" style="margin-top:10px">Catalog load warning: ${_esc(catalogState.loadError)}</div>`
+      : '';
 
     container.innerHTML = `
       <div class="page">
@@ -347,6 +371,7 @@ const SystemDesigner = (() => {
             Guided sequence: location and load, component selection, loss setup, then annual simulation and energy balance.
             ${projectName ? `Active project: <strong>${_esc(projectName)}</strong>.` : ''}
           </div>
+          ${catalogWarnHtml}
         </div>
 
         <div class="card">
