@@ -765,6 +765,10 @@ const DB = (() => {
     } catch (_) {}
   }
 
+  async function ensureSeedLoaded() {
+    await _ensurePVSeedFromCatalog();
+  }
+
   // --- RENDER PAGE ---
   function renderPage(container) {
     if (!container) return;
@@ -1618,6 +1622,6 @@ const DB = (() => {
     input.click();
   }
 
-  return { init, getAll, getById, save, remove, exportJSON, importJSON, getLastImportReport, generateId, renderPage, resetToBundledDefaults };
+  return { init, ensureSeedLoaded, getAll, getById, save, remove, exportJSON, importJSON, getLastImportReport, generateId, renderPage, resetToBundledDefaults };
 })();
 

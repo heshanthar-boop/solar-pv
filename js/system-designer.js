@@ -125,6 +125,13 @@ const SystemDesigner = (() => {
     }
   }
 
+  async function _ensurePanelSeedLoaded() {
+    if (typeof DB === 'undefined' || !DB) return;
+    if (typeof DB.ensureSeedLoaded === 'function') {
+      try { await DB.ensureSeedLoaded(); } catch (_) {}
+    }
+  }
+
   function _suggestDcFromLoad(annualLoad) {
     if (!Number.isFinite(annualLoad) || annualLoad <= 0) return 0;
     return annualLoad / TARGET_SPECIFIC_YIELD;
@@ -349,6 +356,7 @@ const SystemDesigner = (() => {
     `;
 
     await _ensureCatalogLoaded();
+    await _ensurePanelSeedLoaded();
 
     const locations = Array.isArray(YieldEstimator.SL_LOCATIONS) ? YieldEstimator.SL_LOCATIONS : [];
     const panels = _getPanels();
