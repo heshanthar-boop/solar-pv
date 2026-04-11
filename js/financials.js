@@ -9,15 +9,15 @@
  *  - CEB Net Metering savings model (Sri Lanka tariff tiers)
  *  - CO2 savings (SL grid emission factor)
  *
- * Sri Lanka CEB tariff (2024, domestic net metering):
- *  Source: CEB Tariff Revision 2023 gazette, PUCSL rates
+ * Sri Lanka CEB tariff (2026 Q2, domestic net metering):
+ *  Retail tiers: CEB Tariff Revision 2023 gazette, PUCSL rates (pending next retail revision)
  *  Tier 1: 0–30 units → Rs. 7.85/kWh
  *  Tier 2: 31–60 units → Rs. 10.00/kWh
  *  Tier 3: 61–90 units → Rs. 27.75/kWh
  *  Tier 4: 91–120 units → Rs. 32.00/kWh
  *  Tier 5: 121–180 units → Rs. 45.00/kWh
  *  Tier 6: >180 units → Rs. 50.00/kWh
- *  Net metering export credit: Rs. 22.00/kWh (surplus to grid)
+ *  Net metering export credit: Rs. 28.70/kWh — NSO submission to PUCSL, April 2026 (Solar Rooftop Q2-2026)
  *
  * Grid emission factor: 0.584 kgCO2/kWh (SLSEA 2022, national average)
  */
@@ -28,7 +28,7 @@ var Financials = (() => {
   function _fmt(n, dec) { return Number(n).toLocaleString('en-LK', { minimumFractionDigits: dec || 0, maximumFractionDigits: dec || 0 }); }
 
   // -----------------------------------------------------------------------
-  // CEB TARIFF DATA (Sri Lanka 2024)
+  // CEB TARIFF DATA (Sri Lanka 2026 Q2)
   // -----------------------------------------------------------------------
   const CEB_TIERS = [
     { max: 30,   rate: 7.85  },
@@ -38,7 +38,7 @@ var Financials = (() => {
     { max: 180,  rate: 45.00 },
     { max: Infinity, rate: 50.00 },
   ];
-  const NET_METER_EXPORT_RATE = 22.00; // Rs./kWh export credit
+  const NET_METER_EXPORT_RATE = 28.70; // Rs./kWh — NSO/PUCSL Q2-2026 Solar Rooftop rate
   const CO2_FACTOR_KG_PER_KWH = 0.584; // SLSEA 2022
 
   /**
@@ -207,7 +207,7 @@ var Financials = (() => {
         <div class="page-title">&#128176; Financial Analysis</div>
 
         <div class="info-box">
-          ROI, payback, NPV, IRR, LCOE — based on CEB 2024 net metering tariffs (Sri Lanka).
+          ROI, payback, NPV, IRR, LCOE — based on CEB 2026 Q2 net metering tariffs (Sri Lanka).
           ${yr ? `<br>&#9989; Yield data loaded from Yield Estimator: <strong>${_esc(solarKwh)} kWh/yr</strong>` : ''}
         </div>
 
@@ -254,7 +254,7 @@ var Financials = (() => {
             <div class="form-group">
               <label class="form-label">Tariff Override (Rs./kWh)</label>
               <input class="form-input" id="fi-tariff-custom" type="number" step="0.5" value="0" placeholder="0 = use CEB tiers" />
-              <div class="form-hint">0 = auto from CEB 2024 tiers</div>
+              <div class="form-hint">0 = auto from CEB 2026 Q2 tiers</div>
             </div>
           </div>
           <button class="btn btn-secondary btn-sm" id="fi-show-tiers-btn">Show CEB Tariff Tiers</button>
@@ -313,10 +313,10 @@ var Financials = (() => {
             <tr><td>91 – 120</td><td>Rs. 32.00</td></tr>
             <tr><td>121 – 180</td><td>Rs. 45.00</td></tr>
             <tr><td>&gt; 180</td><td>Rs. 50.00</td></tr>
-            <tr style="border-top:2px solid var(--border)"><td>Net Metering Export Credit</td><td><strong>Rs. 22.00</strong></td></tr>
+            <tr style="border-top:2px solid var(--border)"><td>Net Metering Export Credit</td><td><strong>Rs. 28.70</strong> <small>(Q2-2026)</small></td></tr>
           </tbody>
         </table>
-        <div style="font-size:0.75rem;color:var(--text-muted);margin-top:4px">CEB Tariff Revision 2023 (PUCSL). Verify current rates with CEB.</div>`;
+        <div style="font-size:0.75rem;color:var(--text-muted);margin-top:4px">Retail tiers: CEB 2023 gazette (PUCSL). Export credit: NSO–PUCSL submission Apr 2026 (Q2 Solar Rooftop rate Rs. 28.70). Verify current rates with CEB.</div>`;
       el.classList.remove('hidden');
       btn.textContent = 'Hide CEB Tariff Tiers';
     } else {
@@ -472,7 +472,7 @@ var Financials = (() => {
 
       <!-- LCOE CONTEXT -->
       <div class="card">
-        <div class="card-title">&#128218; LCOE Benchmarks (Sri Lanka 2024)</div>
+        <div class="card-title">&#128218; LCOE Benchmarks (Sri Lanka 2026)</div>
         <table class="status-table">
           <tbody>
             <tr><td>This system LCOE</td><td style="text-align:right;font-weight:700;color:var(--primary)">Rs. ${_fmt(d.lcoeVal.toFixed(2))}/kWh</td></tr>
