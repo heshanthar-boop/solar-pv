@@ -183,6 +183,47 @@ const SystemDesigner = (() => {
     return tags.length ? `Catalogue-backed (${tags.join(', ')})` : 'Heuristic inputs';
   }
 
+  function _componentSnapshot(panel, inverter, battery) {
+    return {
+      panel: panel ? {
+        id: panel.id,
+        manufacturer: panel.manufacturer,
+        model: panel.model,
+        Pmax: panel.Pmax,
+        Voc: panel.Voc,
+        Vmp: panel.Vmp,
+        Isc: panel.Isc,
+        Imp: panel.Imp,
+        coeffPmax: panel.coeffPmax,
+        NOCT: panel.NOCT,
+      } : null,
+      inverter: inverter ? {
+        id: inverter.id,
+        manufacturer: inverter.manufacturer,
+        model: inverter.model,
+        topology: inverter.topology,
+        acRated_kW: inverter.acRated_kW,
+        maxPv_kW: inverter.maxPv_kW,
+        maxDcVoc_V: inverter.maxDcVoc_V,
+        mpptMin_V: inverter.mpptMin_V,
+        mpptMax_V: inverter.mpptMax_V,
+        mpptCount: inverter.mpptCount,
+        batteryBus_V: inverter.batteryBus_V,
+      } : null,
+      battery: battery ? {
+        id: battery.id,
+        manufacturer: battery.manufacturer,
+        model: battery.model,
+        nominalV: battery.nominalV,
+        capacityAh: battery.capacityAh,
+        recommendedDod: battery.recommendedDod,
+        chemistry: battery.chemistry,
+        continuousCharge_A: battery.continuousCharge_A,
+        continuousDischarge_A: battery.continuousDischarge_A,
+      } : null,
+    };
+  }
+
   function _fmt(n, d) {
     const num = Number(n);
     if (!Number.isFinite(num)) return '-';
@@ -205,6 +246,15 @@ const SystemDesigner = (() => {
 
     const confidenceCls = r.catalogLabel.startsWith('Catalogue-backed') ? 'badge-pass' : 'badge-warn';
     const dcacCls = String(r.dcac && r.dcac.cls || '').replace('alert-', 'badge-') || 'badge-warn';
+    const panelRef = r.components && r.components.panel
+      ? `${_esc(r.components.panel.manufacturer)} ${_esc(r.components.panel.model)} (${_esc(r.components.panel.Pmax)}W)`
+      : 'Manual';
+    const inverterRef = r.components && r.components.inverter
+      ? `${_esc(r.components.inverter.manufacturer)} ${_esc(r.components.inverter.model)} (${_esc(r.components.inverter.acRated_kW)} kW)`
+      : 'Manual';
+    const batteryRef = r.components && r.components.battery
+      ? `${_esc(r.components.battery.manufacturer)} ${_esc(r.components.battery.model)} (${_esc(r.components.battery.nominalV)}V, ${_esc(r.components.battery.capacityAh)}Ah)`
+      : 'Not selected';
 
     const resultsDiv = container.querySelector('#sd-results');
     resultsDiv.classList.remove('hidden');
@@ -230,6 +280,17 @@ const SystemDesigner = (() => {
           <div class="result-box"><div class="result-value">${_fmt(r.summary.PR_avg * 100, 1)}%</div><div class="result-label">Average PR</div></div>
           <div class="result-box"><div class="result-value">${_fmt(r.summary.H_poa_annual, 0)} kWh/m2</div><div class="result-label">Annual POA Irradiance</div></div>
         </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">&#128230; Linked Database Components</div>
+        <table class="status-table">
+          <tbody>
+            <tr><td><strong>PV Module</strong></td><td>${panelRef}</td></tr>
+            <tr><td><strong>Inverter</strong></td><td>${inverterRef}</td></tr>
+            <tr><td><strong>Battery</strong></td><td>${batteryRef}</td></tr>
+          </tbody>
+        </table>
       </div>
 
       <div class="card">
@@ -437,8 +498,27 @@ const SystemDesigner = (() => {
     const annualLoadEl = container.querySelector('#sd-load');
     const monthlyLoadEl = container.querySelector('#sd-load-month');
     const dailyLoadEl = container.querySelector('#sd-load-day');
+    const pdcEl = container.querySelector('#sd-pdc');
+    const pacEl = container.querySelector('#sd-pac');
+    const noctEl = container.querySelector('#sd-noct');
+    const gammaEl = container.querySelector('#sd-gamma');
+    const batteryKwhEl = container.querySelector('#sd-battery-kwh');
 
     let _syncingLoad = false;
+    const manual = {
+      pdc: false,
+      pac: false,
+      noct: false,
+      gamma: false,
+      battery: false,
+    };
+
+    pdcEl.addEventListener('input', () => { manual.pdc = true; });
+    pacEl.addEventListener('input', () => { manual.pac = true; });
+    noctEl.addEventListener('input', () => { manual.noct = true; });
+    gammaEl.addEventListener('input', () => { manual.gamma = true; });
+    batteryKwhEl.addEventListener('input', () => { manual.battery = true; });
+
     function _syncLoadFields(from) {
       if (_syncingLoad) return;
       _syncingLoad = true;
@@ -475,8 +555,8 @@ const SystemDesigner = (() => {
       if (!panel) return;
       const noct = Number(panel.NOCT);
       const gammaPct = Number(panel.coeffPmax) * 100;
-      if (Number.isFinite(noct)) container.querySelector('#sd-noct').value = noct.toFixed(1);
-      if (Number.isFinite(gammaPct)) container.querySelector('#sd-gamma').value = gammaPct.toFixed(2);
+      if (!manual.noct && Number.isFinite(noct)) noctEl.value = noct.toFixed(1);
+      if (!manual.gamma && Number.isFinite(gammaPct)) gammaEl.value = gammaPct.toFixed(2);
       if (typeof App !== 'undefined' && App) App.toast(`Panel loaded: ${panel.manufacturer} ${panel.model}`, 'success');
     });
 
@@ -485,10 +565,9 @@ const SystemDesigner = (() => {
       if (!inv) return;
       const ac = Number(inv.acRated_kW);
       const maxPv = Number(inv.maxPv_kW);
-      if (Number.isFinite(ac) && ac > 0) container.querySelector('#sd-pac').value = ac.toFixed(1);
-      if (Number.isFinite(maxPv) && maxPv > 0 && Number(inv.topology === 'hybrid')) {
-        const pdcEl = container.querySelector('#sd-pdc');
-        if (_num(pdcEl.value, 0) <= 0) pdcEl.value = maxPv.toFixed(1);
+      if (!manual.pac && Number.isFinite(ac) && ac > 0) pacEl.value = ac.toFixed(1);
+      if (!manual.pdc && Number.isFinite(maxPv) && maxPv > 0 && String(inv.topology || '').toLowerCase() === 'hybrid') {
+        pdcEl.value = maxPv.toFixed(1);
       }
       if (typeof App !== 'undefined' && App) App.toast(`Inverter loaded: ${inv.manufacturer} ${inv.model}`, 'success');
     });
@@ -499,9 +578,9 @@ const SystemDesigner = (() => {
       const nominal = Number(bat.nominalV);
       const ah = Number(bat.capacityAh);
       const dod = Number.isFinite(Number(bat.recommendedDod)) ? Number(bat.recommendedDod) : 0.8;
-      if (Number.isFinite(nominal) && Number.isFinite(ah) && nominal > 0 && ah > 0) {
+      if (!manual.battery && Number.isFinite(nominal) && Number.isFinite(ah) && nominal > 0 && ah > 0) {
         const usable = nominal * ah * dod / 1000;
-        container.querySelector('#sd-battery-kwh').value = usable.toFixed(1);
+        batteryKwhEl.value = usable.toFixed(1);
       }
       if (typeof App !== 'undefined' && App) App.toast(`Battery loaded: ${bat.manufacturer} ${bat.model}`, 'success');
     });
@@ -513,9 +592,9 @@ const SystemDesigner = (() => {
         return;
       }
       const suggested = _suggestDcFromLoad(annualLoad);
-      container.querySelector('#sd-pdc').value = suggested.toFixed(2);
+      pdcEl.value = suggested.toFixed(2);
       const pac = suggested / 1.2;
-      container.querySelector('#sd-pac').value = pac.toFixed(2);
+      pacEl.value = pac.toFixed(2);
       if (typeof App !== 'undefined' && App) App.toast(`Suggested size: ${suggested.toFixed(2)} kWp DC`, 'success');
     });
 
@@ -532,8 +611,8 @@ const SystemDesigner = (() => {
       const loc = locations.find(l => l.id === container.querySelector('#sd-loc').value);
       const annualLoad = _num(annualLoadEl.value, NaN);
       const profile = _profileById(container.querySelector('#sd-profile').value);
-      const pDc = _num(container.querySelector('#sd-pdc').value, NaN);
-      const pAc = _num(container.querySelector('#sd-pac').value, NaN);
+      const pDc = _num(pdcEl.value, NaN);
+      const pAc = _num(pacEl.value, NaN);
       const tilt = _num(container.querySelector('#sd-tilt').value, NaN);
       const azimuth = _num(container.querySelector('#sd-azimuth').value, 0);
       const rho = _num(container.querySelector('#sd-rho').value, 0.20);
@@ -542,9 +621,9 @@ const SystemDesigner = (() => {
       const lossSoiling = _num(container.querySelector('#sd-loss-soiling').value, NaN) / 100;
       const lossMismatch = _num(container.querySelector('#sd-loss-mismatch').value, NaN) / 100;
       const lossOther = _num(container.querySelector('#sd-loss-other').value, NaN) / 100;
-      const noct = _num(container.querySelector('#sd-noct').value, NaN);
-      const coeffPmax = _num(container.querySelector('#sd-gamma').value, NaN) / 100;
-      const batteryUsable = _num(container.querySelector('#sd-battery-kwh').value, 0);
+      const noct = _num(noctEl.value, NaN);
+      const coeffPmax = _num(gammaEl.value, NaN) / 100;
+      const batteryUsable = _num(batteryKwhEl.value, 0);
 
       if (!loc) {
         App.toast('Select a location', 'error');
@@ -586,6 +665,25 @@ const SystemDesigner = (() => {
       const inverter = inverters.find(i => String(i.id) === String(inverterSel.value));
       const battery = batteries.find(b => String(b.id) === String(batterySel.value));
 
+      if (inverter) {
+        const invMaxPv = Number(inverter.maxPv_kW);
+        if (Number.isFinite(invMaxPv) && invMaxPv > 0 && pDc > invMaxPv) {
+          App.toast(`PV DC ${pDc.toFixed(2)} kWp exceeds inverter max PV ${invMaxPv.toFixed(2)} kW`, 'warning');
+        }
+        const invAc = Number(inverter.acRated_kW);
+        if (Number.isFinite(invAc) && invAc > 0 && Math.abs(pAc - invAc) > 0.2) {
+          App.toast(`AC rating differs from selected inverter (${invAc.toFixed(2)} kW)`, 'warning');
+        }
+      }
+      if (battery && inverter && Number(inverter.batteryBus_V) > 0 && Number(battery.nominalV) > 0) {
+        const bus = Number(inverter.batteryBus_V);
+        const nominal = Number(battery.nominalV);
+        const diffPct = Math.abs(nominal - bus) / bus;
+        if (diffPct > 0.25) {
+          App.toast(`Battery nominal voltage ${nominal}V may not match inverter bus ${bus}V`, 'warning');
+        }
+      }
+
       const payload = {
         date: (typeof App !== 'undefined' && App && typeof App.localDateISO === 'function') ? App.localDateISO() : '',
         location: { id: loc.id, name: loc.name, lat: loc.lat, lon: loc.lon },
@@ -599,6 +697,7 @@ const SystemDesigner = (() => {
         dcac,
         selfUse,
         catalogLabel: _catalogLabel(panel, inverter, battery),
+        components: _componentSnapshot(panel, inverter, battery),
       };
 
       if (typeof App !== 'undefined' && App && App.state) {
@@ -612,6 +711,7 @@ const SystemDesigner = (() => {
           dcac,
           summary,
           source: 'system_designer',
+          components: payload.components,
         };
       }
 
