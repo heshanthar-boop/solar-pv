@@ -287,7 +287,9 @@ const WireCalc = (() => {
     purposeEl.addEventListener('change', () => _applyPurposeDefaults(container));
     _applyPurposeDefaults(container, true);
 
-    container.querySelector('#wc-calc-btn').addEventListener('click', () => _calculate(container));
+    container.querySelector('#wc-calc-btn').addEventListener('click', () => {
+      App.btnSpinner(container.querySelector('#wc-calc-btn'), () => _calculate(container));
+    });
 
     if (App.state.wireResult) {
       _renderResults(container, App.state.wireResult);

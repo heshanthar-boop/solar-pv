@@ -122,7 +122,9 @@ const FaultChecker = (() => {
 
     container.querySelector('#fc-autofill-btn').addEventListener('click', () => _autofill(container));
     container.querySelector('#fc-panel').addEventListener('change', () => _autofill(container));
-    container.querySelector('#fc-detect-btn').addEventListener('click', () => _detect(container));
+    container.querySelector('#fc-detect-btn').addEventListener('click', () => {
+      App.btnSpinner(container.querySelector('#fc-detect-btn'), () => _detect(container));
+    });
   }
 
   function _addString() {

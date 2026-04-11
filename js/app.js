@@ -1139,6 +1139,42 @@ const App = (() => {
     _toastTimer = setTimeout(() => { el.classList.add('hidden'); }, 2800);
   }
 
+  /**
+   * btnSpinner(btn, fn) — wraps a sync or async function with button loading state.
+   *
+   * Usage:
+   *   btn.addEventListener('click', () => App.btnSpinner(btn, () => doCalc()));
+   *   btn.addEventListener('click', () => App.btnSpinner(btn, async () => { await fetch(...); doCalc(); }));
+   *
+   * While fn() is running:
+   *   - Button is disabled
+   *   - Label replaced with spinner + "Working…" (original label restored on finish)
+   *   - Prevents double-click submission
+   *
+   * On error: re-enables button, shows toast with error message.
+   */
+  function btnSpinner(btn, fn) {
+    if (!btn || btn.disabled) return;
+    const orig = btn.innerHTML;
+    btn.disabled = true;
+    btn.innerHTML = '<span class="btn-spinner"></span> Working\u2026';
+    const restore = () => { btn.disabled = false; btn.innerHTML = orig; };
+    try {
+      const result = fn();
+      if (result && typeof result.then === 'function') {
+        result.then(restore).catch(err => {
+          restore();
+          toast(err && err.message ? err.message : 'Error — check inputs', 'error');
+        });
+      } else {
+        restore();
+      }
+    } catch (err) {
+      restore();
+      toast(err && err.message ? err.message : 'Error — check inputs', 'error');
+    }
+  }
+
   // -----------------------------------------------------------------------
   // MODAL
   // -----------------------------------------------------------------------
@@ -2051,5 +2087,6 @@ const App = (() => {
     }),
     getMode,
     setMode,
+    btnSpinner,
   };
 })();

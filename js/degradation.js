@@ -165,9 +165,15 @@ const Degradation = (() => {
       </div>
     `;
 
-    container.querySelector('#lin-calc-btn').addEventListener('click', () => _calcLinear(container));
-    container.querySelector('#cmp-calc-btn').addEventListener('click', () => _calcCompound(container));
-    container.querySelector('#wc-calc-btn').addEventListener('click',  () => _calcWarranty(container));
+    container.querySelector('#lin-calc-btn').addEventListener('click', () => {
+      App.btnSpinner(container.querySelector('#lin-calc-btn'), () => _calcLinear(container));
+    });
+    container.querySelector('#cmp-calc-btn').addEventListener('click', () => {
+      App.btnSpinner(container.querySelector('#cmp-calc-btn'), () => _calcCompound(container));
+    });
+    container.querySelector('#wc-calc-btn').addEventListener('click', () => {
+      App.btnSpinner(container.querySelector('#wc-calc-btn'), () => _calcWarranty(container));
+    });
   }
 
   // -----------------------------------------------------------------------

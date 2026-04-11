@@ -180,9 +180,15 @@ const PRCalc = (() => {
       </div>
     `;
 
-    container.querySelector('#pr-calc-btn').addEventListener('click', () => _calcPR(container));
-    container.querySelector('#pr-spot-btn').addEventListener('click', () => _spotPR(container));
-    container.querySelector('#ir-check-btn').addEventListener('click', () => _checkIR(container));
+    container.querySelector('#pr-calc-btn').addEventListener('click', () => {
+      App.btnSpinner(container.querySelector('#pr-calc-btn'), () => _calcPR(container));
+    });
+    container.querySelector('#pr-spot-btn').addEventListener('click', () => {
+      App.btnSpinner(container.querySelector('#pr-spot-btn'), () => _spotPR(container));
+    });
+    container.querySelector('#ir-check-btn').addEventListener('click', () => {
+      App.btnSpinner(container.querySelector('#ir-check-btn'), () => _checkIR(container));
+    });
   }
 
   function _calcPR(container) {

@@ -794,9 +794,11 @@ var BasicCalc = (() => {
     _refreshOnboard(container);
 
     // Calculate
-    container.querySelector('#bc-calc-btn').addEventListener('click', async () => {
-      await _loadCosts();
-      _doCalculate(container, currentType);
+    container.querySelector('#bc-calc-btn').addEventListener('click', () => {
+      App.btnSpinner(container.querySelector('#bc-calc-btn'), async () => {
+        await _loadCosts();
+        _doCalculate(container, currentType);
+      });
     });
   }
 

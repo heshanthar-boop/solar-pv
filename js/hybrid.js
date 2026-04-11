@@ -1088,7 +1088,9 @@ const HybridSetup = (() => {
         }
       });
     }
-    container.querySelector('#hy-calc-btn').addEventListener('click', () => _calculate(container));
+    container.querySelector('#hy-calc-btn').addEventListener('click', () => {
+      App.btnSpinner(container.querySelector('#hy-calc-btn'), () => _calculate(container));
+    });
     _bindChecklistVisualState(container, '#hy-utility-checklist');
     _applyChemistryDefaults(container, false);
     _updateCatalogueHints(container);

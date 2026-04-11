@@ -124,7 +124,9 @@ const Sizing = (() => {
       container.querySelector(id).addEventListener('input', () => _updateCellTempInfo(container));
     });
 
-    container.querySelector('#sz-calc-btn').addEventListener('click', () => _calculate(container));
+    container.querySelector('#sz-calc-btn').addEventListener('click', () => {
+      App.btnSpinner(container.querySelector('#sz-calc-btn'), () => _calculate(container));
+    });
 
     // If panel already selected from state, show its specs
     if (s.panelId) _onPanelChange(container);

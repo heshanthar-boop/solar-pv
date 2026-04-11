@@ -736,7 +736,9 @@ const YieldEstimator = (() => {
     // Wire up events
     container.querySelector('#ye-panel').addEventListener('change', () => _fillFromPanel(container));
     container.querySelector('#ye-opt-tilt-btn').addEventListener('click', () => _findOptimalTilt(container));
-    container.querySelector('#ye-calc-btn').addEventListener('click', () => _runSimulation(container));
+    container.querySelector('#ye-calc-btn').addEventListener('click', () => {
+      App.btnSpinner(container.querySelector('#ye-calc-btn'), () => _runSimulation(container));
+    });
     container.querySelector('#ye-gps-btn').addEventListener('click', () => _useGPS(container));
     container.querySelector('#ye-pvgis-btn').addEventListener('click', () => _fetchPVGIS(container));
 

@@ -733,3 +733,24 @@ tr.ft-row-fail td { background: rgba(220, 38, 38, 0.07); }
 /* ===== FINANCIALS ===== */
 .fi-warn .basic-result-val { color: var(--danger) !important; }
 .fi-warn .basic-result-label { color: var(--danger) !important; }
+
+/* ===== BUTTON SPINNER ===== */
+.btn-spinner {
+  display: inline-block;
+  width: 13px; height: 13px;
+  border: 2px solid rgba(255,255,255,0.35);
+  border-top-color: #fff;
+  border-radius: 50%;
+  animation: btn-spin 0.6s linear infinite;
+  vertical-align: middle;
+  margin-right: 4px;
+}
+@keyframes btn-spin {
+  to { transform: rotate(360deg); }
+}
+/* Spinner inside secondary buttons (dark border) */
+.btn-secondary .btn-spinner,
+.btn-secondary[disabled] .btn-spinner {
+  border-color: rgba(0,0,0,0.2);
+  border-top-color: var(--text);
+}

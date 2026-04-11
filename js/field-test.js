@@ -469,7 +469,9 @@ var FieldTest = (() => {
     // Sun helper
     container.querySelector('#ft-calc-sun').addEventListener('click', () => _renderSunHelper(container));
 
-    container.querySelector('#ft-compare-btn').addEventListener('click', () => _compare(container));
+    container.querySelector('#ft-compare-btn').addEventListener('click', () => {
+      App.btnSpinner(container.querySelector('#ft-compare-btn'), () => _compare(container));
+    });
   }
 
   function _addString() {

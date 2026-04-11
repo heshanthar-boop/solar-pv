@@ -91,9 +91,15 @@ const InverterPerf = (() => {
       </div>
     `;
 
-    container.querySelector('#ip-calc-btn').addEventListener('click', () => _calcEfficiency(container));
-    container.querySelector('#ec-btn').addEventListener('click', () => _plotCurve(container));
-    container.querySelector('#ar-btn').addEventListener('click', () => _calcRatio(container));
+    container.querySelector('#ip-calc-btn').addEventListener('click', () => {
+      App.btnSpinner(container.querySelector('#ip-calc-btn'), () => _calcEfficiency(container));
+    });
+    container.querySelector('#ec-btn').addEventListener('click', () => {
+      App.btnSpinner(container.querySelector('#ec-btn'), () => _plotCurve(container));
+    });
+    container.querySelector('#ar-btn').addEventListener('click', () => {
+      App.btnSpinner(container.querySelector('#ar-btn'), () => _calcRatio(container));
+    });
   }
 
   // -----------------------------------------------------------------------

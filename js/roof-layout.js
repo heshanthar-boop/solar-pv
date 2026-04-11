@@ -165,7 +165,9 @@ var RoofLayout = (() => {
     if (panels.length) {
       container.querySelector('#rl-panel-sel').addEventListener('change', () => _fillPanelDims(container, panels));
     }
-    container.querySelector('#rl-layout-btn').addEventListener('click', () => _generateLayout(container));
+    container.querySelector('#rl-layout-btn').addEventListener('click', () => {
+      App.btnSpinner(container.querySelector('#rl-layout-btn'), () => _generateLayout(container));
+    });
   }
 
   function _fillPanelDims(container, panels) {

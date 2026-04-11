@@ -56,7 +56,9 @@ const TempCalc = (() => {
       </div>
     `;
 
-    container.querySelector('#tc-calc-btn').addEventListener('click', () => _calculate(container));
+    container.querySelector('#tc-calc-btn').addEventListener('click', () => {
+      App.btnSpinner(container.querySelector('#tc-calc-btn'), () => _calculate(container));
+    });
     // Auto-calculate when panel changes if fields already filled
     container.querySelector('#tc-panel').addEventListener('change', () => {
       if (container.querySelector('#tc-tmin').value) _calculate(container);

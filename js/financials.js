@@ -293,7 +293,9 @@ var Financials = (() => {
       </div>
     `;
 
-    container.querySelector('#fi-calc-btn').addEventListener('click', () => _calculate(container));
+    container.querySelector('#fi-calc-btn').addEventListener('click', () => {
+      App.btnSpinner(container.querySelector('#fi-calc-btn'), () => _calculate(container));
+    });
     container.querySelector('#fi-show-tiers-btn').addEventListener('click', () => _toggleTiers(container));
   }
 

@@ -91,8 +91,12 @@ const ShadingLoss = (() => {
       </div>
     `;
 
-    container.querySelector('#sh-calc-btn').addEventListener('click', () => _calcEffIrr(container));
-    container.querySelector('#ps-calc-btn').addEventListener('click', () => _calcPartialShade(container));
+    container.querySelector('#sh-calc-btn').addEventListener('click', () => {
+      App.btnSpinner(container.querySelector('#sh-calc-btn'), () => _calcEffIrr(container));
+    });
+    container.querySelector('#ps-calc-btn').addEventListener('click', () => {
+      App.btnSpinner(container.querySelector('#ps-calc-btn'), () => _calcPartialShade(container));
+    });
     container.querySelector('#aoi-plot-btn').addEventListener('click', () => _plotAOI(container));
   }
 
