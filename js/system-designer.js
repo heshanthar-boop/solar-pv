@@ -218,6 +218,9 @@ const SystemDesigner = (() => {
         </div>
         <div class="result-grid-3">
           <div class="result-box"><div class="result-value">${_fmt(r.summary.E_annual, 0)} kWh</div><div class="result-label">Annual PV Energy</div></div>
+          <div class="result-box"><div class="result-value">${_fmt(r.annualLoad, 0)} kWh</div><div class="result-label">Annual Load</div></div>
+          <div class="result-box"><div class="result-value">${_fmt(r.annualLoad / 12, 1)} kWh</div><div class="result-label">Avg Monthly Load</div></div>
+          <div class="result-box"><div class="result-value">${_fmt(r.annualLoad / 365, 2)} kWh</div><div class="result-label">Avg Daily Load</div></div>
           <div class="result-box"><div class="result-value">${_fmt(r.selfUse.selfConsumed_kWh, 0)} kWh</div><div class="result-label">Self-consumed PV</div></div>
           <div class="result-box"><div class="result-value">${_fmt(r.selfUse.gridExport_kWh, 0)} kWh</div><div class="result-label">Grid Export</div></div>
           <div class="result-box"><div class="result-value">${_fmt(r.selfUse.gridImport_kWh, 0)} kWh</div><div class="result-label">Grid Import</div></div>
@@ -299,6 +302,14 @@ const SystemDesigner = (() => {
               <input class="form-input" id="sd-load" type="number" min="100" step="100" value="12000" />
             </div>
             <div class="form-group">
+              <label class="form-label">Average Monthly Load (kWh/month)</label>
+              <input class="form-input" id="sd-load-month" type="number" min="10" step="1" value="1000" />
+            </div>
+            <div class="form-group">
+              <label class="form-label">Average Daily Load (kWh/day)</label>
+              <input class="form-input" id="sd-load-day" type="number" min="0.1" step="0.1" value="32.9" />
+            </div>
+            <div class="form-group">
               <label class="form-label">Load Profile</label>
               <select class="form-select" id="sd-profile">
                 ${LOAD_PROFILES.map(p => `<option value="${_esc(p.id)}">${_esc(p.label)}</option>`).join('')}
@@ -308,6 +319,7 @@ const SystemDesigner = (() => {
             <div class="form-group">
               <label class="form-label">Auto-size baseline</label>
               <div class="info-box" style="font-size:0.8rem">Initial PV suggestion uses ${TARGET_SPECIFIC_YIELD} kWh/kWp/year.</div>
+              <div class="form-hint">Edit any one of annual/monthly/daily load values. Others update automatically.</div>
             </div>
           </div>
         </div>
@@ -422,6 +434,33 @@ const SystemDesigner = (() => {
     const panelSel = container.querySelector('#sd-panel');
     const inverterSel = container.querySelector('#sd-inverter');
     const batterySel = container.querySelector('#sd-battery');
+    const annualLoadEl = container.querySelector('#sd-load');
+    const monthlyLoadEl = container.querySelector('#sd-load-month');
+    const dailyLoadEl = container.querySelector('#sd-load-day');
+
+    let _syncingLoad = false;
+    function _syncLoadFields(from) {
+      if (_syncingLoad) return;
+      _syncingLoad = true;
+      try {
+        let annual = NaN;
+        if (from === 'monthly') annual = _num(monthlyLoadEl.value, NaN) * 12;
+        else if (from === 'daily') annual = _num(dailyLoadEl.value, NaN) * 365;
+        else annual = _num(annualLoadEl.value, NaN);
+
+        if (!Number.isFinite(annual) || annual <= 0) return;
+        annualLoadEl.value = annual.toFixed(0);
+        monthlyLoadEl.value = (annual / 12).toFixed(1);
+        dailyLoadEl.value = (annual / 365).toFixed(2);
+      } finally {
+        _syncingLoad = false;
+      }
+    }
+
+    annualLoadEl.addEventListener('input', () => _syncLoadFields('annual'));
+    monthlyLoadEl.addEventListener('input', () => _syncLoadFields('monthly'));
+    dailyLoadEl.addEventListener('input', () => _syncLoadFields('daily'));
+    _syncLoadFields('annual');
 
     function updateProfileNote() {
       const profile = _profileById(profileSel.value);
@@ -468,7 +507,7 @@ const SystemDesigner = (() => {
     });
 
     container.querySelector('#sd-autosize').addEventListener('click', () => {
-      const annualLoad = _num(container.querySelector('#sd-load').value, 0);
+      const annualLoad = _num(annualLoadEl.value, 0);
       if (!(annualLoad > 0)) {
         if (typeof App !== 'undefined' && App) App.toast('Enter annual load first', 'warning');
         return;
@@ -491,7 +530,7 @@ const SystemDesigner = (() => {
 
     container.querySelector('#sd-run').addEventListener('click', () => {
       const loc = locations.find(l => l.id === container.querySelector('#sd-loc').value);
-      const annualLoad = _num(container.querySelector('#sd-load').value, NaN);
+      const annualLoad = _num(annualLoadEl.value, NaN);
       const profile = _profileById(container.querySelector('#sd-profile').value);
       const pDc = _num(container.querySelector('#sd-pdc').value, NaN);
       const pAc = _num(container.querySelector('#sd-pac').value, NaN);
