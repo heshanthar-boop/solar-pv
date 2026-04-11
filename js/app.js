@@ -53,6 +53,7 @@ const App = (() => {
     wireResult: null,
     hybridInputs: null,
     hybridResult: null,
+    designerResults: null,
     fieldTestResults: null,
     faultCheckResults: null,
     yieldResults: null,
@@ -77,6 +78,7 @@ const App = (() => {
     inverter:    { title: 'Inverter Performance',       render: (c) => InverterPerf.render(c) },
     shading:     { title: 'Shading & Loss',             render: (c) => ShadingLoss.render(c) },
     yield:       { title: 'Yield Estimator',            render: (c) => YieldEstimator.render(c) },
+    systemdesigner: { title: 'System Designer',         render: (c) => SystemDesigner.render(c) },
     inspector:   { title: 'PV Inspection Analyzer',    render: (c) => PVInspector.render(c) },
     faultai:     { title: 'Fault Detection',            render: (c) => FaultAI.render(c) },
     checklist:   { title: 'Commissioning Checklist',   render: (c) => Checklist.render(c) },
@@ -93,23 +95,23 @@ const App = (() => {
     },
     gridTie: {
       label: 'Grid-Tie System',
-      pages: ['database', 'sizing', 'wirecalc', 'cableschedule', 'utilityvalidator', 'temp', 'fieldtest', 'fault', 'inspection', 'pr', 'checklist', 'inverter', 'shading', 'yield', 'inspector', 'standards', 'reportbuilder', 'settings'],
+      pages: ['database', 'sizing', 'wirecalc', 'cableschedule', 'utilityvalidator', 'temp', 'fieldtest', 'fault', 'inspection', 'pr', 'checklist', 'inverter', 'shading', 'yield', 'systemdesigner', 'inspector', 'standards', 'reportbuilder', 'settings'],
     },
     gridTieHybrid: {
       label: 'Grid-Tie Hybrid System',
-      pages: ['database', 'sizing', 'wirecalc', 'cableschedule', 'hybrid', 'utilityvalidator', 'temp', 'fieldtest', 'fault', 'inspection', 'pr', 'checklist', 'inverter', 'shading', 'yield', 'inspector', 'degradation', 'fieldanalysis', 'diagnostics', 'faultai', 'standards', 'reportbuilder', 'settings'],
+      pages: ['database', 'sizing', 'wirecalc', 'cableschedule', 'hybrid', 'utilityvalidator', 'temp', 'fieldtest', 'fault', 'inspection', 'pr', 'checklist', 'inverter', 'shading', 'yield', 'systemdesigner', 'inspector', 'degradation', 'fieldanalysis', 'diagnostics', 'faultai', 'standards', 'reportbuilder', 'settings'],
     },
     fullyHybrid: {
       label: 'Fully Hybrid System',
-      pages: ['database', 'wirecalc', 'cableschedule', 'hybrid', 'utilityvalidator', 'temp', 'fieldtest', 'fault', 'inspection', 'pr', 'checklist', 'degradation', 'fieldanalysis', 'diagnostics', 'yield', 'standards', 'reportbuilder', 'settings'],
+      pages: ['database', 'wirecalc', 'cableschedule', 'hybrid', 'utilityvalidator', 'temp', 'fieldtest', 'fault', 'inspection', 'pr', 'checklist', 'degradation', 'fieldanalysis', 'diagnostics', 'yield', 'systemdesigner', 'standards', 'reportbuilder', 'settings'],
     },
     groundMount: {
       label: 'Ground Mount Solar System',
-      pages: ['database', 'sizing', 'wirecalc', 'cableschedule', 'utilityvalidator', 'temp', 'fieldtest', 'fault', 'inspection', 'pr', 'checklist', 'inverter', 'shading', 'yield', 'inspector', 'fieldanalysis', 'diagnostics', 'standards', 'reportbuilder', 'settings'],
+      pages: ['database', 'sizing', 'wirecalc', 'cableschedule', 'utilityvalidator', 'temp', 'fieldtest', 'fault', 'inspection', 'pr', 'checklist', 'inverter', 'shading', 'yield', 'systemdesigner', 'inspector', 'fieldanalysis', 'diagnostics', 'standards', 'reportbuilder', 'settings'],
     },
     battery: {
       label: 'Battery Focus',
-      pages: ['database', 'wirecalc', 'cableschedule', 'hybrid', 'utilityvalidator', 'fieldtest', 'fault', 'pr', 'checklist', 'standards', 'reportbuilder', 'settings'],
+      pages: ['database', 'wirecalc', 'cableschedule', 'hybrid', 'utilityvalidator', 'fieldtest', 'fault', 'pr', 'checklist', 'yield', 'systemdesigner', 'standards', 'reportbuilder', 'settings'],
     },
     standardsOnly: {
       label: 'Standards',
@@ -117,7 +119,7 @@ const App = (() => {
     },
     pvAnalysis: {
       label: 'PV Analysis',
-      pages: ['fieldanalysis', 'diagnostics', 'pr', 'degradation', 'yield', 'inverter', 'shading', 'faultai', 'standards', 'wirecalc', 'cableschedule', 'settings'],
+      pages: ['fieldanalysis', 'diagnostics', 'pr', 'degradation', 'yield', 'systemdesigner', 'inverter', 'shading', 'faultai', 'standards', 'wirecalc', 'cableschedule', 'settings'],
     },
   };
 
@@ -133,6 +135,7 @@ const App = (() => {
         { page: 'hybrid',      icon: '&#128267;', label: 'Hybrid Setup',         desc: 'Battery & inverter check' },
         { page: 'utilityvalidator', icon: '&#128221;', label: 'Utility Validator', desc: 'CEB/LECO submission gate' },
         { page: 'yield',       icon: '&#9728;',   label: 'Yield Estimator',      desc: 'Monthly kWh simulation' },
+        { page: 'systemdesigner', icon: '&#129516;', label: 'System Designer',    desc: 'PV*SOL-style guided simulation flow' },
         { page: 'inspector',   icon: '&#128202;', label: 'PV Inspection Analyzer', desc: 'Metrel Excel import & analysis' },
         { page: 'shading',     icon: '&#127774;', label: 'Shading & Loss',       desc: 'AOI & irradiance loss' },
       ]
