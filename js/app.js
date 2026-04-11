@@ -795,18 +795,121 @@ const App = (() => {
   // -----------------------------------------------------------------------
 
   function _renderBasicHome(container) {
-    if (typeof BasicCalc !== 'undefined' && BasicCalc && typeof BasicCalc.render === 'function') {
-      BasicCalc.render(container);
-      return;
-    }
+    const p = _project;
+    const hasProject = !!(p.name || p.client || p.siteAddress);
+    const typeLabels = { 'grid-tie': 'Grid-Tie', 'hybrid': 'Hybrid', 'off-grid': 'Off-Grid', 'ground-mount': 'Ground Mount' };
+    const yr = state.yieldResults;
+    const rl = state.roofLayoutResult;
+
     container.innerHTML = `
-      <div class="page">
-        <div class="card">
-          <div class="card-title">Basic Mode</div>
-          <div class="text-muted">Quick Calculator is unavailable. Reload the app and try again.</div>
+      <div class="home-screen">
+
+        <div class="basic-home-hero">
+          <div class="basic-home-hero-title">&#9889; Quick Solar Tools</div>
+          <div class="basic-home-hero-sub">Calculator &bull; Financials &bull; Roof Layout</div>
         </div>
+
+        <!-- Project card -->
+        ${hasProject ? `
+        <div class="project-card card" style="margin-bottom:14px">
+          <div class="project-card-header">
+            <span class="project-card-icon">&#128736;</span>
+            <span class="project-card-title">${escapeHTML(p.name || 'Unnamed Project')}</span>
+            <button class="btn btn-sm btn-secondary" id="basic-proj-edit" style="margin-left:auto;flex-shrink:0">&#9998; Edit</button>
+          </div>
+          <div style="display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-top:4px">
+            ${p.systemKwp ? `<span class="project-card-kwp">&#9889; ${escapeHTML(p.systemKwp)} kWp</span>` : ''}
+            ${typeLabels[p.systemType] ? `<span class="project-card-type">&#128268; ${escapeHTML(typeLabels[p.systemType])}</span>` : ''}
+            ${(p.lat && p.lon) ? `<span class="project-card-loc">&#127757; ${parseFloat(p.lat).toFixed(3)}, ${parseFloat(p.lon).toFixed(3)}</span>` : ''}
+          </div>
+        </div>` : `
+        <div class="card" style="margin-bottom:14px">
+          <div style="font-size:0.85rem;color:var(--text-muted);padding:4px 0">
+            No active project. <button class="btn btn-sm btn-secondary" id="basic-proj-set" style="margin-left:6px">+ Set Project</button>
+          </div>
+        </div>`}
+
+        <!-- Status badges — show if data is available from other modules -->
+        ${yr || rl ? `
+        <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px">
+          ${yr ? `<span class="project-card-kwp" style="cursor:pointer" id="basic-badge-yield">&#9728; Yield: ${yr.summary.E_annual.toFixed(0)} kWh/yr</span>` : ''}
+          ${rl ? `<span class="project-card-type" style="cursor:pointer" id="basic-badge-layout">&#127968; Layout: ${rl.total} panels</span>` : ''}
+        </div>` : ''}
+
+        <!-- Tool tiles -->
+        <div class="basic-home-tools">
+
+          <button class="basic-home-tile" data-page="basiccalc">
+            <span class="basic-home-tile-icon">&#128200;</span>
+            <div>
+              <div class="basic-home-tile-label">Quick Calculator</div>
+              <div class="basic-home-tile-desc">Panel count, inverter, battery, wiring, cost</div>
+            </div>
+            <span class="basic-home-tile-arrow">&#8250;</span>
+          </button>
+
+          <button class="basic-home-tile" data-page="financials">
+            <span class="basic-home-tile-icon">&#128176;</span>
+            <div>
+              <div class="basic-home-tile-label">Financial Analysis</div>
+              <div class="basic-home-tile-desc">ROI, payback, NPV &bull; CEB tariffs${yr ? ' &bull; <strong>Yield data ready</strong>' : ''}</div>
+            </div>
+            <span class="basic-home-tile-arrow">&#8250;</span>
+          </button>
+
+          <button class="basic-home-tile" data-page="rooflayout">
+            <span class="basic-home-tile-icon">&#127968;</span>
+            <div>
+              <div class="basic-home-tile-label">Roof Layout</div>
+              <div class="basic-home-tile-desc">Auto panel placement, strings, shadow overlay</div>
+            </div>
+            <span class="basic-home-tile-arrow">&#8250;</span>
+          </button>
+
+          <button class="basic-home-tile" data-page="yield">
+            <span class="basic-home-tile-icon">&#9728;</span>
+            <div>
+              <div class="basic-home-tile-label">Yield Estimator</div>
+              <div class="basic-home-tile-desc">Monthly kWh simulation &bull; PVGIS live data</div>
+            </div>
+            <span class="basic-home-tile-arrow">&#8250;</span>
+          </button>
+
+          <button class="basic-home-tile" data-page="settings">
+            <span class="basic-home-tile-icon">&#9881;</span>
+            <div>
+              <div class="basic-home-tile-label">Settings</div>
+              <div class="basic-home-tile-desc">Inspector name, company, data backup</div>
+            </div>
+            <span class="basic-home-tile-arrow">&#8250;</span>
+          </button>
+
+        </div>
+
+        <div class="home-footer">Solar PV Field Tool &bull; <span style="cursor:pointer;color:var(--primary)" id="basic-to-advanced">Advanced Mode &#8250;</span></div>
       </div>
     `;
+
+    // Project buttons
+    const editBtn = container.querySelector('#basic-proj-edit');
+    if (editBtn) editBtn.addEventListener('click', () => _showProjectModal(container));
+    const setBtn = container.querySelector('#basic-proj-set');
+    if (setBtn) setBtn.addEventListener('click', () => _showProjectModal(container));
+
+    // Badge taps — navigate to relevant module
+    const yieldBadge = container.querySelector('#basic-badge-yield');
+    if (yieldBadge) yieldBadge.addEventListener('click', () => navigate('financials'));
+    const layoutBadge = container.querySelector('#basic-badge-layout');
+    if (layoutBadge) layoutBadge.addEventListener('click', () => navigate('rooflayout'));
+
+    // Tile navigation
+    container.querySelectorAll('.basic-home-tile[data-page]').forEach(btn => {
+      btn.addEventListener('click', () => navigate(btn.dataset.page));
+    });
+
+    // "Advanced Mode" link in footer
+    const advLink = container.querySelector('#basic-to-advanced');
+    if (advLink) advLink.addEventListener('click', () => { setMode('advanced'); navigate('home'); });
   }
 
   // -----------------------------------------------------------------------

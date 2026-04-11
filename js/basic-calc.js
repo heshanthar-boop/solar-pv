@@ -639,6 +639,46 @@ var BasicCalc = (() => {
 
     _loadCosts();
     _bindEvents(container, panels, inverters, batteries);
+
+    // Pre-fill from roof layout result if navigated here via "Use in Calculator"
+    _applyRoofLayoutPreFill(container, panels);
+  }
+
+  function _applyRoofLayoutPreFill(container, panels) {
+    if (typeof App === 'undefined' || !App.state || !App.state.roofLayoutResult) return;
+    const rl = App.state.roofLayoutResult;
+
+    // Only auto-apply once per navigation — clear after reading
+    App.state.roofLayoutResult = null;
+
+    // Fill kWp from layout if available
+    if (rl.kwp) {
+      _setVal(container, '#bc-kwp', rl.kwp);
+    }
+
+    // Fill modules per string from layout's pps
+    if (rl.pps) {
+      _setVal(container, '#bc-modstring', rl.pps);
+    }
+
+    // If a panel was selected in roof layout, select it here too
+    if (rl.panelId) {
+      const panelSel = container.querySelector('#bc-panel-sel');
+      if (panelSel) {
+        panelSel.value = rl.panelId;
+        // Trigger fill of Pmax/Voc/Isc
+        panelSel.dispatchEvent(new Event('change'));
+      }
+    }
+
+    // Show a banner confirming the data came from roof layout
+    const banner = document.createElement('div');
+    banner.className = 'info-box';
+    banner.style.cssText = 'margin-bottom:10px;font-size:0.82rem';
+    banner.innerHTML = `&#127968; Loaded from Roof Layout: <strong>${rl.total} panels</strong>${rl.kwp ? ', <strong>' + rl.kwp + ' kWp</strong>' : ''}, ${rl.numStrings} string${rl.numStrings !== 1 ? 's' : ''} &bull; <a href="#" id="bc-clear-rl" style="color:var(--text-muted)">clear</a>`;
+    const page = container.querySelector('.basic-calc-page');
+    if (page) page.insertBefore(banner, page.firstChild);
+    banner.querySelector('#bc-clear-rl').addEventListener('click', e => { e.preventDefault(); banner.remove(); });
   }
 
   // -----------------------------------------------------------------------

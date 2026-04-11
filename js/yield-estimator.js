@@ -885,10 +885,14 @@ const YieldEstimator = (() => {
         <div class="info-box" style="margin-top:8px;font-size:0.80rem">
           System: ${_esc(P_dc)} kWp DC / ${_esc(P_ac)} kW AC &bull; Tilt ${_esc(tilt)}Â° / Azimuth ${_esc(azimuth)}Â° &bull; NOCT ${_esc(NOCT)}Â°C
         </div>
-        <div class="btn-group" style="margin-top:10px">
+        <div class="btn-group" style="margin-top:10px;flex-wrap:wrap;gap:6px">
           <button class="btn btn-secondary btn-sm" id="ye-print-btn">&#128424; Print</button>
           <button class="btn btn-secondary btn-sm" id="ye-csv-btn">&#128190; Export CSV</button>
           <button class="btn btn-success btn-sm" id="ye-pdf-btn">&#128196; Export PDF</button>
+          <button class="btn btn-primary btn-sm" id="ye-to-financials-btn">&#128176; Financial Analysis &#8250;</button>
+        </div>
+        <div id="ye-financials-hint" style="margin-top:6px;font-size:0.8rem;color:var(--text-muted)">
+          &#9989; ${E_annual.toFixed(0)} kWh/yr &bull; ${P_dc} kWp — ready to feed into Financial Analysis
         </div>
       </div>
 
@@ -982,6 +986,11 @@ const YieldEstimator = (() => {
       const hourly  = simulateHourly(mData, P_dc, NOCT, coeffPmax_pct, losses, dT);
       _renderHourlyChart(container.querySelector('#ye-hourly-chart'), hourly, mData.monthName);
     });
+    container.querySelector('#ye-to-financials-btn').addEventListener('click', () => {
+      App.navigate('financials');
+      App.toast('Yield data loaded into Financial Analysis', 'success');
+    });
+
     container.querySelector('#ye-csv-btn').addEventListener('click', () => {
       if (typeof Reports === 'undefined' || typeof Reports.downloadYieldCSV !== 'function') {
         App.toast('CSV export not available', 'error');

@@ -259,6 +259,15 @@ var RoofLayout = (() => {
       ? (() => { const p = DB.getById(container.querySelector('#rl-panel-sel').value); return p ? (total * p.Pmax / 1000).toFixed(2) : null; })()
       : null;
 
+    // Store result in App state for other modules to consume
+    const layoutResult = {
+      total, rows, cols, numStrings, pps, partialLast,
+      panelW: panelW0, panelL: panelL0, pW, pD,
+      roofW, roofD, kwp: kwp ? parseFloat(kwp) : null,
+      panelId: container.querySelector('#rl-panel-sel') ? container.querySelector('#rl-panel-sel').value : null,
+    };
+    if (typeof App !== 'undefined') App.state.roofLayoutResult = layoutResult;
+
     container.querySelector('#rl-summary').innerHTML = `
       <table class="status-table">
         <tbody>
@@ -270,10 +279,21 @@ var RoofLayout = (() => {
           <tr><td><strong>Roof Coverage</strong></td><td>${((total * panelW0 * panelL0) / (roofW * roofD) * 100).toFixed(0)}%</td></tr>
           ${shadowPolygon ? `<tr><td><strong>Shadow at ${sunEl}° elevation</strong></td><td>${shadowPolygon.shadowLen.toFixed(2)} m from ${obsPos} edge</td></tr>` : ''}
         </tbody>
-      </table>`;
+      </table>
+      <div style="margin-top:8px">
+        <button class="btn btn-primary btn-sm" id="rl-to-calc-btn">&#9889; Use in Calculator &#8250;</button>
+        <span style="font-size:0.8rem;color:var(--text-muted);margin-left:8px">${total} panels${kwp ? ', ' + kwp + ' kWp' : ''} → Quick Calculator</span>
+      </div>`;
 
     container.querySelector('#rl-result').classList.remove('hidden');
     container.querySelector('#rl-result').scrollIntoView({ behavior: 'smooth', block: 'start' });
+
+    // "Use in Calculator" — navigate to basiccalc with panel count pre-filled
+    container.querySelector('#rl-to-calc-btn').addEventListener('click', () => {
+      App.navigate('basiccalc');
+      // BasicCalc.render() will read App.state.roofLayoutResult on next render
+      App.toast(total + ' panels from roof layout → loaded into Calculator', 'success');
+    });
 
     // Download button
     container.querySelector('#rl-download-btn').onclick = () => _downloadPNG(container);
