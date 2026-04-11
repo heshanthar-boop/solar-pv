@@ -403,28 +403,8 @@ var BasicCalc = (() => {
         </div>
       </div>
 
-      <div class="card" style="margin-bottom:80px">
-        <div class="card-title">&#128196; Next Steps</div>
-        <div style="display:flex;flex-direction:column;gap:8px">
-          <button class="btn btn-secondary btn-sm" id="bc-goto-sizing">&#9889; Full String Sizing (Advanced)</button>
-          <button class="btn btn-secondary btn-sm" id="bc-goto-wire">&#128268; Detailed Wire Calc (Advanced)</button>
-          <button class="btn btn-secondary btn-sm" id="bc-goto-checklist">&#9989; Commissioning Checklist (Advanced)</button>
-        </div>
-      </div>
     `;
 
-    div.querySelector('#bc-goto-sizing').addEventListener('click', () => {
-      App.setMode('advanced');
-      App.navigate('sizing');
-    });
-    div.querySelector('#bc-goto-wire').addEventListener('click', () => {
-      App.setMode('advanced');
-      App.navigate('wirecalc');
-    });
-    div.querySelector('#bc-goto-checklist').addEventListener('click', () => {
-      App.setMode('advanced');
-      App.navigate('checklist');
-    });
 
     div.scrollIntoView({ behavior: 'smooth', block: 'start' });
   }

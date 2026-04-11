@@ -29,16 +29,16 @@ const App = (() => {
   }
 
   function _initModeToggle() {
-    const headerRight = document.getElementById('header-right');
-    if (!headerRight) return;
+    // Insert toggle at the LEFT of the header, before the home/back button
+    const header = document.getElementById('app-header');
+    if (!header) return;
     const wrap = document.createElement('div');
     wrap.className = 'mode-toggle-wrap';
     wrap.innerHTML = `
-      <button class="mode-toggle-btn${_mode === 'basic' ? ' active' : ''}" id="mode-btn-basic">Basic</button>
-      <button class="mode-toggle-btn${_mode === 'advanced' ? ' active' : ''}" id="mode-btn-advanced">Advanced</button>
+      <button class="mode-toggle-btn${_mode === 'basic' ? ' active' : ''}" id="mode-btn-basic">B</button>
+      <button class="mode-toggle-btn${_mode === 'advanced' ? ' active' : ''}" id="mode-btn-advanced">A</button>
     `;
-    // Insert before Firebase sign-in button (prepend to headerRight)
-    headerRight.insertBefore(wrap, headerRight.firstChild);
+    header.insertBefore(wrap, header.firstChild);
     wrap.querySelector('#mode-btn-basic').addEventListener('click', () => setMode('basic'));
     wrap.querySelector('#mode-btn-advanced').addEventListener('click', () => setMode('advanced'));
   }
@@ -795,9 +795,8 @@ const App = (() => {
     container.innerHTML = `
       <div class="home-screen">
         <div class="basic-home-hero">
-          <div class="basic-home-hero-title">&#9889; Solar PV Field Tool</div>
-          <div class="basic-home-hero-sub">Basic Mode &mdash; fast estimates, no complexity</div>
-          <button class="btn basic-home-switch-btn" id="basic-switch-advanced">Switch to Advanced &#8250;</button>
+          <div class="basic-home-hero-title">&#9889; Quick Calculator</div>
+          <div class="basic-home-hero-sub">Fast estimates &mdash; panel count, wiring, cost</div>
         </div>
 
         ${hasProject ? `
@@ -835,18 +834,9 @@ const App = (() => {
           </button>
         </div>
 
-        <div class="basic-home-advanced-hint">
-          Need detailed analysis, standards, field testing or commissioning?
-          <button class="btn btn-sm btn-secondary" id="basic-go-advanced" style="margin-top:8px;width:100%">&#128218; Open Advanced Mode</button>
-        </div>
-
-        <div class="home-footer">Solar PV Field Tool &bull; Basic Mode</div>
+        <div class="home-footer">Solar PV Field Tool</div>
       </div>
     `;
-
-    container.querySelector('#basic-switch-advanced').addEventListener('click', () => setMode('advanced'));
-    const goAdv = container.querySelector('#basic-go-advanced');
-    if (goAdv) goAdv.addEventListener('click', () => setMode('advanced'));
 
     const editBtn = container.querySelector('#basic-project-edit-btn');
     if (editBtn) editBtn.addEventListener('click', () => _showProjectModal(container));
