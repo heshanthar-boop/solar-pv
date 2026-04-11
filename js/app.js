@@ -806,20 +806,6 @@ const App = (() => {
   // HOME SCREEN
   // -----------------------------------------------------------------------
 
-  const ONBOARD_DISMISS_KEY = 'solarpv_onboard_dismissed';
-
-  function _onboardSteps() {
-    const p = _project;
-    const hasProject = !!(p.name || p.client || p.siteAddress);
-    const hasPanel = typeof DB !== 'undefined' && DB.getAll().length > 0;
-    const hasSizing = !!(state.sizingResult);
-    return [
-      { title: 'Set your project', desc: 'Name, client, site address, system size', done: hasProject, action: 'project' },
-      { title: 'Add a PV module', desc: 'Import or enter module datasheet values', done: hasPanel, action: 'database' },
-      { title: 'Run string sizing', desc: 'Verify voltage & current limits for your inverter', done: hasSizing, action: 'sizing' },
-    ];
-  }
-
   function _renderHome(container) {
     const allowed = _allowedPages();
     const projectTypeOptions = Object.entries(PROJECT_TYPES).map(([k, v]) =>
@@ -862,26 +848,8 @@ const App = (() => {
          </div>`
       : '';
 
-    // Onboarding banner — show if not dismissed and not all steps done
-    const dismissed = localStorage.getItem(ONBOARD_DISMISS_KEY) === '1';
-    const steps = _onboardSteps();
-    const allDone = steps.every(s => s.done);
-    const onboardHtml = (!dismissed && !allDone) ? `
-      <div class="home-onboard" id="home-onboard">
-        <div class="home-onboard-title">&#128640; Get started — 3 quick steps</div>
-        <div class="home-onboard-steps">
-          ${steps.map((s, i) => `
-            <div class="home-onboard-step ${s.done ? 'done' : ''}" data-onboard-action="${s.action}">
-              <div class="home-onboard-num">${s.done ? '&#10003;' : (i + 1)}</div>
-              <div class="home-onboard-step-text">
-                <div class="home-onboard-step-title">${escapeHTML(s.title)}</div>
-                <div class="home-onboard-step-desc">${escapeHTML(s.desc)}</div>
-              </div>
-              ${!s.done ? '<span style="color:var(--text-muted);font-size:1rem">&#8250;</span>' : ''}
-            </div>`).join('')}
-        </div>
-        <div class="home-onboard-dismiss" id="home-onboard-dismiss">Dismiss &times;</div>
-      </div>` : '';
+    // Advanced mode: onboarding banner removed (Basic mode already handles guided flow).
+    const onboardHtml = '';
 
     const groups = HOME_TILES.map(group => {
       const visibleTiles = group.tiles.filter(t => allowed.has(t.page));
@@ -929,23 +897,6 @@ const App = (() => {
 
     const backupWarn = container.querySelector('#home-backup-warn');
     if (backupWarn) backupWarn.addEventListener('click', () => navigate('settings'));
-
-    // Onboarding step clicks
-    container.querySelectorAll('[data-onboard-action]').forEach(el => {
-      if (el.classList.contains('done')) return;
-      el.addEventListener('click', () => {
-        const action = el.dataset.onboardAction;
-        if (action === 'project') _showProjectModal(container);
-        else navigate(action);
-      });
-    });
-    const dismissBtn = container.querySelector('#home-onboard-dismiss');
-    if (dismissBtn) {
-      dismissBtn.addEventListener('click', () => {
-        localStorage.setItem(ONBOARD_DISMISS_KEY, '1');
-        container.querySelector('#home-onboard').remove();
-      });
-    }
 
     container.querySelectorAll('.home-tile').forEach(btn => {
       btn.addEventListener('click', () => navigate(btn.dataset.page));
