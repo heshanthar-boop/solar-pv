@@ -906,7 +906,20 @@ const App = (() => {
     });
   }
 
-  function _showProjectModal(homeContainer) {
+  function _afterProjectSave(homeContainer, onSaved) {
+    if (typeof onSaved === 'function') {
+      onSaved();
+      return;
+    }
+    if (!homeContainer) return;
+    if (_mode === 'basic') {
+      _renderBasicHome(homeContainer);
+      return;
+    }
+    _renderHome(homeContainer);
+  }
+
+  function _showProjectModal(homeContainer, onSaved) {
     const p = _project;
     const typeOptions = [
       ['grid-tie', 'Grid-Tie'],
@@ -954,7 +967,7 @@ const App = (() => {
         { label: 'Clear', cls: 'btn-secondary', action: () => {
           _project = _defaultProject();
           _saveProject();
-          _renderHome(homeContainer);
+          _afterProjectSave(homeContainer, onSaved);
           return true;
         }},
         { label: 'Save', cls: 'btn-primary', action: () => {
@@ -968,7 +981,7 @@ const App = (() => {
           _project.lat = latVal;
           _project.lon = lonVal;
           _saveProject();
-          _renderHome(homeContainer);
+          _afterProjectSave(homeContainer, onSaved);
           toast('Project saved', 'success');
           return true;
         }},
@@ -1920,6 +1933,15 @@ const App = (() => {
     clearImportHistory,
     attachLiveValidation,
     getProject,
+    openProjectEditor: () => _showProjectModal(main, () => {
+      if (state.currentPage === 'home') {
+        navigate('home');
+      } else if (state.currentPage && PAGES[state.currentPage]) {
+        navigate(state.currentPage);
+      } else {
+        navigate('home');
+      }
+    }),
     getMode,
     setMode,
   };

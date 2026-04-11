@@ -349,15 +349,113 @@ var BasicCalc = (() => {
   // -----------------------------------------------------------------------
   // Onboarding steps (basic mode version)
   // -----------------------------------------------------------------------
+  function _progressState() {
+    if (typeof App === 'undefined' || !App || !App.state) return { panelReady: false, calculated: false };
+    if (!App.state.basicCalcProgress || typeof App.state.basicCalcProgress !== 'object') {
+      App.state.basicCalcProgress = { panelReady: false, calculated: false };
+    }
+    return App.state.basicCalcProgress;
+  }
+
+  function _setProgress(patch) {
+    if (typeof App === 'undefined' || !App || !App.state || !patch || typeof patch !== 'object') return;
+    const progress = _progressState();
+    Object.assign(progress, patch);
+  }
+
+  function _panelInputReady(container) {
+    const panelSel = container ? container.querySelector('#bc-panel-sel') : null;
+    if (panelSel && panelSel.value) return true;
+    const pmax = _getVal(container, '#bc-pmax', 0);
+    const voc = _getVal(container, '#bc-voc', 0);
+    const isc = _getVal(container, '#bc-isc', 0);
+    return pmax > 0 && voc > 0 && isc > 0;
+  }
+
+  function _focusInView(container, blockSel, focusSel) {
+    const block = container.querySelector(blockSel);
+    if (block && typeof block.scrollIntoView === 'function') {
+      block.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+    const focusEl = container.querySelector(focusSel);
+    if (focusEl && typeof focusEl.focus === 'function') {
+      window.setTimeout(() => {
+        try { focusEl.focus({ preventScroll: true }); } catch (_) { focusEl.focus(); }
+      }, 180);
+    }
+  }
+
+  function _runOnboardAction(container, action) {
+    if (action === 'project') {
+      if (typeof App !== 'undefined' && App && typeof App.openProjectEditor === 'function') {
+        App.openProjectEditor();
+      } else if (typeof App !== 'undefined' && App && typeof App.navigate === 'function') {
+        App.navigate('settings');
+      }
+      return;
+    }
+    if (action === 'panel') {
+      _focusInView(container, '#bc-panel-card', '#bc-panel-sel');
+      const panelSel = container.querySelector('#bc-panel-sel');
+      const fallback = container.querySelector('#bc-pmax');
+      if ((!panelSel || !panelSel.value) && fallback && typeof fallback.focus === 'function') {
+        fallback.focus();
+      }
+      return;
+    }
+    if (action === 'calculate') {
+      _focusInView(container, '#bc-systype-tabs', '#bc-calc-btn');
+    }
+  }
+
+  function _bindOnboardActions(container) {
+    container.querySelectorAll('[data-bc-onboard-action]').forEach(step => {
+      if (step.dataset.bcOnboardBound === '1') return;
+      step.dataset.bcOnboardBound = '1';
+      const action = step.dataset.bcOnboardAction;
+      step.addEventListener('click', () => _runOnboardAction(container, action));
+      step.addEventListener('keydown', (ev) => {
+        if (ev.key === 'Enter' || ev.key === ' ') {
+          ev.preventDefault();
+          _runOnboardAction(container, action);
+        }
+      });
+    });
+  }
+
+  function _refreshOnboard(container) {
+    const oldNode = container.querySelector('#bc-onboard');
+    const html = _onboardHtml();
+    if (!html) {
+      if (oldNode) oldNode.remove();
+      return;
+    }
+
+    const wrap = document.createElement('div');
+    wrap.innerHTML = html.trim();
+    const nextNode = wrap.firstElementChild;
+    if (!nextNode) return;
+
+    if (oldNode) {
+      oldNode.replaceWith(nextNode);
+    } else {
+      const anchor = container.querySelector('.basic-calc-header');
+      if (anchor) anchor.insertAdjacentElement('afterend', nextNode);
+      else container.prepend(nextNode);
+    }
+    _bindOnboardActions(container);
+  }
+
   function _onboardHtml() {
     const p = typeof App !== 'undefined' ? App.getProject() : {};
     const hasProject = !!(p && (p.name || p.client || p.siteAddress));
-    const hasPanel = _getPanels().length > 0;
+    const progress = _progressState();
+    const hasPanel = !!progress.panelReady;
 
     const steps = [
-      { num: 1, title: 'Set your project', desc: 'Name, client, site — optional but useful', done: hasProject },
-      { num: 2, title: 'Select or enter panel data', desc: 'Pick from database or type Pmax, Voc, Isc', done: hasPanel },
-      { num: 3, title: 'Choose system type & calculate', desc: 'Grid-Tie, Off-Grid, or Hybrid', done: false },
+      { num: 1, action: 'project', title: 'Set your project', desc: 'Name, client, site - optional but useful', done: hasProject },
+      { num: 2, action: 'panel', title: 'Select or enter panel data', desc: 'Pick from database or type Pmax, Voc, Isc', done: hasPanel },
+      { num: 3, action: 'calculate', title: 'Choose system type & calculate', desc: 'Grid-Tie, Off-Grid, or Hybrid', done: !!progress.calculated },
     ];
 
     const allDone = steps.every(s => s.done);
@@ -365,12 +463,12 @@ var BasicCalc = (() => {
 
     return `
       <div class="home-onboard" id="bc-onboard">
-        <div class="home-onboard-title">&#9654; Get started — 3 quick steps</div>
+        <div class="home-onboard-title">&#9654; Get started &mdash; 3 quick steps</div>
         <div class="home-onboard-steps">
           ${steps.map(s => `
-            <div class="home-onboard-step ${s.done ? 'done' : ''}">
+            <div class="home-onboard-step actionable ${s.done ? 'done' : ''}" data-bc-onboard-action="${_esc(s.action)}" role="button" tabindex="0">
               <span class="home-onboard-num">${s.done ? '&#10003;' : s.num}</span>
-              <div>
+              <div class="home-onboard-step-text">
                 <div class="home-onboard-step-title">${_esc(s.title)}</div>
                 <div class="home-onboard-step-desc">${_esc(s.desc)}</div>
               </div>
@@ -380,7 +478,7 @@ var BasicCalc = (() => {
   }
 
   // -----------------------------------------------------------------------
-  // Render — main entry point
+  // Render - main entry point
   // -----------------------------------------------------------------------
   async function render(container) {
     const panels = _getPanels();
@@ -585,6 +683,7 @@ var BasicCalc = (() => {
     }
 
     tabs.forEach(t => t.addEventListener('click', () => _switchType(t.dataset.type)));
+    _bindOnboardActions(container);
 
     // Panel DB selector
     const panelSel = container.querySelector('#bc-panel-sel');
@@ -603,9 +702,20 @@ var BasicCalc = (() => {
           const mps = Math.round(target / panel.Voc);
           _setVal(container, '#bc-modstring', Math.max(1, Math.min(mps, 30)));
         }
+        _setProgress({ panelReady: _panelInputReady(container), calculated: false });
+        _refreshOnboard(container);
         App.toast('Panel data loaded: ' + panel.manufacturer + ' ' + panel.model, 'success');
       });
     }
+
+    ['#bc-pmax', '#bc-voc', '#bc-isc'].forEach(sel => {
+      const el = container.querySelector(sel);
+      if (!el) return;
+      el.addEventListener('input', () => {
+        _setProgress({ panelReady: _panelInputReady(container), calculated: false });
+        _refreshOnboard(container);
+      });
+    });
 
     // Battery DB selector
     const batSel = container.querySelector('#bc-bat-sel');
@@ -624,6 +734,24 @@ var BasicCalc = (() => {
     }
 
     _bindInverterSel(container, inverters, 'gridtie');
+
+    [
+      '#bc-modstring', '#bc-kwp', '#bc-acphase', '#bc-roof',
+      '#bc-dailyload', '#bc-psh', '#bc-autonomy', '#bc-offgrid-acphase', '#bc-offgrid-roof',
+      '#bc-hy-dailyload', '#bc-hy-backup', '#bc-batkwh', '#bc-batvolt', '#bc-battype',
+      '#bc-inv-sel', '#bc-bat-sel'
+    ].forEach(sel => {
+      const el = container.querySelector(sel);
+      if (!el) return;
+      const evt = el.tagName === 'SELECT' ? 'change' : 'input';
+      el.addEventListener(evt, () => {
+        _setProgress({ calculated: false });
+        _refreshOnboard(container);
+      });
+    });
+
+    _setProgress({ panelReady: _panelInputReady(container) });
+    _refreshOnboard(container);
 
     // Calculate
     container.querySelector('#bc-calc-btn').addEventListener('click', async () => {
@@ -715,6 +843,8 @@ var BasicCalc = (() => {
     }
 
     _renderResults(container, r);
+    _setProgress({ panelReady: _panelInputReady(container), calculated: true });
+    _refreshOnboard(container);
   }
 
   // -----------------------------------------------------------------------
@@ -862,3 +992,4 @@ var BasicCalc = (() => {
 
   return { render };
 })();
+
