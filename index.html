@@ -2,25 +2,30 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-  <meta name="theme-color" content="#d97706" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="theme-color" content="#142b36" />
+  <meta name="description" content="A complete solar engineering workspace for system design, field testing, diagnostics and reports." />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <title>SolarPV Field Tool</title>
   <link rel="manifest" href="manifest.json" />
-  <link rel="stylesheet" href="css/style.css?v=10" />
+  <link rel="icon" href="icons/solar-mark.svg" type="image/svg+xml" />
+  <link rel="stylesheet" href="css/style.css?v=12" />
+  <link rel="stylesheet" href="css/workspace.css?v=3" />
 </head>
 <body>
 
+<a class="skip-link" href="#main-content">Skip to workspace</a>
+<aside id="workspace-sidebar" aria-label="Workspace navigation"></aside>
 <!-- HEADER -->
 <header id="app-header">
   <button id="home-btn" class="icon-btn hidden" aria-label="Home">&#8592;</button>
-  <span id="page-title">Solar PV Field Tool</span>
+  <div class="header-context"><span class="header-eyebrow">SOLAR ENGINEERING WORKSPACE</span><span id="page-title">Overview</span></div>
   <div id="header-right"></div>
 </header>
 
 <!-- MAIN CONTENT -->
-<main id="main-content">
+<main id="main-content" tabindex="-1">
   <div class="loading-screen">
     <div class="loading-icon">&#9728;</div>
     <div>Loading...</div>
@@ -28,11 +33,11 @@
 </main>
 
 <!-- TOAST -->
-<div id="toast" class="toast hidden"></div>
+<div id="toast" class="toast hidden" role="status" aria-live="polite"></div>
 
 <!-- MODAL -->
 <div id="modal-overlay" class="overlay hidden">
-  <div id="modal" class="modal">
+  <div id="modal" class="modal" role="dialog" aria-modal="true" aria-labelledby="modal-title" tabindex="-1">
     <div id="modal-title" class="modal-title"></div>
     <div id="modal-body" class="modal-body"></div>
     <div id="modal-footer" class="modal-footer"></div>
@@ -40,16 +45,16 @@
 </div>
 
 <!-- Firebase compat SDK -->
-<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
+<script defer src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
+<script defer src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
+<script defer src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
 
 <!-- CDN Scripts -->
-<script src="https://unpkg.com/jspdf@2.5.2/dist/jspdf.umd.min.js"></script>
-<script src="https://unpkg.com/jspdf-autotable@3.8.4/dist/jspdf.plugin.autotable.min.js"></script>
-<script src="https://unpkg.com/docx@8.5.0/build/index.umd.js"></script>
-<script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
-<script src="https://unpkg.com/jszip@3.10.1/dist/jszip.min.js"></script>
+<script defer src="https://unpkg.com/jspdf@2.5.2/dist/jspdf.umd.min.js"></script>
+<script defer src="https://unpkg.com/jspdf-autotable@3.8.4/dist/jspdf.plugin.autotable.min.js"></script>
+<script defer src="https://unpkg.com/docx@8.5.0/build/index.umd.js"></script>
+<script defer src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
+<script defer src="https://unpkg.com/jszip@3.10.1/dist/jszip.min.js"></script>
 
 <!-- App Scripts — ORDER MATTERS -->
 <script src="js/catalog-store.js"></script>
@@ -73,8 +78,8 @@
 <script src="js/diagnostics.js"></script>
 <script src="js/inverter-perf.js"></script>
 <script src="js/shading.js"></script>
-<script src="js/yield-estimator.js?v=3"></script>
-<script src="js/system-designer.js"></script>
+<script src="js/yield-estimator.js?v=4"></script>
+<script src="js/system-designer.js?v=2"></script>
 <script src="js/pv-inspector.js"></script>
 <script src="js/fault-ai.js"></script>
 <script src="js/checklist.js?v=2"></script>
@@ -84,7 +89,8 @@
 <script src="js/financials.js"></script>
 <script src="js/roof-layout.js"></script>
 <script src="js/firebase-sync.js"></script>
-<script src="js/app.js?v=10"></script>
+<script src="js/workspace-ui.js?v=2"></script>
+<script src="js/app.js?v=14"></script>
 
 </body>
 </html>

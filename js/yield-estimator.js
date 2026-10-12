@@ -1,34 +1,34 @@
-﻿/**
- * yield-estimator.js â€” PV Energy Yield Estimator
+/**
+ * yield-estimator.js — PV Energy Yield Estimator
  *
- * Engineering model: E_daily = P_dc Ã— H_poa Ã— PR
+ * Engineering model: E_daily = P_dc × H_poa × PR
  *
- * PR = Î·_inv Ã— (1 - L_temp) Ã— (1 - L_cable) Ã— (1 - L_soiling) Ã— (1 - L_mismatch)
+ * PR = η_inv × (1 - L_temp) × (1 - L_cable) × (1 - L_soiling) × (1 - L_mismatch)
  *
- * L_temp = gamma Ã— (T_cell_avg - 25)  [positive value when T_cell > 25]
- * T_cell_avg = T_amb_avg + k Ã— (H_poa / daylight_h)  [NOCT-derived, energy-weighted]
+ * L_temp = gamma × (T_cell_avg - 25)  [positive value when T_cell > 25]
+ * T_cell_avg = T_amb_avg + k × (H_poa / daylight_h)  [NOCT-derived, energy-weighted]
  *
  * Irradiance model:
  *   MODE 1 (Static): Regional GHI dataset for Sri Lanka, corrected to POA using
  *                    isotropic sky model with monthly diffuse fraction.
- *   MODE 2 (Hourly): Sinusoidal G(t) = G_peak Ã— sin(Ï€Ã—t/T_day), hourly integration
+ *   MODE 2 (Hourly): Sinusoidal G(t) = G_peak × sin(π×t/T_day), hourly integration
  *                    with hourly temperature profile for improved accuracy.
  *
  * Tilt correction (isotropic sky model, Liu-Jordan):
- *   H_poa = H_beam Ã— R_b + H_diff Ã— (1+cos beta)/2 + H_gh Ã— Ï Ã— (1-cos beta)/2
+ *   H_poa = H_beam × R_b + H_diff × (1+cos beta)/2 + H_gh × ρ × (1-cos beta)/2
  *
  * Assumptions (explicitly stated in UI):
  * - Isotropic diffuse sky model (conservative vs Hay-Davies for low-latitude sites)
  * - NOCT formula for cell temperature (IEC 61215 test conditions)
  * - Monthly mean ambient temperature; no hourly TMY weather file
  * - Diffuse fraction K_d from Erbs model (empirical) using clearness index K_t
- * - Ground reflectance Ï = 0.20 (grass/concrete default)
+ * - Ground reflectance ρ = 0.20 (grass/concrete default)
  * - No inter-row shading, no module-level soiling variation
  * - Inverter operates at constant efficiency (user-input, or 96.5% default)
  * - No LID modeled separately (use PR soiling/other to account if needed)
  *
  * Model error:
- * - vs measured yield: Â±8â€“15% (daily), Â±5â€“10% (annual average)
+ * - vs measured yield: ±8–15% (daily), ±5–10% (annual average)
  * - Suitable for: pre-design feasibility, orientation/tilt comparison
  * - NOT suitable for: bankable energy reports, financial models requiring P90
  */
@@ -58,8 +58,8 @@ const YieldEstimator = (() => {
   }
 
   // =========================================================================
-  // STATIC DATA â€” Sri Lanka district coverage (all 25 districts)
-  // Source basis: NASA POWER monthly means (~2005â€“2020) cross-checked to
+  // STATIC DATA — Sri Lanka district coverage (all 25 districts)
+  // Source basis: NASA POWER monthly means (~2005–2020) cross-checked to
   // PVGIS Sri Lanka trends. Districts are mapped to nearest climate profile.
   // =========================================================================
 
@@ -151,7 +151,7 @@ const YieldEstimator = (() => {
   const DAYS_IN_MONTH = [31,28,31,30,31,30,31,31,30,31,30,31];
 
   // =========================================================================
-  // CORE PHYSICS â€” IRRADIANCE MODEL
+  // CORE PHYSICS — IRRADIANCE MODEL
   // =========================================================================
 
   /**
@@ -160,8 +160,8 @@ const YieldEstimator = (() => {
    * Kt = clearness index (GHI / H_extraterrestrial_horizontal)
    * Returns diffuse fraction K_d.
    *
-   * Valid for daily Kt values 0.17â€“0.80.
-   * Error: Â±0.05â€“0.08 K_d for individual days; better on monthly means.
+   * Valid for daily Kt values 0.17–0.80.
+   * Error: ±0.05–0.08 K_d for individual days; better on monthly means.
    */
   function erbsDiffuseFraction(Kt) {
     if (Kt <= 0.22) return 1.0 - 0.09 * Kt;
@@ -172,25 +172,25 @@ const YieldEstimator = (() => {
   /**
    * Plane-of-array irradiance from GHI using isotropic sky model (Liu-Jordan 1963).
    *
-   * H_poa = H_beam Ã— R_b + H_diff Ã— (1 + cos beta)/2 + H_gh Ã— Ï Ã— (1 - cos beta)/2
+   * H_poa = H_beam × R_b + H_diff × (1 + cos beta)/2 + H_gh × ρ × (1 - cos beta)/2
    *
-   * R_b = beam tilt factor â€” ratio of beam on tilted vs horizontal surface.
-   * For Sri Lanka (latitude phi â‰ˆ 6â€“10Â°N), optimal tilt is typically phi to phi+5Â°.
+   * R_b = beam tilt factor — ratio of beam on tilted vs horizontal surface.
+   * For Sri Lanka (latitude phi ≈ 6–10°N), optimal tilt is typically phi to phi+5°.
    * Facing NORTH is correct in Sri Lanka (southern hemisphere orientation above equator
-   * is wrong here â€” Sri Lanka is NORTH of equator, panels face SOUTH toward equator).
+   * is wrong here — Sri Lanka is NORTH of equator, panels face SOUTH toward equator).
    *
    * Simplified R_b for monthly average (Hottel & Woertz approximation):
    *   R_b = cos(phi - beta) / cos(phi)   [for due-south facing, southern hemisphere facing]
    *   R_b = cos(phi - beta) / cos(phi)   [for due-north facing in northern hemisphere]
    *   More precisely: R_b = cos(delta)cos(phi-beta)cos(omega_s') + sin(delta)sin(phi-beta)
-   *                         â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+   *                         ─────────────────────────────────────────────
    *                         cos(delta)cos(phi)cos(omega_s) + sin(delta)sin(phi)
    *   where delta = declination, omega_s = sunset hour angle
    *
    * For this tool, we use the simplified monthly R_b lookup which is accurate
-   * to Â±3â€“5% for tilts up to 30Â° at Sri Lanka latitudes.
+   * to ±3–5% for tilts up to 30° at Sri Lanka latitudes.
    *
-   * @param {number} GHI     - horizontal global irradiance (kWh/mÂ²/day)
+   * @param {number} GHI     - horizontal global irradiance (kWh/m²/day)
    * @param {number} Kt      - clearness index (dimensionless)
    * @param {number} tilt    - panel tilt from horizontal (degrees)
    * @param {number} azimuth - panel azimuth: 0=South, +90=West, -90=East (for north-facing phi hemisphere)
@@ -239,24 +239,24 @@ const YieldEstimator = (() => {
   }
 
   // =========================================================================
-  // CORE PHYSICS â€” TEMPERATURE MODEL
+  // CORE PHYSICS — TEMPERATURE MODEL
   // =========================================================================
 
   /**
    * Energy-weighted average cell temperature for daily yield calculation.
    *
-   * T_cell_avg = T_amb_avg + k Ã— G_eff_avg
+   * T_cell_avg = T_amb_avg + k × G_eff_avg
    *
-   * G_eff_avg = H_poa / daylight_h Ã— 1000   [W/mÂ², average over daylight hours]
-   * k = (NOCT - 20) / 800   [Â°CÂ·mÂ²/W, Ross coefficient]
+   * G_eff_avg = H_poa / daylight_h × 1000   [W/m², average over daylight hours]
+   * k = (NOCT - 20) / 800   [°C·m²/W, Ross coefficient]
    *
    * Daylight hours: approximated from sunrise/sunset for latitude and month.
-   * Equation: T_day = 2/Ï€ Ã— arccos(-tan(phi)Ã—tan(delta)) Ã— 24/Ï€  (radians version)
+   * Equation: T_day = 2/π × arccos(-tan(phi)×tan(delta)) × 24/π  (radians version)
    *
    * Note: T_cell_avg is the irradiance-weighted cell temperature. At low irradiance
    * (morning/evening), T_cell is lower than at peak. This approximation assumes
    * irradiance-proportional weighting, which is captured by using G_eff_avg
-   * rather than peak G. Error: Â±2â€“4Â°C vs detailed hourly model.
+   * rather than peak G. Error: ±2–4°C vs detailed hourly model.
    */
   function avgCellTemp(T_amb_avg, NOCT, H_poa_kWh, lat, month) {
     const phi  = lat * Math.PI / 180;
@@ -273,20 +273,20 @@ const YieldEstimator = (() => {
   }
 
   // =========================================================================
-  // CORE PHYSICS â€” PERFORMANCE RATIO
+  // CORE PHYSICS — PERFORMANCE RATIO
   // =========================================================================
 
   /**
    * Compute performance ratio components.
    *
-   * All loss factors input as fractions (0â€“1).
+   * All loss factors input as fractions (0–1).
    *
    * L_temp: temperature power loss fraction.
-   *   L_temp = max(0, gamma Ã— (T_cell_avg - 25))
-   *   gamma = -coeffPmax (positive value, e.g. 0.003 = 0.3%/Â°C)
-   *   Note: this is only the ADDITIONAL loss above STC; at T_cell=25Â°C, L_temp=0.
+   *   L_temp = max(0, gamma × (T_cell_avg - 25))
+   *   gamma = -coeffPmax (positive value, e.g. 0.003 = 0.3%/°C)
+   *   Note: this is only the ADDITIONAL loss above STC; at T_cell=25°C, L_temp=0.
    *
-   * L_inv: inverter loss fraction = 1 - Î·_inv
+   * L_inv: inverter loss fraction = 1 - η_inv
    *
    * Returns individual losses and composite PR.
    */
@@ -308,16 +308,16 @@ const YieldEstimator = (() => {
   }
 
   // =========================================================================
-  // CORE PHYSICS â€” ENERGY YIELD
+  // CORE PHYSICS — ENERGY YIELD
   // =========================================================================
 
   /**
    * Daily energy yield.
    *
-   * E_daily = P_dc_kWp Ã— H_poa Ã— PR
+   * E_daily = P_dc_kWp × H_poa × PR
    *
    * This is the IEC 61724-1 definition.
-   * H_poa in kWh/mÂ²/day, P_dc in kWp.
+   * H_poa in kWh/m²/day, P_dc in kWp.
    *
    * @returns {number} kWh/day
    */
@@ -330,9 +330,9 @@ const YieldEstimator = (() => {
    *
    * @param {object} loc       - location from SL_LOCATIONS
    * @param {number} P_dc_kWp  - array DC capacity
-   * @param {number} NOCT      - module NOCT (Â°C)
-   * @param {number} coeffPmax - module Pmax temperature coefficient (decimal/Â°C, negative)
-   * @param {number} tilt      - panel tilt from horizontal (Â°)
+   * @param {number} NOCT      - module NOCT (°C)
+   * @param {number} coeffPmax - module Pmax temperature coefficient (decimal/°C, negative)
+   * @param {number} tilt      - panel tilt from horizontal (°)
    * @param {number} azimuth   - panel azimuth (0=South)
    * @param {object} losses    - { eta_inv, L_cable, L_soiling, L_mismatch, L_other }
    * @param {number} rho       - ground reflectance (default 0.20)
@@ -354,7 +354,7 @@ const YieldEstimator = (() => {
       // Cell temperature
       const tempResult = avgCellTemp(T_amb, NOCT, poa.H_poa, loc.lat, m);
 
-      // PR â€” coeffPmax is stored as negative decimal (e.g. -0.0035); computePR handles sign internally
+      // PR — coeffPmax is stored as negative decimal (e.g. -0.0035); computePR handles sign internally
       const prResult = computePR(
         tempResult.T_cell,
         coeffPmax,
@@ -404,23 +404,23 @@ const YieldEstimator = (() => {
   /**
    * Hourly energy simulation using sinusoidal irradiance profile.
    *
-   * G(t) = G_peak Ã— sin(Ï€ Ã— (t - t_sunrise) / T_day)  [W/mÂ²]
+   * G(t) = G_peak × sin(π × (t - t_sunrise) / T_day)  [W/m²]
    *
    * where G_peak is derived from daily H_poa:
-   *   H_poa = âˆ«G(t)dt = G_peak Ã— T_day Ã— 2/Ï€   â†’ G_peak = H_poa Ã— 1000 Ã— Ï€/(2Ã—T_day)
+   *   H_poa = ∫G(t)dt = G_peak × T_day × 2/π   → G_peak = H_poa × 1000 × π/(2×T_day)
    *
    * Temperature varies sinusoidally:
-   *   T_amb(t) = T_avg + Î”T Ã— sin(Ï€Ã—(t - t_sunrise - T_day/2) / T_day)
-   *   Î”T_day â‰ˆ 8â€“12Â°C diurnal range (default 10Â°C for Sri Lanka)
+   *   T_amb(t) = T_avg + ΔT × sin(π×(t - t_sunrise - T_day/2) / T_day)
+   *   ΔT_day ≈ 8–12°C diurnal range (default 10°C for Sri Lanka)
    *
    * Inverter cut-in: no output below 5% of rated irradiance.
    *
    * @param {object}  month_data   - one row from simulateMonthly() result
    * @param {number}  P_dc_kWp     - DC capacity
    * @param {number}  NOCT         - module NOCT
-   * @param {number}  coeffPmax    - decimal/Â°C (negative)
+   * @param {number}  coeffPmax    - decimal/°C (negative)
    * @param {object}  losses       - { eta_inv, L_cable, L_soiling, L_mismatch }
-   * @param {number}  diurnal_dT   - temperature diurnal range (Â°C), default 10
+   * @param {number}  diurnal_dT   - temperature diurnal range (°C), default 10
    * @returns {Array} 24-element hourly result [{hour, G_Wm2, T_cell, P_kW, E_kWh}]
    */
   function simulateHourly(month_data, P_dc_kWp, NOCT, coeffPmax, losses, diurnal_dT) {
@@ -481,13 +481,13 @@ const YieldEstimator = (() => {
 
   /**
    * Check DC/AC (inverter loading) ratio.
-   * Acceptable range: 1.0â€“1.4 (Sri Lanka typical: 1.1â€“1.3)
+   * Acceptable range: 1.0–1.4 (Sri Lanka typical: 1.1–1.3)
    * Below 1.0: inverter oversized (economic waste, no energy risk)
    * Above 1.4: significant clipping loss, may exceed inverter AC rating
    *
    * Clipping loss estimate (simplified):
    * If P_dc_peak > P_ac_rated, clipping occurs when array operates above AC limit.
-   * Estimated annual clipping loss â‰ˆ f(DC/AC ratio, H_annual, T_avg)
+   * Estimated annual clipping loss ≈ f(DC/AC ratio, H_annual, T_avg)
    * Reference: NREL "Inverter Loading Ratio and Clipping in PV Systems"
    */
   function checkDCACRatio(P_dc_kWp, P_ac_kW) {
@@ -495,38 +495,38 @@ const YieldEstimator = (() => {
     let status, cls, msg;
 
     // Rough clipping loss estimate: at SL peak irradiance conditions,
-    // fraction of time P_dc > P_ac â‰ˆ proportional to ratio-1 Ã— clearness
+    // fraction of time P_dc > P_ac ≈ proportional to ratio-1 × clearness
     // This is a conservative empirical estimate, not a full simulation
     let clip_est = 0;
     if (ratio > 1.0) {
-      // Very rough: clipping fraction â‰ˆ 0.5% per 0.1 ratio above 1.15
+      // Very rough: clipping fraction ≈ 0.5% per 0.1 ratio above 1.15
       clip_est = Math.max(0, (ratio - 1.15) * 5);
     }
 
     if (ratio < 0.90) {
       status = 'Inverter significantly oversized';
       cls = 'alert-warn';
-      msg = `DC/AC = ${ratio.toFixed(2)} â€” Economic waste, inverter oversized. Reduce inverter rating or add panels.`;
+      msg = `DC/AC = ${ratio.toFixed(2)} — Economic waste, inverter oversized. Reduce inverter rating or add panels.`;
     } else if (ratio < 1.0) {
-      status = 'Borderline â€” slight oversizing';
+      status = 'Borderline — slight oversizing';
       cls = 'alert-warn';
-      msg = `DC/AC = ${ratio.toFixed(2)} â€” Near unity. Minimal clipping risk but inverter slightly large.`;
+      msg = `DC/AC = ${ratio.toFixed(2)} — Near unity. Minimal clipping risk but inverter slightly large.`;
     } else if (ratio <= 1.15) {
-      status = 'Optimal â€” no significant clipping';
+      status = 'Optimal — no significant clipping';
       cls = 'alert-safe';
-      msg = `DC/AC = ${ratio.toFixed(2)} â€” Good range. Negligible clipping in Sri Lanka conditions.`;
+      msg = `DC/AC = ${ratio.toFixed(2)} — Good range. Negligible clipping in Sri Lanka conditions.`;
     } else if (ratio <= 1.30) {
-      status = 'Acceptable â€” minor clipping';
+      status = 'Acceptable — minor clipping';
       cls = 'alert-safe';
-      msg = `DC/AC = ${ratio.toFixed(2)} â€” Standard oversizing. Estimated clipping loss ~${clip_est.toFixed(1)}%.`;
+      msg = `DC/AC = ${ratio.toFixed(2)} — Standard oversizing. Estimated clipping loss ~${clip_est.toFixed(1)}%.`;
     } else if (ratio <= 1.45) {
-      status = 'High oversizing â€” moderate clipping';
+      status = 'High oversizing — moderate clipping';
       cls = 'alert-warn';
-      msg = `DC/AC = ${ratio.toFixed(2)} â€” Significant clipping at peak irradiance. Est. loss ~${clip_est.toFixed(1)}%. Verify with detailed simulation.`;
+      msg = `DC/AC = ${ratio.toFixed(2)} — Significant clipping at peak irradiance. Est. loss ~${clip_est.toFixed(1)}%. Verify with detailed simulation.`;
     } else {
-      status = 'Excessive oversizing â€” high clipping loss';
+      status = 'Excessive oversizing — high clipping loss';
       cls = 'alert-unsafe';
-      msg = `DC/AC = ${ratio.toFixed(2)} â€” Very high. Likely exceeds inverter thermal rating. Estimated clipping ~${clip_est.toFixed(1)}%.`;
+      msg = `DC/AC = ${ratio.toFixed(2)} — Very high. Likely exceeds inverter thermal rating. Estimated clipping ~${clip_est.toFixed(1)}%.`;
     }
 
     return { ratio, clip_est, status, cls, msg };
@@ -538,7 +538,7 @@ const YieldEstimator = (() => {
 
   /**
    * Find tilt angle that maximises annual H_poa for given location and azimuth.
-   * Brute-force search from 0â€“45Â° in 1Â° steps.
+   * Brute-force search from 0–45° in 1° steps.
    */
   function findOptimalTilt(loc, azimuth) {
     let best = { tilt: 0, H_annual: 0 };
@@ -573,7 +573,7 @@ const YieldEstimator = (() => {
         <div class="page-title">&#9728; Yield Estimator</div>
 
         <div class="info-box">
-          Monthly energy yield model. Accuracy: Â±8â€“15% vs measured. Suitable for pre-design estimation.
+          Monthly energy yield model. Accuracy: ±8–15% vs measured. Suitable for pre-design estimation.
           NOT suitable for bankable energy reports or financial P90 analysis.
         </div>
 
@@ -599,12 +599,12 @@ const YieldEstimator = (() => {
               <input class="form-input" id="ye-pac" type="number" step="0.1" placeholder="e.g. 8.0" />
             </div>
             <div class="form-group">
-              <label class="form-label">NOCT (Â°C)</label>
+              <label class="form-label">NOCT (°C)</label>
               <input class="form-input" id="ye-noct" type="number" value="45" />
-              <div class="form-hint">Panel datasheet, typically 42â€“47Â°C</div>
+              <div class="form-hint">Panel datasheet, typically 42–47°C</div>
             </div>
             <div class="form-group">
-              <label class="form-label">Pmax Temp Coeff (%/Â°C)</label>
+              <label class="form-label">Pmax Temp Coeff (%/°C)</label>
               <input class="form-input" id="ye-coeff" type="number" step="0.01" value="-0.35" />
               <div class="form-hint">Negative. e.g. -0.35 for TOPCon, -0.38 for PERC</div>
             </div>
@@ -623,12 +623,12 @@ const YieldEstimator = (() => {
               </select>
             </div>
             <div class="form-group">
-              <label class="form-label">Tilt Angle (Â°)</label>
+              <label class="form-label">Tilt Angle (°)</label>
               <input class="form-input" id="ye-tilt" type="number" value="10" min="0" max="90" />
-              <div class="form-hint">0 = horizontal, 90 = vertical. SL optimal: ~7â€“12Â°</div>
+              <div class="form-hint">0 = horizontal, 90 = vertical. SL optimal: ~7–12°</div>
             </div>
             <div class="form-group">
-              <label class="form-label">Azimuth (Â°)</label>
+              <label class="form-label">Azimuth (°)</label>
               <input class="form-input" id="ye-azimuth" type="number" value="0" min="-180" max="180" />
               <div class="form-hint">0 = South (correct for Sri Lanka). +90=West, -90=East</div>
             </div>
@@ -678,22 +678,22 @@ const YieldEstimator = (() => {
             <div class="form-group">
               <label class="form-label">Inverter Efficiency &eta;_inv (%)</label>
               <input class="form-input" id="ye-einv" type="number" step="0.1" value="96.5" min="90" max="99.5" />
-              <div class="form-hint">TOPCon string inverter: 97â€“98.5%</div>
+              <div class="form-hint">TOPCon string inverter: 97–98.5%</div>
             </div>
             <div class="form-group">
               <label class="form-label">Cable / Wiring Loss (%)</label>
               <input class="form-input" id="ye-lcable" type="number" step="0.1" value="1.5" min="0" max="5" />
-              <div class="form-hint">Typical design target: 1.0â€“2.0%</div>
+              <div class="form-hint">Typical design target: 1.0–2.0%</div>
             </div>
             <div class="form-group">
               <label class="form-label">Soiling Loss (%)</label>
               <input class="form-input" id="ye-lsoil" type="number" step="0.1" value="2.0" min="0" max="10" />
-              <div class="form-hint">SL tropical: 2â€“4%. High dust/bird: 4â€“6%</div>
+              <div class="form-hint">SL tropical: 2–4%. High dust/bird: 4–6%</div>
             </div>
             <div class="form-group">
               <label class="form-label">Mismatch Loss (%)</label>
               <input class="form-input" id="ye-lmis" type="number" step="0.1" value="1.5" min="0" max="5" />
-              <div class="form-hint">Standard: 1â€“2%. High mismatch string: 2â€“4%</div>
+              <div class="form-hint">Standard: 1–2%. High mismatch string: 2–4%</div>
             </div>
             <div class="form-group">
               <label class="form-label">Other Losses (%)</label>
@@ -721,13 +721,13 @@ const YieldEstimator = (() => {
           <div class="card-title">&#128218; Model Assumptions &amp; Limitations</div>
           <div style="font-size:0.80rem;color:var(--text-secondary);line-height:1.7">
             <strong>Irradiance model:</strong> Liu-Jordan isotropic sky (GHI decomposed by Erbs correlation).
-            R_b computed by Klein 1977 monthly mean formula. POA = beamÃ—R_b + diffuseÃ—(1+cosbeta)/2 + reflectedÃ—ÏÃ—(1-cosbeta)/2.<br>
+            R_b computed by Klein 1977 monthly mean formula. POA = beam×R_b + diffuse×(1+cosbeta)/2 + reflected×ρ×(1-cosbeta)/2.<br>
             <strong>Cell temperature:</strong> NOCT formula (IEC 61215), energy-weighted daily mean.<br>
-            <strong>Temperature loss:</strong> Linear gamma(T_cell âˆ’ 25), only above 25Â°C.<br>
-            <strong>GHI data:</strong> NASA POWER monthly means, ~2005â€“2020 average. Not TMY.<br>
+            <strong>Temperature loss:</strong> Linear gamma(T_cell − 25), only above 25°C.<br>
+            <strong>GHI data:</strong> NASA POWER monthly means, ~2005–2020 average. Not TMY.<br>
             <strong>Model suitable for:</strong> Pre-design orientation/tilt comparison, system sizing feasibility, approximate kWh/year estimate.<br>
             <strong>NOT suitable for:</strong> Bankable energy reports, P50/P90 analysis, inter-row shading, bifacial yield, roof with complex geometry.<br>
-            <strong>Expected accuracy:</strong> Â±8â€“15% vs measured annual yield. Monthly error can be Â±15â€“25%.
+            <strong>Expected accuracy:</strong> ±8–15% vs measured annual yield. Monthly error can be ±15–25%.
           </div>
         </div>
       </div>
@@ -779,13 +779,13 @@ const YieldEstimator = (() => {
     const div  = container.querySelector('#ye-opt-tilt-result');
     div.innerHTML = `
       <div class="info-box">
-        Optimal tilt for <strong>${_esc(loc.name)}</strong> (azimuth ${_esc(azimuth)}Â°):
-        <strong>${_esc(best.tilt)}Â°</strong> â€” Annual POA = ${_esc(best.H_annual.toFixed(0))} kWh/mÂ²/yr.
+        Optimal tilt for <strong>${_esc(loc.name)}</strong> (azimuth ${_esc(azimuth)}°):
+        <strong>${_esc(best.tilt)}°</strong> — Annual POA = ${_esc(best.H_annual.toFixed(0))} kWh/m²/yr.
         <button class="btn btn-secondary btn-sm" style="margin-left:8px" id="ye-apply-tilt">Apply</button>
       </div>`;
     div.querySelector('#ye-apply-tilt').addEventListener('click', () => {
       container.querySelector('#ye-tilt').value = best.tilt;
-      App.toast(`Tilt set to ${best.tilt}Â°`, 'success');
+      App.toast(`Tilt set to ${best.tilt}°`, 'success');
     });
   }
 
@@ -813,7 +813,7 @@ const YieldEstimator = (() => {
     if (!loc) { App.toast('Select location', 'error'); return; }
     if (container._pvgisLoc) App.toast('Using PVGIS live data for simulation', 'info');
 
-    // coeffPmax stored as %/Â°C in input (e.g. -0.35), convert to decimal/Â°C
+    // coeffPmax stored as %/°C in input (e.g. -0.35), convert to decimal/°C
     const coeffPmax = coeffRaw / 100;
 
     const losses = { eta_inv, L_cable, L_soiling, L_mismatch, L_other };
@@ -875,17 +875,17 @@ const YieldEstimator = (() => {
 
       <!-- ANNUAL SUMMARY -->
       <div class="card">
-        <div class="card-title">&#128200; Annual Summary â€” ${_esc(loc.name)}</div>
+        <div class="card-title">&#128200; Annual Summary — ${_esc(loc.name)}</div>
         <div class="result-grid">
           ${_rbox(E_annual.toFixed(0) + ' kWh', 'Annual Energy')}
           ${_rbox(SY_annual.toFixed(0) + ' kWh/kWp', 'Specific Yield')}
           ${_rbox((PR_avg * 100).toFixed(1) + '%', 'Average PR', pr_cls)}
-          ${_rbox(H_poa_annual.toFixed(0) + ' kWh/mÂ²', 'Annual POA Irrad.')}
-          ${_rbox(T_cell_avg.toFixed(1) + ' Â°C', 'Avg Cell Temp')}
+          ${_rbox(H_poa_annual.toFixed(0) + ' kWh/m²', 'Annual POA Irrad.')}
+          ${_rbox(T_cell_avg.toFixed(1) + ' °C', 'Avg Cell Temp')}
           ${_rbox((L_temp_avg * 100).toFixed(1) + '%', 'Avg Temp Loss')}
         </div>
         <div class="info-box" style="margin-top:8px;font-size:0.80rem">
-          System: ${_esc(P_dc)} kWp DC / ${_esc(P_ac)} kW AC &bull; Tilt ${_esc(tilt)}Â° / Azimuth ${_esc(azimuth)}Â° &bull; NOCT ${_esc(NOCT)}Â°C
+          System: ${_esc(P_dc)} kWp DC / ${_esc(P_ac)} kW AC &bull; Tilt ${_esc(tilt)}° / Azimuth ${_esc(azimuth)}° &bull; NOCT ${_esc(NOCT)}°C
         </div>
         <div class="btn-group" style="margin-top:10px;flex-wrap:wrap;gap:6px">
           <button class="btn btn-secondary btn-sm" id="ye-print-btn">&#128424; Print</button>
@@ -912,10 +912,10 @@ const YieldEstimator = (() => {
             <thead>
               <tr>
                 <th>Month</th>
-                <th>GHI<br><small>kWh/mÂ²</small></th>
-                <th>H_poa<br><small>kWh/mÂ²</small></th>
-                <th>T_amb<br><small>Â°C</small></th>
-                <th>T_cell<br><small>Â°C</small></th>
+                <th>GHI<br><small>kWh/m²</small></th>
+                <th>H_poa<br><small>kWh/m²</small></th>
+                <th>T_amb<br><small>°C</small></th>
+                <th>T_cell<br><small>°C</small></th>
                 <th>PR<br><small>%</small></th>
                 <th>E/day<br><small>kWh</small></th>
                 <th>E/month<br><small>kWh</small></th>
@@ -937,7 +937,7 @@ const YieldEstimator = (() => {
                 <td>ANNUAL</td>
                 <td>${monthly.reduce((s,m)=>s+m.GHI*m.days,0).toFixed(0)}</td>
                 <td>${H_poa_annual.toFixed(0)}</td>
-                <td>â€”</td>
+                <td>—</td>
                 <td>${T_cell_avg.toFixed(1)}</td>
                 <td>${(PR_avg*100).toFixed(1)}</td>
                 <td>${(E_annual/365).toFixed(2)}</td>
@@ -959,7 +959,7 @@ const YieldEstimator = (() => {
         <div class="card-title">&#9201; Hourly Profile Simulation</div>
         <div class="info-box" style="margin-bottom:8px">
           Sinusoidal irradiance model with hourly temperature variation.
-          G(t) = G_peak Ã— sin(Ï€Ã—t/T_day). Select a month to view hourly profile.
+          G(t) = G_peak × sin(π×t/T_day). Select a month to view hourly profile.
         </div>
         <div class="form-row cols-2">
           <div class="form-group">
@@ -969,9 +969,9 @@ const YieldEstimator = (() => {
             </select>
           </div>
           <div class="form-group">
-            <label class="form-label">Diurnal Temp Range (Â°C)</label>
+            <label class="form-label">Diurnal Temp Range (°C)</label>
             <input class="form-input" id="ye-hr-dt" type="number" value="10" min="4" max="20" />
-            <div class="form-hint">SL typical: 8â€“12Â°C</div>
+            <div class="form-hint">SL typical: 8–12°C</div>
           </div>
         </div>
         <button class="btn btn-secondary btn-sm" id="ye-hr-btn">Plot Hourly Profile</button>
@@ -984,7 +984,7 @@ const YieldEstimator = (() => {
       const mIdx    = parseInt(container.querySelector('#ye-hr-month').value);
       const dT      = parseFloat(container.querySelector('#ye-hr-dt').value) || 10;
       const mData   = monthly[mIdx];
-      const coeffPmax_pct = coeffPmax;  // already in decimal/Â°C
+      const coeffPmax_pct = coeffPmax;  // already in decimal/°C
       const hourly  = simulateHourly(mData, P_dc, NOCT, coeffPmax_pct, losses, dT);
       _renderHourlyChart(container.querySelector('#ye-hourly-chart'), hourly, mData.monthName);
     });
@@ -1089,7 +1089,7 @@ const YieldEstimator = (() => {
 
     div.innerHTML = `
       <div class="info-box" style="margin-bottom:6px;font-size:0.80rem">
-        <strong>${_esc(monthName)}</strong> â€” Daily total: ${_esc(E_total.toFixed(2))} kWh &bull; Peak irradiance: ${_esc(maxG.toFixed(0))} W/mÂ² &bull; Peak power: ${_esc(maxP.toFixed(2))} kW
+        <strong>${_esc(monthName)}</strong> — Daily total: ${_esc(E_total.toFixed(2))} kWh &bull; Peak irradiance: ${_esc(maxG.toFixed(0))} W/m² &bull; Peak power: ${_esc(maxP.toFixed(2))} kW
       </div>
       <svg viewBox="0 0 ${W} ${H}" style="width:100%;max-width:700px;display:block;margin:0 auto">
         <line x1="${PL}" y1="${PT}" x2="${PL}" y2="${PT+cH}" stroke="var(--text-secondary)" stroke-width="1.5"/>
@@ -1103,14 +1103,14 @@ const YieldEstimator = (() => {
         <text x="${PL+cW+3}" y="${PT+4}" text-anchor="start" font-size="7" fill="#16a34a">${maxP.toFixed(1)}</text>
         <text x="${PL+cW+3}" y="${PT+cH}" text-anchor="start" font-size="7" fill="#16a34a">0</text>
         <line x1="60" y1="10" x2="74" y2="10" stroke="#d97706" stroke-width="2"/>
-        <text x="77" y="13" font-size="7" fill="var(--text-secondary)">G_poa (W/mÂ²)</text>
+        <text x="77" y="13" font-size="7" fill="var(--text-secondary)">G_poa (W/m²)</text>
         <line x1="140" y1="10" x2="154" y2="10" stroke="#16a34a" stroke-width="2"/>
         <text x="157" y="13" font-size="7" fill="var(--text-secondary)">AC Power (kW)</text>
       </svg>
       <div style="overflow-x:auto;margin-top:8px">
         <table class="status-table" style="font-size:0.76rem">
           <thead>
-            <tr><th>Hour</th><th>G (W/mÂ²)</th><th>T_amb (Â°C)</th><th>T_cell (Â°C)</th><th>PR</th><th>P (kW)</th></tr>
+            <tr><th>Hour</th><th>G (W/m²)</th><th>T_amb (°C)</th><th>T_cell (°C)</th><th>PR</th><th>P (kW)</th></tr>
           </thead>
           <tbody>
             ${hourly.filter(h => h.G_Wm2 > 1).map(h =>
@@ -1134,7 +1134,7 @@ const YieldEstimator = (() => {
 
     const items = [
       { label: 'Temperature Loss (L_temp)',   val: L_temp_avg * 100,           color: '#dc2626' },
-      { label: 'Inverter Loss (1âˆ’Î·_inv)',      val: (1-losses.eta_inv) * 100,   color: '#d97706' },
+      { label: 'Inverter Loss (1−η_inv)',      val: (1-losses.eta_inv) * 100,   color: '#d97706' },
       { label: 'Cable / Wiring Loss',          val: losses.L_cable * 100,       color: '#0284c7' },
       { label: 'Soiling Loss',                 val: losses.L_soiling * 100,     color: '#7c3aed' },
       { label: 'Mismatch Loss',                val: losses.L_mismatch * 100,    color: '#0891b2' },
@@ -1160,7 +1160,7 @@ const YieldEstimator = (() => {
       </div>
       <div style="font-size:0.75rem;color:var(--text-muted);margin-top:8px">
         L_temp is dynamic (varies monthly with irradiance &amp; temperature). Values shown are annual weighted averages.
-        Composite PR = Î·_inv Ã— (1âˆ’L_temp) Ã— (1âˆ’L_cable) Ã— (1âˆ’L_soiling) Ã— (1âˆ’L_mismatch) Ã— (1âˆ’L_other).
+        Composite PR = η_inv × (1−L_temp) × (1−L_cable) × (1−L_soiling) × (1−L_mismatch) × (1−L_other).
       </div>`;
   }
 

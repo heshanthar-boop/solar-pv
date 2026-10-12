@@ -9,6 +9,9 @@ const App = (() => {
   // -----------------------------------------------------------------------
   const MODE_KEY = 'solarpv_app_mode';
   let _mode = localStorage.getItem(MODE_KEY) === 'basic' ? 'basic' : 'advanced';
+  let _homeCategory = 'all';
+  let _homeSearch = '';
+  let _modalReturnFocus = null;
 
   function getMode() { return _mode; }
 
@@ -24,8 +27,8 @@ const App = (() => {
   function _updateModeToggleUI() {
     const basicBtn = document.getElementById('mode-btn-basic');
     const advBtn = document.getElementById('mode-btn-advanced');
-    if (basicBtn) basicBtn.classList.toggle('active', _mode === 'basic');
-    if (advBtn) advBtn.classList.toggle('active', _mode === 'advanced');
+    if (basicBtn) { basicBtn.classList.toggle('active', _mode === 'basic'); basicBtn.setAttribute('aria-pressed', String(_mode === 'basic')); }
+    if (advBtn) { advBtn.classList.toggle('active', _mode === 'advanced'); advBtn.setAttribute('aria-pressed', String(_mode === 'advanced')); }
   }
 
   function _initModeToggle() {
@@ -35,10 +38,10 @@ const App = (() => {
     const wrap = document.createElement('div');
     wrap.className = 'mode-toggle-wrap';
     wrap.innerHTML = `
-      <button class="mode-toggle-btn${_mode === 'basic' ? ' active' : ''}" id="mode-btn-basic">Basic</button>
-      <button class="mode-toggle-btn${_mode === 'advanced' ? ' active' : ''}" id="mode-btn-advanced">Advance</button>
+      <button class="mode-toggle-btn${_mode === 'basic' ? ' active' : ''}" id="mode-btn-basic" aria-pressed="${_mode === 'basic'}">Basic</button>
+      <button class="mode-toggle-btn${_mode === 'advanced' ? ' active' : ''}" id="mode-btn-advanced" aria-pressed="${_mode === 'advanced'}">Advanced</button>
     `;
-    header.insertBefore(wrap, header.firstChild);
+    header.insertBefore(wrap, document.getElementById('header-right'));
     wrap.querySelector('#mode-btn-basic').addEventListener('click', () => setMode('basic'));
     wrap.querySelector('#mode-btn-advanced').addEventListener('click', () => setMode('advanced'));
   }
@@ -139,7 +142,7 @@ const App = (() => {
         { page: 'yield',       icon: '&#9728;',   label: 'Yield Estimator',      desc: 'Monthly kWh simulation + PVGIS API' },
         { page: 'financials',  icon: '&#128176;', label: 'Financial Analysis',   desc: 'ROI, payback, NPV, CEB tariffs' },
         { page: 'rooflayout',  icon: '&#127968;', label: 'Roof Layout',          desc: 'Auto panel layout + shadow overlay' },
-        { page: 'systemdesigner', icon: '&#129516;', label: 'System Designer',    desc: 'PV*SOL-style guided simulation flow' },
+        { page: 'systemdesigner', icon: '&#129516;', label: 'System Designer',    desc: 'Guided design & energy simulation' },
         { page: 'inspector',   icon: '&#128202;', label: 'PV Inspection Analyzer', desc: 'Metrel Excel import & analysis' },
         { page: 'shading',     icon: '&#127774;', label: 'Shading & Loss',       desc: 'AOI & irradiance loss' },
       ]
@@ -757,10 +760,12 @@ const App = (() => {
   function navigate(pageId) {
     const homeBtn = document.getElementById('home-btn');
     const titleEl = document.getElementById('page-title');
+    _updateSidebar(pageId);
+    document.body.dataset.page = pageId;
 
     if (pageId === 'home') {
       state.currentPage = 'home';
-      titleEl.textContent = _mode === 'basic' ? 'Quick Calculator' : 'Solar PV Field Tool';
+      titleEl.textContent = _mode === 'basic' ? 'Quick tools' : 'Workspace overview';
       homeBtn.classList.add('hidden');
       main.scrollTop = 0;
       if (_mode === 'basic') {
@@ -788,6 +793,7 @@ const App = (() => {
     _updateBottomNav(pageId);
     main.scrollTop = 0;
     page.render(main);
+    WorkspaceUI.polishForms(main, pageId);
   }
 
   // -----------------------------------------------------------------------
@@ -805,7 +811,7 @@ const App = (() => {
       <div class="home-screen">
 
         <div class="basic-home-hero">
-          <div class="basic-home-hero-title">&#9889; Quick Solar Tools</div>
+          <h1 class="basic-home-hero-title">Quick solar tools</h1>
           <div class="basic-home-hero-sub">Calculator &bull; Financials &bull; Roof Layout</div>
         </div>
 
@@ -886,7 +892,7 @@ const App = (() => {
 
         </div>
 
-        <div class="home-footer">Solar PV Field Tool &bull; <span style="cursor:pointer;color:var(--primary)" id="basic-to-advanced">Advanced Mode &#8250;</span></div>
+        <div class="home-footer">Solar PV Field Tool &bull; <button class="text-link" id="basic-to-advanced">Advanced Mode &#8250;</button></div>
       </div>
     `;
 
@@ -904,6 +910,7 @@ const App = (() => {
 
     // Tile navigation
     container.querySelectorAll('.basic-home-tile[data-page]').forEach(btn => {
+      btn.querySelector('.basic-home-tile-icon').innerHTML = WorkspaceUI.icon(btn.dataset.page);
       btn.addEventListener('click', () => navigate(btn.dataset.page));
     });
 
@@ -918,98 +925,125 @@ const App = (() => {
 
   function _renderHome(container) {
     const allowed = _allowedPages();
+    const p = _project;
+    const hasProject = !!(p.name || p.client || p.siteAddress);
+    const typeLabels = { 'grid-tie': 'Grid-tie', hybrid: 'Hybrid', 'off-grid': 'Off-grid', 'ground-mount': 'Ground mount' };
+    const backupDays = _backupAgeDays();
+    const needsBackup = backupDays === null || backupDays > 30;
+    const moduleCount = HOME_TILES.flatMap(g => g.tiles).filter(t => allowed.has(t.page)).length;
+    const settings = (() => { try { return JSON.parse(localStorage.getItem('solarpv_settings') || '{}'); } catch { return {}; } })();
     const projectTypeOptions = Object.entries(PROJECT_TYPES).map(([k, v]) =>
       `<option value="${k}" ${k === state.projectType ? 'selected' : ''}>${escapeHTML(v.label)}</option>`
     ).join('');
-
-    const p = _project;
-    const hasProject = !!(p.name || p.client || p.siteAddress);
-
-    // System type display label
-    const typeLabels = {
-      'grid-tie': 'Grid-Tie', 'hybrid': 'Hybrid', 'off-grid': 'Off-Grid', 'ground-mount': 'Ground Mount'
-    };
-    const typeLabel = typeLabels[p.systemType] || p.systemType || '';
-
-    const projectCardHtml = `
-      <div class="project-card card" id="home-project-card">
-        <div class="project-card-header">
-          <span class="project-card-icon">&#128736;</span>
-          <span class="project-card-title">${hasProject ? escapeHTML(p.name || 'Unnamed Project') : 'No Active Project'}</span>
-          <button class="btn btn-sm btn-secondary" id="home-project-edit-btn" style="margin-left:auto;flex-shrink:0">${hasProject ? '&#9998; Edit' : '+ Set Project'}</button>
-        </div>
-        ${hasProject ? `
-        <div class="project-card-meta" style="margin-bottom:6px">
-          ${p.client ? `<span>&#128100; ${escapeHTML(p.client)}</span>` : ''}
-          ${p.siteAddress ? `<span>&#128205; ${escapeHTML(p.siteAddress)}</span>` : ''}
-        </div>
-        <div style="display:flex;flex-wrap:wrap;gap:6px;align-items:center">
-          ${p.systemKwp ? `<span class="project-card-kwp">&#9889; ${escapeHTML(p.systemKwp)} kWp</span>` : ''}
-          ${typeLabel ? `<span class="project-card-type">&#128268; ${escapeHTML(typeLabel)}</span>` : ''}
-          ${(p.lat && p.lon) ? `<span class="project-card-loc">&#127757; ${parseFloat(p.lat).toFixed(4)}, ${parseFloat(p.lon).toFixed(4)}</span>` : ''}
-        </div>` : `<div class="text-muted" style="font-size:0.82rem;padding:4px 0">Set project details to pre-fill forms and reports across all modules.</div>`}
-      </div>`;
-
-    const backupDays = _backupAgeDays();
-    const backupWarnHtml = (backupDays === null || backupDays > 30)
-      ? `<div class="warn-box" style="margin-bottom:14px;cursor:pointer" id="home-backup-warn">
-           &#9888; ${backupDays === null ? 'No backup made yet.' : `Last backup ${backupDays} days ago.`}
-           <strong>Export a backup in Settings &rarr;</strong>
-         </div>`
-      : '';
-
-    // Advanced mode: onboarding banner removed (Basic mode already handles guided flow).
-    const onboardHtml = '';
-
-    const groups = HOME_TILES.map(group => {
-      const visibleTiles = group.tiles.filter(t => allowed.has(t.page));
-      if (!visibleTiles.length) return '';
-      const tileHtml = visibleTiles.map(t => `
-        <button class="home-tile" data-page="${t.page}">
-          <span class="home-tile-icon">${t.icon}</span>
-          <span class="home-tile-label">${escapeHTML(t.label)}</span>
-          <span class="home-tile-desc">${escapeHTML(t.desc)}</span>
-        </button>`).join('');
-      return `
-        <div class="home-group">
-          <div class="home-group-title">${escapeHTML(group.group)}</div>
-          <div class="home-tile-grid">${tileHtml}</div>
-        </div>`;
-    }).join('');
-
-    const settings = (() => { try { return JSON.parse(localStorage.getItem('solarpv_settings') || '{}'); } catch { return {}; } })();
-    const footerCompany = escapeHTML(settings.company || 'Heshan Engineering Solution');
-
     container.innerHTML = `
       <div class="home-screen">
-        ${projectCardHtml}
-        ${backupWarnHtml}
-        ${onboardHtml}
-        <div class="home-filter">
-          <label class="home-filter-label">&#128268; Tool Filter</label>
-          <select class="form-select" id="home-project-mode">${projectTypeOptions}</select>
+        <div class="dashboard-heading"><div><p class="eyebrow">YOUR SOLAR WORKSPACE</p><h1>From first design to final sign-off.</h1><p>Everything you need to plan, test and deliver your next solar project.</p></div><span class="workspace-status"><span></span> ${navigator.onLine ? 'Device online' : 'Working offline'}</span></div>
+        <div class="dashboard-intro">
+          <section class="workspace-hero" aria-label="Start a solar design">
+            <div class="hero-copy"><span class="hero-kicker">ENGINEER WITH CONFIDENCE</span><h2>Better decisions.<br><span>Brighter outcomes.</span></h2><p>Turn site conditions into a complete system design, one considered step at a time.</p><button class="btn hero-action" id="home-start-design">Start system design ${WorkspaceUI.icon('arrow')}</button><div class="hero-footnote">${WorkspaceUI.icon('utilityvalidator')} Design · Validate · Report</div></div>
+            ${WorkspaceUI.solarScene()}
+          </section>
+          <section class="active-project" id="home-project-card" aria-label="Active project">
+            <div class="project-top"><span class="eyebrow">ACTIVE PROJECT</span><span class="project-symbol">${WorkspaceUI.icon('folder')}</span></div>
+            <h2>${hasProject ? escapeHTML(p.name || p.client || 'Unnamed project') : 'Your next project <br>starts here.'}</h2>
+            <p>${hasProject ? escapeHTML([p.client, p.siteAddress].filter(Boolean).join(' · ') || 'Project details are shared across your tools.') : 'Add your site details once. Keep every calculation and report connected.'}</p>
+            ${hasProject ? `<div class="project-tags">${p.systemKwp ? `<span>${escapeHTML(p.systemKwp)} kWp</span>` : ''}<span>${escapeHTML(typeLabels[p.systemType] || p.systemType)}</span></div>` : ''}
+            <button class="btn btn-secondary" id="home-project-edit-btn">${WorkspaceUI.icon(hasProject ? 'settings' : 'folder')} ${hasProject ? 'Edit project' : 'Set up project'} ${WorkspaceUI.icon('arrow')}</button>
+          </section>
         </div>
-        ${groups}
-        <div class="home-footer">Solar PV Field Tool &bull; ${footerCompany}</div>
+        <div class="workspace-metrics">
+          <div>${WorkspaceUI.icon('systemdesigner')}<div><strong>${moduleCount}</strong><span>Available tools</span></div><small>One connected workflow</small></div>
+          <button id="home-catalog-link">${WorkspaceUI.icon('database')}<div><strong>${DB.getAll().length}</strong><span>PV modules in catalog</span></div>${WorkspaceUI.icon('arrow')}</button>
+          <button id="home-backup-warn">${WorkspaceUI.icon('cloud')}<div><strong>${needsBackup ? 'Backup recommended' : 'Backup up to date'}</strong><span>${backupDays === null ? 'Keep a copy of your device data' : `Last exported ${backupDays} day${backupDays === 1 ? '' : 's'} ago`}</span></div>${WorkspaceUI.icon('arrow')}</button>
+        </div>
+        <section class="tool-library" aria-label="Engineering tools">
+          <div class="library-heading"><div><p class="eyebrow">THE TOOLKIT</p><h2>Find your next step.</h2></div><span id="tool-count" aria-live="polite"></span></div>
+          <div class="tool-toolbar"><div class="tool-search">${WorkspaceUI.icon('search')}<input type="search" id="home-tool-search" placeholder="Search tools, calculations, reports…" aria-label="Search engineering tools" value="${escapeHTML(_homeSearch)}"/><kbd>/</kbd></div><div class="tool-system-filter"><label for="home-project-mode">System</label><select class="form-select" id="home-project-mode">${projectTypeOptions}</select></div></div>
+          <div class="tool-categories" role="group" aria-label="Filter tools by category">
+            <button data-category="all">All tools</button>${HOME_TILES.map((g, i) => `<button data-category="${i}">${['Design & sizing', 'Field testing', 'Diagnostics', 'Reference'][i]}</button>`).join('')}
+          </div>
+          <div id="tool-groups"></div>
+        </section>
+        <div class="home-footer"><span><img src="icons/solar-mark.svg" alt=""/> SolarPV Field Tool</span><span>${escapeHTML(settings.company || 'Heshan Engineering Solution')}</span></div>
       </div>`;
-
+    const renderTools = () => {
+      let count = 0;
+      const query = _homeSearch.trim().toLowerCase();
+      container.querySelector('#tool-groups').innerHTML = HOME_TILES.map((group, index) => {
+        if (_homeCategory !== 'all' && _homeCategory !== String(index)) return '';
+        const tiles = group.tiles.filter(t => allowed.has(t.page) && `${t.label} ${t.desc} ${group.group}`.toLowerCase().includes(query));
+        count += tiles.length;
+        if (!tiles.length) return '';
+        return `<section class="home-group"><div class="home-group-title"><h3>${escapeHTML(group.group)}</h3><span>${String(tiles.length).padStart(2, '0')}</span></div><div class="home-tile-grid">${tiles.map(t => `<button class="home-tile" data-page="${t.page}"><span class="home-tile-icon">${WorkspaceUI.icon(t.page)}</span><span class="tile-copy"><span class="home-tile-label">${escapeHTML(t.label)}</span><span class="home-tile-desc">${escapeHTML(t.desc)}</span></span><span class="tile-arrow">${WorkspaceUI.icon('arrow')}</span></button>`).join('')}</div></section>`;
+      }).join('') || `<div class="tool-empty">${WorkspaceUI.icon('search')}<h3>No matching tools</h3><p>Try a different search or reset your filters.</p><button class="btn btn-secondary" id="home-reset-filters">Reset filters</button></div>`;
+      container.querySelector('#tool-count').textContent = `${count} tool${count === 1 ? '' : 's'}`;
+      container.querySelectorAll('[data-category]').forEach(btn => {
+        const active = btn.dataset.category === _homeCategory;
+        btn.classList.toggle('active', active);
+        btn.setAttribute('aria-pressed', String(active));
+      });
+      _updateSidebar('home');
+    };
+    renderTools();
+    container.querySelector('#home-tool-search').addEventListener('input', e => { _homeSearch = e.target.value; renderTools(); });
     container.querySelector('#home-project-mode').addEventListener('change', e => {
-      const next = e.target.value;
-      if (!PROJECT_TYPES[next]) return;
-      state.projectType = next;
-      localStorage.setItem('solarpv_project_type', next);
+      if (!PROJECT_TYPES[e.target.value]) return;
+      state.projectType = e.target.value;
+      localStorage.setItem('solarpv_project_type', state.projectType);
       _renderHome(container);
     });
-
-    container.querySelector('#home-project-edit-btn').addEventListener('click', () => {
-      _showProjectModal(container);
+    container.querySelector('.tool-library').addEventListener('click', e => {
+      const category = e.target.closest('[data-category]');
+      const tool = e.target.closest('[data-page]');
+      if (category) { _homeCategory = category.dataset.category; renderTools(); }
+      if (tool) navigate(tool.dataset.page);
+      if (e.target.closest('#home-reset-filters')) { _homeSearch = ''; _homeCategory = 'all'; state.projectType = 'all'; localStorage.setItem('solarpv_project_type', 'all'); _renderHome(container); }
     });
+    container.querySelector('#home-project-edit-btn').addEventListener('click', () => _showProjectModal(container));
+    container.querySelector('#home-backup-warn').addEventListener('click', () => navigate('settings'));
+    container.querySelector('#home-catalog-link').addEventListener('click', () => navigate('database'));
+    container.querySelector('#home-start-design').addEventListener('click', () => {
+      if (!_isPageAllowed('systemdesigner')) {
+        state.projectType = 'all'; localStorage.setItem('solarpv_project_type', 'all');
+      }
+      navigate('systemdesigner');
+    });
+  }
 
-    const backupWarn = container.querySelector('#home-backup-warn');
-    if (backupWarn) backupWarn.addEventListener('click', () => navigate('settings'));
+  function _initSidebar() {
+    const sidebar = document.getElementById('workspace-sidebar');
+    sidebar.innerHTML = `<a class="workspace-brand" href="#" aria-label="SolarPV workspace home"><img src="icons/solar-mark.svg" alt=""/><span>Solar<span class="brand-accent">PV</span><small>FIELD TOOL</small></span></a><div class="sidebar-workspace"><span class="workspace-avatar">H</span><div>Engineering workspace<small>Heshan Engineering Solution</small></div></div><nav aria-label="Desktop navigation"><span class="sidebar-label">WORKSPACE</span><button class="sidebar-item" data-route="home">${WorkspaceUI.icon('home')} Overview</button><button class="sidebar-item" data-route="database">${WorkspaceUI.icon('database')} Equipment database</button><span class="sidebar-label">ENGINEERING TOOLS</span>${HOME_TILES.map((g, i) => `<button class="sidebar-item" data-group="${i}">${WorkspaceUI.icon(['systemdesigner','checklist','diagnostics','standards'][i])} ${['Design & sizing','Field testing','Diagnostics','Reference & reports'][i]}</button>`).join('')}<span class="sidebar-label">QUICK ACCESS</span><button class="sidebar-item" data-route="sizing">${WorkspaceUI.icon('sizing')} String sizing</button><button class="sidebar-item" data-route="yield">${WorkspaceUI.icon('yield')} Yield estimator</button><button class="sidebar-item" data-route="reportbuilder">${WorkspaceUI.icon('reportbuilder')} Report builder</button></nav><div class="sidebar-bottom"><div class="sidebar-tip">${WorkspaceUI.icon('utilityvalidator')}<strong>Made for the field.</strong><p>Your tools and saved data stay available on this device.</p></div><button class="sidebar-item" data-route="settings">${WorkspaceUI.icon('settings')} Settings</button><div class="sidebar-version"><span class="status-dot"></span> Solar engineering, simplified</div></div>`;
+    sidebar.addEventListener('click', e => {
+      const route = e.target.closest('[data-route]');
+      const group = e.target.closest('[data-group]');
+      if (e.target.closest('.workspace-brand') || route) {
+        e.preventDefault(); _homeCategory = 'all'; _homeSearch = ''; navigate(route ? route.dataset.route : 'home');
+      }
+      if (group) {
+        if (_mode !== 'advanced') setMode('advanced');
+        _homeCategory = group.dataset.group; _homeSearch = ''; navigate('home');
+        main.querySelector('.tool-library')?.scrollIntoView({behavior: 'smooth', block: 'start'});
+      }
+    });
+    document.addEventListener('keydown', e => {
+      const editing = /INPUT|TEXTAREA|SELECT/.test(document.activeElement?.tagName) || document.activeElement?.isContentEditable;
+      if (e.key === '/' && !editing && state.currentPage === 'home') {
+        const search = document.getElementById('home-tool-search');
+        if (search) { e.preventDefault(); search.focus(); }
+      }
+    });
+  }
 
-    container.querySelectorAll('.home-tile').forEach(btn => {
-      btn.addEventListener('click', () => navigate(btn.dataset.page));
+  function _updateSidebar(page) {
+    const sidebar = document.getElementById('workspace-sidebar');
+    if (!sidebar) return;
+    sidebar.querySelectorAll('[data-route], [data-group]').forEach(btn => {
+      const group = btn.dataset.group;
+      const active = group !== undefined ? (page === 'home' ? _homeCategory === group : HOME_TILES[Number(group)].tiles.some(t => t.page === page)) : btn.dataset.route === page && (page !== 'home' || _homeCategory === 'all');
+      btn.classList.toggle('active', active);
+      if (active) btn.setAttribute('aria-current', 'page'); else btn.removeAttribute('aria-current');
+      // Match shortcuts to the selected system filter.
+      btn.hidden = group === undefined && btn.dataset.route !== 'home' && !_isPageAllowed(btn.dataset.route);
     });
   }
 
@@ -1180,6 +1214,7 @@ const App = (() => {
   // -----------------------------------------------------------------------
 
   function showModal(title, bodyHtml, buttons) {
+    if (document.getElementById('modal-overlay').classList.contains('hidden')) _modalReturnFocus = document.activeElement;
     document.getElementById('modal-title').textContent = title;
     document.getElementById('modal-body').innerHTML = bodyHtml;
     const footer = document.getElementById('modal-footer');
@@ -1200,10 +1235,19 @@ const App = (() => {
     });
 
     document.getElementById('modal-overlay').classList.remove('hidden');
+    main.inert = true;
+    document.getElementById('app-header').inert = true;
+    document.getElementById('workspace-sidebar').inert = true;
+    document.getElementById('bottom-nav').inert = true;
+    WorkspaceUI.polishForms(document.getElementById('modal-body'));
+    const firstControl = document.querySelector('#modal input, #modal select, #modal textarea, #modal button');
+    (firstControl || document.getElementById('modal')).focus();
   }
 
   function closeModal() {
     document.getElementById('modal-overlay').classList.add('hidden');
+    [main, document.getElementById('app-header'), document.getElementById('workspace-sidebar'), document.getElementById('bottom-nav')].forEach(el => { if (el) el.inert = false; });
+    if (_modalReturnFocus?.isConnected) _modalReturnFocus.focus(); else main.focus({preventScroll: true});
   }
 
   // -----------------------------------------------------------------------
@@ -1215,7 +1259,7 @@ const App = (() => {
     localStorage.setItem('solarpv_theme', theme);
     // Update meta theme-color for browser chrome
     const meta = document.querySelector('meta[name="theme-color"]');
-    if (meta) meta.content = theme === 'dark' ? '#1a1a1a' : '#d97706';
+    if (meta) meta.content = '#142b36';
   }
 
   function _initTheme() {
@@ -1234,19 +1278,19 @@ const App = (() => {
     nav.setAttribute('aria-label', 'Main navigation');
     nav.innerHTML = `
       <button class="nav-item" id="nav-home" data-nav="home" aria-label="Home">
-        <span class="nav-item-icon">&#8962;</span>
+        <span class="nav-item-icon">${WorkspaceUI.icon('home')}</span>
         <span class="nav-item-label">Home</span>
       </button>
       <button class="nav-item" id="nav-back" data-nav="back" aria-label="Back" style="display:none">
-        <span class="nav-item-icon">&#8592;</span>
+        <span class="nav-item-icon">${WorkspaceUI.icon('back')}</span>
         <span class="nav-item-label">Back</span>
       </button>
       <button class="nav-item" id="nav-database" data-nav="database" aria-label="Database">
-        <span class="nav-item-icon">&#128230;</span>
+        <span class="nav-item-icon">${WorkspaceUI.icon('database')}</span>
         <span class="nav-item-label">Database</span>
       </button>
       <button class="nav-item" id="nav-settings" data-nav="settings" aria-label="Settings">
-        <span class="nav-item-icon">&#9881;</span>
+        <span class="nav-item-icon">${WorkspaceUI.icon('settings')}</span>
         <span class="nav-item-label">Settings</span>
       </button>
     `;
@@ -1414,7 +1458,7 @@ const App = (() => {
           <div style="display:flex;align-items:center;justify-content:space-between;padding:4px 0">
             <div>
               <div style="font-weight:700;font-size:0.95rem">Dark Mode</div>
-              <div class="text-muted" style="font-size:0.8rem">Reduces glare in bright sunlight</div>
+              <div class="text-muted" style="font-size:0.8rem">Choose the display that suits your environment</div>
             </div>
             <label class="toggle-switch" aria-label="Dark mode">
               <input type="checkbox" id="set-dark-mode" ${darkActive ? 'checked' : ''} />
@@ -1486,7 +1530,7 @@ const App = (() => {
         <div class="card">
           <div class="card-title">Import Health</div>
           <div class="text-muted mt-4">Quick telemetry from local import history.</div>
-          <div class="result-grid mt-8" style="grid-template-columns:repeat(4,minmax(120px,1fr))">
+          <div class="result-grid settings-health-grid mt-8">
             <div class="result-box">
               <div class="result-value">${importStats.total}</div>
               <div class="result-label">Total Imports</div>
@@ -1533,7 +1577,6 @@ const App = (() => {
             <div class="text-muted mt-4">Built for: ${escapeHTML(safeCompany || 'Heshan Engineering Solution')}</div>
             <div class="divider"></div>
             <div>Modules: ${DB.getAll().length} panels in database</div>
-            <div class="mt-4">Serve with: <code style="background:var(--bg-3);padding:2px 6px;border-radius:4px">py -m http.server 8090</code></div>
           </div>
         </div>
       </div>
@@ -1966,6 +2009,15 @@ const App = (() => {
     document.getElementById('modal-overlay').addEventListener('click', e => {
       if (e.target === e.currentTarget) closeModal();
     });
+    document.getElementById('modal-overlay').addEventListener('keydown', e => {
+      if (e.key === 'Escape') { e.preventDefault(); closeModal(); }
+      if (e.key !== 'Tab') return;
+      const controls = Array.from(document.getElementById('modal').querySelectorAll('button, input, select, textarea, a[href], [tabindex="0"]')).filter(el => !el.disabled && el.getClientRects().length);
+      const first = controls[0], last = controls[controls.length - 1];
+      if (!first) { e.preventDefault(); return; }
+      if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
+      else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
+    });
   }
 
   // -----------------------------------------------------------------------
@@ -1985,25 +2037,25 @@ const App = (() => {
     // Restore saved project type
     const savedType = localStorage.getItem('solarpv_project_type');
     if (savedType && PROJECT_TYPES[savedType]) state.projectType = savedType;
+    _initSidebar();
 
     // Home button → go back to home screen
     document.getElementById('home-btn').addEventListener('click', () => navigate('home'));
 
     // Firebase sync
     FirebaseSync.renderSignInButton(document.getElementById('header-right'));
-    FirebaseSync.init(user => {
+    const initSync = () => FirebaseSync.init(user => {
       if (user) FirebaseSync.syncAll();
     });
+    // CDN SDKs are deferred so slow cloud/export services cannot block local tools.
+    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', initSync, { once: true });
+    else initSync();
 
     navigate('home');
   }
 
-  // Boot on DOM ready
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', init);
-  } else {
-    init();
-  }
+  // This script is last in the body; all local modules and UI elements exist now.
+  queueMicrotask(init);
 
   // -----------------------------------------------------------------------
   // LIVE VALIDATION UTILITY
@@ -2056,8 +2108,9 @@ const App = (() => {
   function _initAutoValidation() {
     const observer = new MutationObserver(() => {
       attachLiveValidation(main);
+      WorkspaceUI.polishForms(main, state.currentPage);
     });
-    observer.observe(main, { childList: true, subtree: false });
+    observer.observe(main, { childList: true, subtree: true });
   }
 
   return {
