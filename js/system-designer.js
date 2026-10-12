@@ -357,6 +357,7 @@ const SystemDesigner = (() => {
 
     await _ensureCatalogLoaded();
     await _ensurePanelSeedLoaded();
+    if (container.id === 'main-content' && App.state.currentPage !== 'systemdesigner') return;
 
     const locations = Array.isArray(YieldEstimator.SL_LOCATIONS) ? YieldEstimator.SL_LOCATIONS : [];
     const panels = _getPanels();
@@ -373,8 +374,9 @@ const SystemDesigner = (() => {
 
     container.innerHTML = `
       <div class="page">
+        <div class="page-title">System Designer</div>
         <div class="card">
-          <div class="card-title">&#128736; System Designer (PV*SOL-style flow)</div>
+          <div class="card-title">Guided system simulation</div>
           <div class="text-muted" style="font-size:0.82rem">
             Guided sequence: location and load, component selection, loss setup, then annual simulation and energy balance.
             ${projectName ? `Active project: <strong>${_esc(projectName)}</strong>.` : ''}

@@ -13,6 +13,10 @@ function bootServiceWorker(options) {
   const deletedKeys = [];
 
   const cacheObj = {
+    match: async req => {
+      if (typeof opts.match === 'function') return opts.match(req);
+      return undefined;
+    },
     addAll: async assets => {
       addAllCalls.push(assets);
       if (opts.rejectSecondAddAll && addAllCalls.length === 2) {
@@ -30,7 +34,7 @@ function bootServiceWorker(options) {
       return true;
     },
     match: async req => {
-      if (typeof opts.match === 'function') return opts.match(req);
+      if (typeof opts.globalMatch === 'function') return opts.globalMatch(req);
       return undefined;
     }
   };
@@ -70,16 +74,16 @@ test('service worker install caches local assets even if CDN caching fails', asy
   assert.ok(sw.addAllCalls[0].includes('./data/hybrid-batteries.json'));
 });
 
-test('service worker activate removes old caches', async () => {
+test('service worker activate removes its old caches and preserves other apps', async () => {
   const sw = bootServiceWorker({ cacheKeys: ['a-old', 'solarpv-v8', 'legacy'] });
   let waitPromise;
 
   sw.handlers.activate({ waitUntil: p => { waitPromise = p; } });
   await waitPromise;
 
-  assert.ok(sw.deletedKeys.includes('a-old'));
-  assert.ok(sw.deletedKeys.includes('legacy'));
-  assert.ok(!sw.deletedKeys.includes('solarpv-v8'));
+  assert.ok(!sw.deletedKeys.includes('a-old'));
+  assert.ok(!sw.deletedKeys.includes('legacy'));
+  assert.ok(sw.deletedKeys.includes('solarpv-v8'));
 });
 
 test('fetch handler returns navigation fallback when offline', async () => {
@@ -123,4 +127,26 @@ test('fetch handler serves cached response before network', async () => {
   const response = await responsePromise;
   assert.equal(response, cached);
   assert.equal(fetchCalls, 0);
+});
+
+test('fetch ignores stale responses in older caches on the same origin', async () => {
+  const current = { version: 'current' };
+  const stale = { version: 'old' };
+  const sw = bootServiceWorker({ match: () => current, globalMatch: () => stale });
+  let responsePromise;
+  sw.handlers.fetch({ request: { method: 'GET', mode: 'cors' }, respondWith: p => { responsePromise = p; } });
+  assert.equal(await responsePromise, current);
+});
+
+test('every local script and stylesheet in the app shell is precached and exists', async () => {
+  const sw = bootServiceWorker();
+  let promise;
+  sw.handlers.install({ waitUntil: p => { promise = p; } });
+  await promise;
+  const html = fs.readFileSync(path.resolve(process.cwd(), 'index.html'), 'utf8');
+  const refs = [...html.matchAll(/(?:src|href)="((?:js\/|css\/|icons\/)[^"]+)"/g)].map(m => './' + m[1]);
+  for (const ref of refs) {
+    assert.ok(sw.addAllCalls[0].includes(ref), `Missing precache asset: ${ref}`);
+    assert.ok(fs.existsSync(path.resolve(process.cwd(), ref.split('?')[0])), `Missing local file: ${ref}`);
+  }
 });
