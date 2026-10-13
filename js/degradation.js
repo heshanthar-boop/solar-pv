@@ -1,7 +1,7 @@
 /**
  * degradation.js — PV Module Degradation Calculator
  * Linear & compound degradation, warranty check, benchmarks.
- * IEC 61215 / SLS 1553
+ * Planning assumptions and the entered manufacturer warranty; qualification is separate.
  */
 
 const Degradation = (() => {
@@ -12,70 +12,20 @@ const Degradation = (() => {
         <div class="page-title">&#128200; PV Module Degradation</div>
 
         <div class="info-box">
-          Calculate expected power output over system lifetime using IEC 61215 / SLS 1553 formulas.
-          Linear model for warranty checks; compound model for financial/yield analysis.
+          Explore power-retention projections using entered planning assumptions.
+          SLS 1553 covers module safety; IEC 61215 covers design qualification. Neither supplies a universal annual degradation rate or warranty curve.
         </div>
 
-        <!-- BENCHMARKS TABLE -->
-        <div class="card" style="margin-bottom:12px">
-          <div class="card-title">Industry Benchmarks (IEC 61215 / SLS 1553)</div>
-          <div style="overflow-x:auto">
-            <table class="status-table">
-              <thead>
-                <tr>
-                  <th>Technology</th>
-                  <th>LID Year 1</th>
-                  <th>Annual Rate (d)</th>
-                  <th>Year 25 Output</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr>
-                  <td style="font-weight:600">Monocrystalline (c-Si)</td>
-                  <td style="color:var(--primary);font-weight:700">1.0–2.5%</td>
-                  <td style="color:var(--primary);font-weight:700">0.3–0.5%/yr</td>
-                  <td>88–93%</td>
-                </tr>
-                <tr>
-                  <td style="font-weight:600">N-type (TOPCon / HJT)</td>
-                  <td style="color:var(--success);font-weight:700">&lt;0.5%</td>
-                  <td style="color:var(--success);font-weight:700">0.25–0.4%/yr</td>
-                  <td>90–95%</td>
-                </tr>
-                <tr>
-                  <td style="font-weight:600">Polycrystalline</td>
-                  <td style="color:var(--primary);font-weight:700">1.5–2.5%</td>
-                  <td style="color:var(--primary);font-weight:700">0.5–0.8%/yr</td>
-                  <td>80–88%</td>
-                </tr>
-                <tr>
-                  <td style="font-weight:600">Thin-Film</td>
-                  <td style="color:var(--danger);font-weight:700">1.0–3.0%</td>
-                  <td style="color:var(--danger);font-weight:700">0.6–1.0%/yr</td>
-                  <td>75–85%</td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-          <div style="font-size:0.78rem;color:var(--text-muted);margin-top:8px">
-            SLS 1553 / Sri Lanka requirement: ≥80% of initial power at Year 25 (25-year linear warranty).
-            CEB/LECO grid connection requires valid IEC 61215 certificate.
-          </div>
-        </div>
-
-        <!-- TROPICAL NOTE -->
         <div class="warn-box" style="margin-bottom:12px">
-          <strong>Sri Lanka Tropical Factors:</strong> High humidity + heat can cause PID and encapsulant browning.
-          Coastal sites risk salt mist corrosion of interconnects. Degradation rates may be 0.1–0.2%/yr higher than temperate benchmarks.
-          Use N-type modules for lowest long-term degradation risk.
+          Use the exact manufacturer's declared first-year loss, annual warranty schedule and measurement conditions.
+          Heat, humidity, salt exposure, shading and defects need a site-specific assessment. A planning projection does not establish a warranty claim or qualification result.
         </div>
-
         <!-- CALC 1: LINEAR -->
         <div class="card" style="margin-bottom:12px">
-          <div class="card-title">&#128290; Linear Degradation (Warranty Model)</div>
+          <div class="card-title">&#128290; Linear Degradation (Planning Model)</div>
           <div class="info-box" style="margin-bottom:10px">
             Formula: <strong>P(n) = P&#x2080; &times; (1 &minus; LID) &minus; P&#x2080; &times; d &times; (n &minus; 1)</strong><br>
-            Standard used for manufacturer warranties. Fixed loss per year.
+            A planning model with a fixed loss relative to initial power each year. Confirm the actual warranty schedule separately.
           </div>
           <div class="form-row cols-2">
             <div class="form-group">
@@ -86,12 +36,12 @@ const Degradation = (() => {
             <div class="form-group">
               <label class="form-label">LID &mdash; Year 1 Loss (%)</label>
               <input class="form-input" id="lin-lid" type="number" step="any" value="2" />
-              <div class="form-hint">Mono: 1.0&ndash;2.5%, N-type: &lt;0.5%</div>
+              <div class="form-hint">Example default; replace with declared or measured evidence</div>
             </div>
             <div class="form-group">
               <label class="form-label">Annual Degradation d (%/year)</label>
               <input class="form-input" id="lin-d" type="number" step="any" value="0.5" />
-              <div class="form-hint">Mono: 0.3&ndash;0.5%, Poly: 0.5&ndash;0.8%</div>
+              <div class="form-hint">Entered planning assumption; not an SLS limit</div>
             </div>
             <div class="form-group">
               <label class="form-label">Year n to Calculate</label>
@@ -105,10 +55,10 @@ const Degradation = (() => {
 
         <!-- CALC 2: COMPOUND -->
         <div class="card" style="margin-bottom:12px">
-          <div class="card-title">&#128290; Compound Degradation (Realistic / Financial Model)</div>
+          <div class="card-title">&#128290; Compound Degradation (Planning Model)</div>
           <div class="info-box" style="margin-bottom:10px">
             Formula: <strong>P(n) = P&#x2080; &times; (1 &minus; LID) &times; (1 &minus; d)^(n&minus;1)</strong><br>
-            More accurate for energy yield prediction &mdash; loss compounds relative to previous year.
+            Loss compounds relative to the previous year. Suitability depends on the evidence and projection purpose.
           </div>
           <div class="form-row cols-2">
             <div class="form-group">
@@ -134,10 +84,10 @@ const Degradation = (() => {
 
         <!-- CALC 3: WARRANTY CHECK -->
         <div class="card">
-          <div class="card-title">&#9989; Warranty Power Check (SLS 1553 / IEC 61215)</div>
+          <div class="card-title">Warranty Retention Comparison</div>
           <div class="info-box" style="margin-bottom:10px">
-            Check if current measured output meets the manufacturer warranty at this system age.
-            SLS 1553 requirement: &ge;80% of initial power at Year 25.
+            Enter the manufacturer's retention target at the actual system age and compare a properly corrected measurement.
+            Warranty measurement conditions and claim acceptance remain with the manufacturer; no universal 80% rule is assumed.
           </div>
           <div class="form-row cols-2">
             <div class="form-group">
@@ -153,9 +103,9 @@ const Degradation = (() => {
               <input class="form-input" id="wc-n" type="number" step="1" placeholder="Years since commissioning" />
             </div>
             <div class="form-group">
-              <label class="form-label">Warranty at Year 25 (%)</label>
-              <input class="form-input" id="wc-wg" type="number" step="any" value="80" />
-              <div class="form-hint">Typically 80% per SLS 1553</div>
+              <label class="form-label">Warranty Retention at Entered Age (%)</label>
+              <input class="form-input" id="wc-wg" type="number" step="any" placeholder="From the exact warranty schedule" />
+              <div class="form-hint">Use the actual age-specific target, including any first-year step</div>
             </div>
           </div>
           <button class="btn btn-primary btn-sm" id="wc-calc-btn">Check Warranty</button>
@@ -229,16 +179,16 @@ const Degradation = (() => {
     const LID = _g(container, 'lin-lid') / 100;
     const d   = _g(container, 'lin-d')   / 100;
     const n   = _g(container, 'lin-n');
-    if (isNaN(P0) || isNaN(LID) || isNaN(d) || isNaN(n)) {
-      container.querySelector('#lin-result').innerHTML = '<div class="danger-box">Enter all values</div>'; return;
+    if (![P0,LID,d,n].every(Number.isFinite)||P0<=0||LID<0||LID>1||d<0||d>1||n<1) {
+      container.querySelector('#lin-result').innerHTML = '<div class="danger-box">Enter positive rated power, year ≥1 and valid percentage losses (0–100%).</div>'; return;
     }
     const P1 = P0 * (1 - LID);
     const Pn = P1 - P0 * d * (n - 1);
+    if(Pn<0){container.querySelector('#lin-result').innerHTML='<div class="warn-box">These assumptions project below zero power. The linear model is outside its physical range at this year; revise the model and evidence.</div>';return;}
     const pct = (Pn / P0) * 100;
-    const ok  = pct >= 80;
     const keyYears = [...new Set([1,5,10,15,20,25,n])].filter(y=>y>=1&&y<=Math.max(n,25)).sort((a,b)=>a-b);
     _steps(container, 'lin-result', [
-      `IEC 61215 / SLS 1553 Linear Formula: P(n) = P\u2080 \u00d7 (1 \u2212 LID) \u2212 P\u2080 \u00d7 d \u00d7 (n \u2212 1)`,
+      `Planning linear formula: P(n) = P\u2080 \u00d7 (1 \u2212 LID) \u2212 P\u2080 \u00d7 d \u00d7 (n \u2212 1)`,
       `Step 1: P\u2080 = ${P0} W, LID = ${(LID*100).toFixed(2)}%, d = ${(d*100).toFixed(2)}%/yr, n = ${n}`,
       `Step 2: Year 1 after LID: P\u2081 = ${P0} \u00d7 (1 \u2212 ${(LID*100).toFixed(2)}%) = ${P1.toFixed(2)} W`,
       `Step 3: Annual loss = P\u2080 \u00d7 d = ${P0} \u00d7 ${(d*100).toFixed(2)}% = ${(P0*d).toFixed(2)} W/year`,
@@ -246,9 +196,8 @@ const Degradation = (() => {
       `Step 5: Retention = ${Pn.toFixed(2)} \u00f7 ${P0} \u00d7 100 = ${pct.toFixed(1)}%`,
       `\u2500\u2500 Year-by-year output \u2500\u2500`,
       ..._keyYearTable(P0, keyYears, y => y===1 ? P1 : P1 - P0*d*(y-1)),
-      `SLS 1553 warranty minimum: \u226580% at Year 25`,
-      ok ? `${pct.toFixed(1)}% \u2265 80% \u2192 \u2713 Within warranty` : `${pct.toFixed(1)}% < 80% \u2192 \u2717 Below warranty threshold`
-    ], `Year ${n}: ${Pn.toFixed(1)} W \u2014 ${pct.toFixed(1)}% of P\u2080 \u2014 ${ok?'\u2713 OK':'\u2717 Below 80%'}`, ok?'alert-safe':'alert-unsafe');
+      `Projection from entered assumptions; compare the exact age-specific warranty separately.`
+    ], `Year ${n}: ${Pn.toFixed(1)} W \u2014 ${pct.toFixed(1)}% of P\u2080`, 'alert-warn');
   }
 
   function _calcCompound(container) {
@@ -256,13 +205,12 @@ const Degradation = (() => {
     const LID = _g(container, 'cmp-lid') / 100;
     const d   = _g(container, 'cmp-d')   / 100;
     const n   = _g(container, 'cmp-n');
-    if (isNaN(P0) || isNaN(LID) || isNaN(d) || isNaN(n)) {
-      container.querySelector('#cmp-result').innerHTML = '<div class="danger-box">Enter all values</div>'; return;
+    if (![P0,LID,d,n].every(Number.isFinite)||P0<=0||LID<0||LID>1||d<0||d>1||n<1) {
+      container.querySelector('#cmp-result').innerHTML = '<div class="danger-box">Enter positive rated power, year ≥1 and valid percentage losses (0–100%).</div>'; return;
     }
     const P1 = P0 * (1 - LID);
     const Pn = P1 * Math.pow(1 - d, n - 1);
     const pct = (Pn / P0) * 100;
-    const ok  = pct >= 80;
     const Pn_lin = P1 - P0 * d * (n - 1);
     const keyYears = [...new Set([1,5,10,15,20,25,n])].filter(y=>y>=1&&y<=Math.max(n,25)).sort((a,b)=>a-b);
     _steps(container, 'cmp-result', [
@@ -275,8 +223,8 @@ const Degradation = (() => {
       `\u2500\u2500 Year-by-year output \u2500\u2500`,
       ..._keyYearTable(P0, keyYears, y => P1 * Math.pow(1-d, y-1)),
       `Compound vs Linear at Year ${n}: ${Math.abs(Pn-Pn_lin).toFixed(1)} W difference (compound is slightly ${Pn>Pn_lin?'higher':'lower'})`,
-      ok ? `${pct.toFixed(1)}% \u2265 80% \u2192 \u2713 Within warranty` : `${pct.toFixed(1)}% < 80% \u2192 \u2717 Below warranty threshold`
-    ], `Year ${n}: ${Pn.toFixed(1)} W \u2014 ${pct.toFixed(1)}% of P\u2080 \u2014 ${ok?'\u2713 OK':'\u2717 Below 80%'}`, ok?'alert-safe':'alert-unsafe');
+      `Projection from entered assumptions; compare the exact age-specific warranty separately.`
+    ], `Year ${n}: ${Pn.toFixed(1)} W \u2014 ${pct.toFixed(1)}% of P\u2080`, 'alert-warn');
   }
 
   function _calcWarranty(container) {
@@ -284,27 +232,24 @@ const Degradation = (() => {
     const Pm = _g(container, 'wc-pm');
     const n  = _g(container, 'wc-n');
     const wg = _g(container, 'wc-wg');
-    if (isNaN(P0) || isNaN(Pm) || isNaN(n)) {
-      container.querySelector('#wc-result').innerHTML = '<div class="danger-box">Enter P\u2080, current power and age</div>'; return;
+    if (![P0,Pm,n,wg].every(Number.isFinite)||P0<=0||Pm<0||n<0||wg<0||wg>100) {
+      container.querySelector('#wc-result').innerHTML = '<div class="danger-box">Enter valid rated/measured power, age and the actual age-specific retention target (0–100%).</div>'; return;
     }
-    const guar = isNaN(wg) ? 80 : wg;
     const actual_pct   = (Pm / P0) * 100;
-    const warranty_at_n = 100 - (100 - guar) * (n / 25);
+    const warranty_at_n = wg;
     const meetsNow     = actual_pct >= warranty_at_n;
     const annualDeg    = n > 0 ? ((P0 - Pm) / P0 / n * 100) : 0;
-    const proj25       = 100 - annualDeg * 25;
     _steps(container, 'wc-result', [
-      `SLS 1553 / Manufacturer warranty check`,
+      `Comparison with the entered manufacturer retention target`,
       `Step 1: Original rated power P\u2080 = ${P0} W`,
       `Step 2: Current measured power (STC-corrected) = ${Pm} W`,
       `Step 3: System age = ${n} years`,
       `Step 4: Actual retention = ${Pm} \u00f7 ${P0} \u00d7 100 = ${actual_pct.toFixed(1)}%`,
       `Step 5: Effective annual degradation = (${P0} \u2212 ${Pm}) \u00f7 ${P0} \u00f7 ${n} = ${annualDeg.toFixed(3)}%/year`,
-      `Step 6: Warranty limit at Year ${n} (linear interpolation to ${guar}% at Year 25):`,
-      `         = 100% \u2212 (100 \u2212 ${guar}%) \u00d7 ${n}/25 = ${warranty_at_n.toFixed(1)}%`,
-      meetsNow ? `${actual_pct.toFixed(1)}% \u2265 ${warranty_at_n.toFixed(1)}% \u2192 \u2713 Within warranty at Year ${n}` : `${actual_pct.toFixed(1)}% < ${warranty_at_n.toFixed(1)}% \u2192 \u2717 Below warranty limit at Year ${n}`,
-      `Projected at Year 25 (at current rate): ${proj25.toFixed(1)}% \u2014 ${proj25>=80?'\u2713 Should meet 80% target':'\u2717 May not meet 80% target'}`
-    ], meetsNow ? `\u2713 ${actual_pct.toFixed(1)}% \u2014 Warranty OK at Year ${n}` : `\u2717 ${actual_pct.toFixed(1)}% \u2014 Below warranty at Year ${n}`, meetsNow?'alert-safe':'alert-unsafe');
+      `Step 6: Entered warranty retention at Year ${n}: ${warranty_at_n.toFixed(1)}%`,
+      meetsNow ? `${actual_pct.toFixed(1)}% meets the entered ${warranty_at_n.toFixed(1)}% target` : `${actual_pct.toFixed(1)}% is below the entered ${warranty_at_n.toFixed(1)}% target`,
+      `Actual warranty assessment requires the OEM measurement conditions, uncertainty and claim process.`
+    ], `${actual_pct.toFixed(1)}% \u2014 ${meetsNow?'Entered target met':'Below entered target'} at Year ${n}`, meetsNow?'alert-warn':'alert-unsafe');
   }
 
   return { render };

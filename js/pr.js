@@ -16,42 +16,8 @@ const PRCalc = (() => {
       .replace(/'/g, '&#39;');
   }
 
-  function _fieldProfile() {
-    if (typeof StandardsRules !== 'undefined' && StandardsRules && typeof StandardsRules.getFieldTestProfile === 'function') {
-      return StandardsRules.getFieldTestProfile();
-    }
-    if (typeof PVCalc !== 'undefined' && PVCalc && typeof PVCalc.getFieldTestProfile === 'function') {
-      return PVCalc.getFieldTestProfile();
-    }
-    return {
-      id: 'iec62446_2016',
-      label: 'IEC 62446-1:2016 + AMD1:2018',
-      vocTolPct: 2,
-      iscTolPct: 5,
-      standardRef: 'IEC 62446-1:2016 + AMD1:2018'
-    };
-  }
-
-  function _irRule() {
-    if (typeof StandardsRules !== 'undefined' && StandardsRules && typeof StandardsRules.getIRTestRule === 'function') {
-      return StandardsRules.getIRTestRule();
-    }
-    return {
-      minMOhm: 1.0,
-      testVoltageV: 500,
-      standardRef: 'IEC 62446-1:2016 + AMD1:2018 Cl. 5.3.3'
-    };
-  }
-
   function render(container) {
     const panels = DB.getAll();
-    const ftProfile = _fieldProfile();
-    const irRule = _irRule();
-    const vocTolText = Number(ftProfile.vocTolPct).toFixed(0);
-    const iscTolText = Number(ftProfile.iscTolPct).toFixed(0);
-    const irMinText = Number(irRule.minMOhm).toFixed(0);
-    const irVoltText = Number(irRule.testVoltageV).toFixed(0);
-    const irStandardRef = String(irRule.standardRef || 'IEC 62446-1');
     const panelOptions = panels.map(p =>
       `<option value="${_esc(p.id)}">${_esc(p.manufacturer)} ${_esc(p.model)} (${_esc(p.Pmax)}W)</option>`
     ).join('');
@@ -134,7 +100,7 @@ const PRCalc = (() => {
         <div class="card">
           <div class="card-title">Insulation Resistance (IR) Test — IEC 62446-1</div>
           <div class="info-box">
-            Minimum ${_esc(irMinText)} MΩ at ${_esc(irVoltText)}V DC test voltage (${_esc(irStandardRef)}). Test DC+ to earth and DC− to earth separately.
+            Compare recorded method 1 readings with the voltage bands in the PUCSL September 2022 guideline, Table C1 (PDF pp. 59, 83). Confirm the accepted test plan; daylight PV can remain live.
           </div>
           <div class="form-row cols-2">
             <div class="form-group">
@@ -147,8 +113,13 @@ const PRCalc = (() => {
             </div>
             <div class="form-group">
               <label class="form-label">Test Voltage (V)</label>
-              <input class="form-input" id="ir-volt" type="number" value="${_esc(irVoltText)}" />
-              <div class="form-hint">Typically 500V DC for ≤1000V systems</div>
+              <input class="form-input" id="ir-volt" type="number" placeholder="Recorded applied voltage" />
+              <div class="form-hint">Cited bands: 250 V below 120 V; 500 V at 120–500 V; 1000 V above 500 V.</div>
+            </div>
+            <div class="form-group">
+              <label class="form-label">System Voltage for Test Plan (V)</label>
+              <input class="form-input" id="ir-system-volt" type="number" step="any" placeholder="Voc STC × 1.25" />
+              <div class="form-hint">Voltage definition from the cited table; use the accepted procedure.</div>
             </div>
             <div class="form-group">
               <label class="form-label">String / Location</label>
@@ -165,17 +136,18 @@ const PRCalc = (() => {
           <table class="status-table">
             <thead><tr><th>Standard</th><th>Scope</th><th>Key Limit / Requirement</th></tr></thead>
             <tbody>
-              <tr><td><strong>${_esc(ftProfile.label)}</strong></td><td>Commissioning tests &amp; documentation</td><td>IR ≥ ${_esc(irMinText)} MΩ, Voc ±${_esc(vocTolText)}%, Isc ±${_esc(iscTolText)}% of STC</td></tr>
+              <tr><td><strong>IEC 62446-1</strong></td><td>Commissioning tests &amp; documentation</td><td>Accepted test plan, voltage-dependent criteria and recorded conditions</td></tr>
               <tr><td><strong>IEC 61215:2021</strong></td><td>Module design qualification</td><td>Performance &amp; durability testing</td></tr>
               <tr><td><strong>IEC 61730:2023</strong></td><td>Module safety qualification</td><td>Earthing, insulation, mechanical</td></tr>
-              <tr><td><strong>IEC 60364-7-712:2025</strong></td><td>PV electrical installation</td><td>Earthing resistance &lt;1Ω</td></tr>
-              <tr><td><strong>IEC 61643-32:2017 + COR1:2019</strong></td><td>DC-side SPD</td><td>SPD required at array &amp; inverter DC input</td></tr>
-              <tr><td><strong>IEC TS 62804-1:2025</strong></td><td>PID detection</td><td>Negative grounding or PID protection required</td></tr>
+              <tr><td><strong>IEC 60364-7-712</strong></td><td>PV electrical installation</td><td>Coordinated conductors, protection, isolation and earthing design</td></tr>
+              <tr><td><strong>SLS 1473 / IEC 61643-31/-32</strong></td><td>PV SPD testing and application</td><td>Coordinate device ratings and the installed protective path</td></tr>
+              <tr><td><strong>IEC TS 62804 family</strong></td><td>PID test methods</td><td>Exact module evidence; grounding changes require OEM/design confirmation</td></tr>
               <tr><td><strong>IEC 61724-1</strong></td><td>Performance monitoring</td><td>PR = E_AC / (H_poa × P_stc/G_stc)</td></tr>
-              <tr><td><strong>SLS 1522:2016</strong></td><td>Sri Lanka SPD standard</td><td>SPD compliance for AC &amp; DC sides</td></tr>
+              <tr><td><strong>SLS 1522:2016</strong></td><td>PV documentation, installation, testing &amp; commissioning</td><td>Site inspection, records and handover evidence</td></tr>
               <tr><td><strong>PUCSL Guidelines</strong></td><td>Sri Lanka rooftop solar</td><td>Commissioning sign-off, CEB metering, UV cable</td></tr>
             </tbody>
           </table>
+          <p class="form-hint">Verify the applicable local adoption and exact edition in the source-linked Standards Reference. Product qualification, site testing and utility acceptance are separate.</p>
         </div>
       </div>
     `;
@@ -281,17 +253,14 @@ const PRCalc = (() => {
   function _checkIR(container) {
     const pos   = parseFloat(container.querySelector('#ir-pos').value);
     const neg   = parseFloat(container.querySelector('#ir-neg').value);
-    const volt  = container.querySelector('#ir-volt').value || '500';
+    const volt  = parseFloat(container.querySelector('#ir-volt').value);
+    const systemVolt = parseFloat(container.querySelector('#ir-system-volt').value);
     const label = container.querySelector('#ir-label').value || 'Array';
 
-    if (isNaN(pos) && isNaN(neg)) { App.toast('Enter at least one IR measurement', 'error'); return; }
-
-    const irRule = _irRule();
-    const MIN = Number.isFinite(Number(irRule.minMOhm)) ? Number(irRule.minMOhm) : 1.0;
-    const minTestVolt = Number.isFinite(Number(irRule.testVoltageV)) ? Number(irRule.testVoltageV) : 500;
-    const standardRef = String(irRule.standardRef || 'IEC 62446-1');
+    const check=SriLankaStandards.irCheck(systemVolt,volt,pos,neg);
+    const MIN=check.minimum;
     function row(label, val) {
-      if (isNaN(val)) return '';
+      if(!Number.isFinite(val)||MIN==null||check.status==='review')return `<tr><td>${_esc(label)}</td><td>${Number.isFinite(val)?_esc(val)+' MΩ':'Not recorded'}</td><td>${MIN??'Not determined'}</td><td>REVIEW</td></tr>`;
       const pass = val >= MIN;
       const cls = pass ? 'status-ok' : 'status-fault';
       const badge = pass
@@ -300,14 +269,12 @@ const PRCalc = (() => {
       return `<tr class="${cls}"><td>${_esc(label)}</td><td>${_esc(val)} M&Omega;</td><td>${_esc(MIN)} M&Omega;</td><td>${badge}</td></tr>`;
     }
 
-    const allPass = (!isNaN(pos) ? pos >= MIN : true) && (!isNaN(neg) ? neg >= MIN : true);
-
     const div = container.querySelector('#ir-result');
     div.classList.remove('hidden');
     div.innerHTML = `
-      <div class="result-box ${allPass ? 'alert-safe' : 'alert-unsafe'}" style="margin-bottom:10px">
-        <div class="result-value">${allPass ? '&#10003; PASS' : '&#9888; FAIL'}</div>
-        <div class="result-label">${_esc(label)} — Test voltage: ${_esc(volt)}V DC</div>
+      <div class="result-box ${check.status==='within'?'alert-safe':check.status==='below'?'alert-unsafe':'alert-warn'}" style="margin-bottom:10px">
+        <div class="result-value">${check.status==='within'?'Recorded comparison met':check.status==='below'?'Below cited criterion':'REVIEW — incomplete or inconsistent evidence'}</div>
+        <div class="result-label">${_esc(label)} — Test voltage: ${Number.isFinite(volt)?_esc(volt):'not recorded'} V DC</div>
       </div>
       <table class="status-table">
         <thead><tr><th>Test</th><th>Measured</th><th>Minimum</th><th>Result</th></tr></thead>
@@ -317,8 +284,8 @@ const PRCalc = (() => {
         </tbody>
       </table>
       <div class="info-box" style="margin-top:8px;font-size:0.78rem">
-        ${_esc(standardRef)}: Minimum insulation resistance ≥ ${_esc(MIN)} MΩ at ${_esc(minTestVolt)}V DC test voltage.
-        Test both polarities. Values below ${_esc(MIN)} MΩ indicate earth fault — do not energise.
+        ${_esc(check.note)} ${check.requiredTest?`Cited band: ${_esc(check.requiredTest)} V test, minimum ${_esc(MIN)} MΩ.`:''}
+        <a href="https://energy.gov.lk/images/energy-management/guideline-for-solar-pv-system-installation-for-solar-providers.pdf" target="_blank" rel="noopener noreferrer">PUCSL source ↗</a> Complete site acceptance requires the approved procedure and full records.
       </div>
     `;
 

@@ -1,0 +1,61 @@
+/* Realistic equipment layouts with a readable ledger and explicit example quantities. */
+.rpv-view { position:relative; background:#edf3f5; }
+.rpv-zoom { position:absolute; right:11px; top:10px; z-index:2; color:#294859; background:#fff; border:1px solid #b4c7d0; border-radius:7px; padding:7px 9px; font-size:10px; cursor:pointer; }
+.sv-diagram.rpv-diagram { min-width:0; min-height:0; width:100%; display:block; }
+.rpv-zoomed .rpv-diagram { min-width:1100px; }
+.rpv-diagram text { fill:#263d49; font-family:'Segoe UI',sans-serif; }
+.rpv-heading { font-size:23px; font-weight:650; letter-spacing:-.3px; }
+.rpv-note { font-size:14px; fill:#536e7e!important; }
+.rpv-label { font-size:18px; font-weight:600; }
+.rpv-small { font-size:15px; }
+.rpv-footer { font-size:14px; fill:#385462!important; }
+.rpv-number { font-size:28px; font-weight:650; }
+.rpv-value { font-size:18px; font-weight:600; }
+.rpv-display { font-size:9px; font-weight:600; fill:#dce7d4!important; font-family:monospace!important; }
+.rpv-display.dark { fill:#29422f!important; font-size:10px; }
+.rpv-badge { fill:#ffeed1; stroke:#d9b175; }
+.rpv-badge.blue { fill:#e0edf6; stroke:#96b5cb; }
+.rpv-badge.green { fill:#dceddf; stroke:#8cb7a3; }
+.rpv-badge.red { fill:#f4dcd3; stroke:#c68a76; }
+.rpv-warning { font-size:17px; font-weight:600; fill:#9b5038!important; }
+.rpv-night .rpv-heading,.rpv-night .rpv-label,.rpv-night .rpv-small { fill:#e2edf2!important; }
+.rpv-night .rpv-note { fill:#c4d9e4!important; }
+.rpv-night .rpv-warning { fill:#f7c480!important; }
+.rpv-night .rpv-footer { fill:#d0e1eb!important; }
+.rpv-cable-base { fill:none; stroke:#9aadb8; stroke-width:8; stroke-linecap:round; stroke-linejoin:round; }
+.rpv-wire { fill:none; stroke:#9aaeba; stroke-width:3; stroke-linecap:round; stroke-linejoin:round; }
+.rpv-wire.active.dc { stroke:#ad7548; }
+.rpv-wire.active.ac { stroke:#bb8749; }
+.rpv-wire.active.grid { stroke:#4a809f; }
+.rpv-wire.active.battery,.rpv-wire.active.backup { stroke:#3c8b7c; }
+.rpv-wire.active.earth { stroke:#57744c; }
+.rpv-wire.active.surge { stroke:#bd8350; }
+.rpv-energy.dc,.rpv-energy.ac { fill:#c68c42; stroke:#fff3d9; stroke-width:1; }
+.rpv-energy.grid { fill:#377da5; stroke:#d4e9f5; stroke-width:1; }
+.rpv-energy.battery,.rpv-energy.backup { fill:#368d77; stroke:#d5f3e4; stroke-width:1; }
+.rpv-energy.earth,.rpv-energy.surge { fill:#b1873c; }
+.rpv-feedback { fill:none; stroke:#776892; stroke-width:3; stroke-dasharray:5 7; }
+.rpv-earth-symbol { fill:none; stroke:#557848; stroke-width:4; }
+.rpv-power-ledger { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); padding:14px; gap:8px; }
+.rpv-power-ledger > div { padding:10px; border:1px solid var(--border); border-radius:8px; background:var(--bg); }
+.rpv-power-ledger span { display:block; font-size:9px; color:var(--text-muted); line-height:1.5; min-height:27px; }
+.rpv-power-ledger strong { font-size:14px; font-variant-numeric:tabular-nums; font-weight:650; }
+.rpv-balance { font-size:10px; line-height:1.7; padding:0 16px 10px; color:var(--text-secondary); }
+.rpv-state-tags { display:flex; flex-wrap:wrap; gap:6px; padding:0 14px 12px; }
+.rpv-state-tags span { border:1px solid var(--border); border-radius:6px; background:var(--bg); padding:5px 7px; font-size:9px; }
+.rpv-legend { display:flex; flex-wrap:wrap; gap:9px 15px; padding:11px 16px; border-top:1px solid var(--border); font-size:10px; color:var(--text-secondary); }
+.rpv-legend span { display:flex; align-items:center; gap:6px; }
+.rpv-legend span::before { content:''; width:15px; height:3px; display:block; background:#bb8749; }
+.rpv-legend .dc::before { background:#ad7548; }
+.rpv-legend .battery::before { background:#3c8b7c; }
+.rpv-legend .feedback::before { background:#776892; }
+.sv-topics { grid-template-columns:repeat(5,minmax(0,1fr)); }
+.sv-controls { flex-wrap:wrap; }
+.sv-controls [data-sv-story] { color:var(--primary); border-color:var(--primary); }
+.std-family-filter { display:flex; flex-wrap:wrap; gap:7px; margin:14px 0 22px; }
+.std-family-filter button { border:1px solid var(--border); background:var(--bg); color:var(--text-secondary); padding:8px 11px; border-radius:7px; font-size:11px; cursor:pointer; }
+.std-family-filter button[aria-pressed="true"] { background:var(--primary-bg); color:var(--primary); border-color:var(--primary); }
+@media (max-width:1350px) { .sv-player { grid-template-columns:1fr; } }
+@media (max-width:760px) { .sv-topics { grid-template-columns:repeat(3,minmax(0,1fr)); } .rpv-power-ledger { grid-template-columns:1fr 1fr; gap:7px; padding:11px; } .rpv-power-ledger strong { font-size:15px; } .rpv-power-ledger span { font-size:10px; min-height:15px; } .sv-diagram.rpv-diagram { min-width:0; } .rpv-zoomed .rpv-diagram { min-width:1000px; } [data-sv-diagram]::after { content:'Overview: use Enlarge diagram to inspect equipment'; font-size:10px; } .rpv-zoomed [data-sv-diagram]::after { content:'Scroll sideways to inspect the complete layout'; } .rpv-zoom { font-size:9px; padding:5px 7px; } }
+@media (prefers-reduced-motion:reduce) { .rpv-energy { display:none; } }
+@media print { .rpv-zoom { display:none; } .rpv-energy { display:none; } .rpv-diagram { min-width:0!important; } }

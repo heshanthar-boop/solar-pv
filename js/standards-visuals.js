@@ -58,9 +58,27 @@ const StandardsVisuals = (() => {
       ['Commission and obtain acceptance','Complete the accepted tests and provide settings, drawings, reports and the required written acceptance.','A checklist declaration records evidence; the app does not independently issue utility approval.'],
       ['Maintain and document','Keep as-built/O&M records, scheduled inspections, event logs and the end-of-life/recycling plan.','The system lifecycle continues after installation and commissioning.'] ]},
   };
+  Object.assign(LESSONS, {
+    cables:{title:'Cables & connectors',icon:'wirecalc',source:'interconnection',steps:[
+      ['Declare the PV cable','PV cable suitability is a product requirement. SLS 1542 is listed against EN 50618 in the SLSEA source.','Confirm the exact cable certificate, voltage, temperature and environmental ratings.'],
+      ['Size for the installed route','Current capacity changes with temperature, grouping and installation method. Voltage drop is a separate check.','Use the applicable conductor design and corrected current; do not infer a cable size from a picture.'],
+      ['Use a specified mating pair','SLS 1637 covers PV DC connector safety. Similar appearance does not establish electrical or mechanical compatibility.','Use the OEM-specified pairing and termination evidence. PV can remain live in daylight.'],
+      ['Protect and inspect the route','Verify the permitted routing, mechanical protection, identification, sealing and accessibility.','Installation evidence must cover the actual site and applicable current requirements.'] ]},
+    lightning:{title:'Lightning & earthing',icon:'fault',source:'interconnection',steps:[
+      ['Assess the site risk','SLS 1472 is the listed lightning-protection reference; risk assessment determines the required measures.','Exposure, structure and incoming services matter. The drawing does not supply universal distances.'],
+      ['Coordinate external and internal protection','External LPS handles its designed lightning path; SPDs limit transient stress through coordinated protective branches.','SLS 1473 is surge protection. It is distinct from the LPS and from series overcurrent protection.'],
+      ['Verify the LPS components','SLS 1496 covers relevant lightning-protection components such as connectors, conductors and electrodes.','Exact parts, corrosion/environment, bonds and the designed separation require assessment.'],
+      ['Inspect and document the installation','Verification checks the installed arrangement and protective continuity, not just a product label.','Earthing acceptance comes from the coordinated design and applicable procedure; a universal 1 Ω verdict is not inferred.'] ]},
+    batterySafety:{title:'BESS safety & scope',icon:'hybrid',source:'framework',steps:[
+      ['Check the battery evidence','Cell/pack safety, performance, renewable-storage testing and OEM pairing address different questions.','For the 2026 lithium BESS specification, cycle claims need the specified DoD, C-rate, retention and ambient evidence.'],
+      ['Check the installed environment','Pack/enclosure IP evidence, ventilation, corrosion, protected wiring and thermal/fire measures cover the installation.','Verify the minimum IP54 criteria where applicable and the OEM clearances; pack certification is not an installation inspection.'],
+      ['Verify BMS and shutdown actions','BMS alarms and protective actions use declared OEM conditions. The external ESD isolates battery transfer and relevant breakers.','No universal alarm temperature is invented here. Test the accepted response; daylight PV may remain live.'],
+      ['Check chemistry and second-life scope','New stationary lithium, NiMH and repurposed batteries have different standard scopes.','A different chemistry certificate or new-battery brochure does not establish second-life suitability.'] ]}
+  });
   const STANDARD_TOPICS = {
     iec62446:'testing',iec61215:'quality',iec61730:'protection',iec60364:'protection',iec61643:'protection',iec62305:'protection',iec60269_6:'protection',iec61724:'monitoring',iec62804:'conditions',iec62548:'array',pucsl:'approval',ceb_leco_approval:'grid',iec62116:'grid',sls1522:'array',sl_supporting_pack:'quality',sls1543:'protection',sls1547:'grid',iec61853:'conditions',pv_degradation:'conditions'
   };
+  if(typeof SriLankaStandards!=='undefined')SriLankaStandards.getRecords().forEach(r=>STANDARD_TOPICS[r.id]=r.lesson);
   let sequence=0;
   function storageState(power,energy) {
     if(power===null||energy===null||power===''||energy==='')return {status:'review',hours:null,max:null,fill:0};
@@ -78,12 +96,12 @@ const StandardsVisuals = (() => {
   function hub(topic='energy',compact=false) {
     const id=`sv-${++sequence}`;
     return `<section class="sv-hub card ${compact?'sv-compact':''}" data-sv-root data-sv-topic="${esc(topic)}" data-sv-id="${id}" data-sv-paused="true" aria-label="Animated standards guide">
-      <div class="sv-header"><div><p class="eyebrow">VISUAL LEARNING · PV + BESS</p><h2 tabindex="-1">Understand the standards, one step at a time.</h2><p class="sv-subtitle">Follow the illustration. Try an example. Then check the exact requirement.</p></div><span class="sv-offline">${icon('standards')}Works offline</span></div>
+      <div class="sv-header"><div><p class="eyebrow">VISUAL LEARNING · PV + BESS</p><h2 tabindex="-1">See how Sri Lankan PV requirements fit together.</h2><p class="sv-subtitle">Follow the equipment layout. Replay the story. Open the associated requirement and source.</p></div><span class="sv-offline">${icon('standards')}Works offline</span></div>
       ${compact?'':`<div class="sv-topics" role="group" aria-label="Choose an illustrated topic">${Object.entries(LESSONS).map(([key,l])=>`<button type="button" data-sv-topic-button="${key}" aria-pressed="${key===topic}">${icon(l.icon)}<span>${esc(l.title)}</span></button>`).join('')}</div>`}
       <p class="sv-context" data-sv-context hidden></p>
       <div class="sv-player" data-sv-player></div>
-      <div class="sv-controls"><button type="button" class="btn btn-secondary btn-sm" data-sv-play aria-pressed="false">Play animation</button><div class="sv-step-controls"><button type="button" class="btn btn-secondary btn-sm" data-sv-prev aria-label="Previous illustration step">← Previous</button><span data-sv-count></span><button type="button" class="btn btn-secondary btn-sm" data-sv-next aria-label="Next illustration step">Next →</button></div></div>
-      <p class="sv-caption">Concept illustration. The project calculators and source-linked requirements determine the actual design review. Line movement indicates direction, not measured power.</p>
+      <div class="sv-controls"><button type="button" class="btn btn-secondary btn-sm" data-sv-story>Play story</button><button type="button" class="btn btn-secondary btn-sm" data-sv-play aria-pressed="false">Play animation</button><div class="sv-step-controls"><button type="button" class="btn btn-secondary btn-sm" data-sv-prev aria-label="Previous illustration step">← Previous</button><span data-sv-count></span><button type="button" class="btn btn-secondary btn-sm" data-sv-next aria-label="Next illustration step">Next →</button></div></div>
+      <p class="sv-caption">Illustrative equipment and example quantities. Particles show average energy-transfer direction, not electrons or instantaneous AC current. Playback duration is not a protection trip time. Use the approved project design and exact equipment evidence.</p>
       ${compact?'':`<details class="sv-glossary"><summary>Plain-English terms: kW, kWh, MPPT, BMS and more</summary><dl>${[
         ['kW · power','How quickly energy is delivered. Continuous kW is the rating a device can sustain under its stated conditions.'],
         ['kWh · energy','How much energy is stored or used. 1 kW sustained for 1 hour equals 1 kWh.'],
@@ -97,70 +115,27 @@ const StandardsVisuals = (() => {
     </section>`;
   }
   function help(topic) {return `<details class="sv-help"><summary>${icon(LESSONS[topic]?.icon||'standards')}See an animated explanation</summary>${hub(topic,true)}</details>`;}
-  function path(d,active=true,extra=''){return `<path d="${d}" class="sv-wire ${active?'sv-flow':''} ${extra}" ${active?'data-sv-arrow':''}/>`;}
-  function node(x,y,type,label,sub='',cls='') {
-    const symbols={pv:'<path d="M-36-22h72l9 44h-90zM-18-22l-4 44M0-22v44M18-22l4 44M-39-7h78M-42 8h84"/>',battery:'<rect x="-30" y="-31" width="60" height="62" rx="6"/><path d="M-12-31v-6h24v6"/><path d="M-18-15h36v30h-36z" class="sv-charge"/>',inverter:'<rect x="-30" y="-34" width="60" height="68" rx="7"/><path d="M-18-19h36v12h-36zM-19 12c12-26 26 26 38 0"/>',home:'<path d="m-39-3 39-31L39-3M-29-9v42h58V-9M-7 33V9H7v24"/>',grid:'<path d="m0-37-24 72M0-37l24 72M-32-13h64M-39 8h78M-16-13l30 21M16-13-30 21M-14 8l36 27M14 8l-36 27"/>',meter:'<rect x="-34" y="-30" width="68" height="60" rx="8"/><path d="M-24 1a24 24 0 0 1 48 0M0 1l12-15M-18 18h36"/>',shield:'<path d="M0-37-30-24V0C-30 21 0 35 0 35S30 21 30 0v-24zM-14-1l10 10L17-15"/>',report:'<rect x="-28" y="-36" width="56" height="72" rx="5"/><path d="M-16-19h32M-16-5h32M-16 9h23M-16 23h17"/>',sensor:'<circle r="30"/><path d="M-15 0h8l6-17L6 17l6-17h8"/>'};
-    return `<g transform="translate(${x} ${y})" class="sv-node ${cls}"><rect x="-72" y="-62" width="144" height="142" rx="18" class="sv-node-bg"/><g class="sv-symbol">${symbols[type]||symbols.report}</g><text y="57" text-anchor="middle" class="sv-node-label">${esc(label)}</text>${sub?`<text y="101" text-anchor="middle" class="sv-node-sub">${esc(sub)}</text>`:''}</g>`;
+  function diagram(topic,step,state){return PVLearningScenes.scene(topic,step,state);}
+  function ledgerHtml(state){
+    if(!['energy','grid'].includes(state.topic))return `<div class="rpv-legend"><span class="dc">PV DC / conversion</span><span class="ac">AC energy</span><span class="battery">Battery / EPS</span><span class="feedback">Control or data</span></div>`;
+    const p=PVLearningScenes.powerScenario(state.step,state.topic==='grid',state),f=v=>`${v.toFixed(2)} kW`;
+    const values=[['PV delivered DC',p.pvDelivered],['Served general loads',p.servedGeneral],['Critical EPS loads',p.eps],[p.dcBatteryIn>0?'Battery stored DC':'Battery drawn DC',p.dcBatteryIn||p.dcBatteryOut],['Utility import',p.imports],['Utility export',p.exports],['Conversion losses',p.losses],['Curtailed PV potential',p.curtailed]];
+    const input=p.pvAvailable+p.dcBatteryOut+p.imports,accounted=p.loads+p.dcBatteryIn+p.exports+p.losses+p.curtailed;
+    return `<div class="rpv-power-ledger">${values.map(([label,value])=>`<div><span>${label}</span><strong>${f(value)}</strong></div>`).join('')}</div><p class="rpv-balance">Available-power budget: ${f(input)} = ${f(accounted)} accounted for. ${p.unserved?`${f(p.unserved)} general-load demand is unserved.`:''}</p><div class="rpv-state-tags"><span>${p.contactorClosed?'Inverter grid port connected':'Inverter grid port isolated'}</span><span>${p.gridPresent?'Utility supply present':'Utility supply absent'}</span>${state.topic==='energy'&&state.step===3?'<span>Zero export: PCC remains connected</span>':''}</div><div class="rpv-legend"><span class="dc">PV DC</span><span class="ac">AC energy</span><span class="battery">Battery / EPS</span><span class="feedback">Control or data</span></div>`;
   }
-  function svg(body,label) {const id=`sv-arrow-${++sequence}`;return `<svg class="sv-diagram" viewBox="0 0 900 410" role="img" aria-label="${esc(label)}"><title>${esc(label)}</title><defs><marker id="${id}" markerWidth="5" markerHeight="5" refX="4" refY="2" orient="auto"><path d="M0 0 4 2 0 4Z" fill="context-stroke"/></marker></defs>${body.replaceAll('data-sv-arrow',`marker-end="url(#${id})"`)}</svg>`;}
-  function energyDiagram(step,gridTopic=false) {
-    const night=step===2,limited=step===3&&!gridTopic,disconnected=gridTopic&&(step===1||step===2);
-    let wires=path('M197 130H358',!night&&!disconnected);
-    wires+=path('M502 130H673',!disconnected||step===2);
-    wires+=night?path('M155 242V225H430V210',true,'sv-battery-flow'):path('M430 210V225H155V242',step===1,'sv-battery-flow');
-    wires+=path(night&&!gridTopic?'M673 304H577V151H503':'M503 151H577V304H673',!limited&&!disconnected,'sv-grid-flow');
-    return svg(`<text x="44" y="38" class="sv-diagram-note">${gridTopic?(disconnected?'UTILITY PATH ISOLATED':'APPROVED GRID ARRANGEMENT'):night?'NIGHT · STORED ENERGY':limited?'ZERO EXPORT · LIMITER ACTIVE':'DAYLIGHT · SOLAR ENERGY'}</text>${wires}${node(125,130,'pv','Solar PV',night?'No solar at night':'DC energy',night?'sv-muted':'')}${node(430,130,'inverter','Inverter','Conversion & control')}${node(745,130,'home','Loads','Local consumption')}${node(155,304,'battery','Battery',night?'Discharging':step===1?'Charging':'Usable storage')}${node(745,304,'grid','Utility',disconnected?'Disconnected':limited?'Export restricted':'Import / export',disconnected||limited?'sv-muted':'')}${limited||disconnected?`<g class="sv-stop" transform="translate(577 226)"><circle r="24"/><path d="M-11-11 11 11M-11 11 11-11"/></g>`:''}`,LESSONS[gridTopic?'grid':'energy'].steps[step][1]);
-  }
-  function storageDiagram(power,energy) {
-    const s=storageState(power,energy),color=s.status==='assessment'?'sv-amber':'';
-    return svg(`<text x="45" y="38" class="sv-diagram-note">USABLE ENERGY / CONTINUOUS POWER</text>${node(151,175,'inverter','Inverter',`${power} kW continuous`)}${path('M223 175H367',true)}<g transform="translate(420 89)" class="${color}"><rect width="394" height="173" rx="24" class="sv-storage-shell"/><rect x="394" y="59" width="14" height="55" rx="4" class="sv-storage-terminal"/><rect x="12" y="12" width="${370*s.fill}" height="149" rx="14" class="sv-storage-fill sv-breathe"/>${[1,2,3,4].map(i=>`<path d="M${12+74*i} 13v147" class="sv-storage-divider"/>`).join('')}<text x="197" y="98" text-anchor="middle" class="sv-storage-value">${energy} kWh</text></g><text x="617" y="293" text-anchor="middle" class="sv-node-sub">Standard-criterion maximum: ${s.max} kWh</text><text x="450" y="362" text-anchor="middle" class="sv-big-equation">${energy} kWh ÷ ${power} kW = ${s.hours?.toFixed(1)} hours</text>`,'Battery usable energy compared with five times continuous inverter power');
-  }
-  function arrayDiagram(step) {
-    const panel=(x,y)=>`<g transform="translate(${x} ${y})" class="sv-panel"><rect width="102" height="65" rx="5"/><path d="M25 0v65M51 0v65M77 0v65M0 22h102M0 44h102"/></g>`;
-    const row=y=>`${panel(75,y)}${panel(220,y)}${panel(365,y)}${path(`M177 ${y+33}H220`,true)}${path(`M322 ${y+33}H365`,true)}`;
-    return svg(`<text x="45" y="38" class="sv-diagram-note">${['SERIES · VOLTAGES ADD','PARALLEL · CURRENTS ADD','MATCH STRINGS TO EACH TRACKER','ROOF · ANCHORS · ACCESS'][step]}</text>${row(112)}${step===1?row(265):''}${path('M467 145H600V177H652',true)}${step===1?path('M467 298H600V177',true):''}${node(724,177,'inverter','Inverter','Check each MPPT')}${step===3?`<path d="M55 211H520M115 177v34M405 177v34M92 213v118h380V213" class="sv-structure"/><text x="282" y="355" text-anchor="middle" class="sv-node-sub">Structural evidence is separate from PV electrical checks</text>`:`<text x="267" y="${step===1?377:258}" text-anchor="middle" class="sv-big-equation">${step===0?'Vstring = V1 + V2 + V3':step===1?'Itracker = Istring 1 + Istring 2':'Cold Voc · hot Vmp · operating A · short-circuit A'}</text>`}`,LESSONS.array.steps[step][1]);
-  }
-  function protectionDiagram(step) {
-    const interrupted=step>=2;
-    return svg(`<text x="45" y="38" class="sv-diagram-note">${['LAYERED PROTECTION','SPD · DESIGNED PROTECTIVE PATH','AFFECTED CIRCUIT INTERRUPTED','EMERGENCY SHUTDOWN VERIFIED'][step]}</text>${node(126,171,step===3?'battery':'pv',step===3?'BESS':'PV array')}${path('M198 171H338',!interrupted)}${node(410,171,'shield',step===1?'SPD':step===3?'ESD / isolation':'Protection')}${path('M483 171H650',!interrupted)}${node(722,171,'inverter','Inverter')}${path('M410 251V326',step===1,'sv-earth-flow')}<path d="M379 326h62M389 340h42M400 354h20" class="sv-structure"/><text x="410" y="389" text-anchor="middle" class="sv-node-sub">${step===1?'Designed earthing / bonding path':interrupted?'Charge / discharge and affected energy path stopped':'Protective conductors and coordinated devices'}</text>${step===1?`<path d="m408 52-21 39h22l-8 30 32-43h-23l15-26z" class="sv-lightning sv-breathe"/>`:''}${interrupted?`<g class="sv-stop" transform="translate(550 171)"><circle r="25"/><path d="M-10 10 10-10"/></g>`:''}`,LESSONS.protection.steps[step][1]);
-  }
-  function processDiagram(topic,step) {
-    const sets={testing:[['pv','Inspect'],['meter','Test'],['sensor','Compare'],['report','Record']],quality:[['shield','Exact model'],['battery','Performance'],['home','Installation'],['report','Scope evidence']],approval:[['report','Design'],['shield','Review'],['meter','Commission'],['report','O&M records']]};
-    const parts=sets[topic];
-    return svg(`<text x="45" y="38" class="sv-diagram-note">${topic==='approval'?'SYSTEM LIFECYCLE':topic==='quality'?'PRODUCT + INSTALLATION EVIDENCE':'INSPECTION + MEASUREMENT + RECORDS'}</text>${parts.map(([type,label],i)=>`${i<3?path(`M${172+i*204} 165H${230+i*204}`,i<=step):''}${node(101+i*204,165,type,label,`STEP ${i+1}`,i===step?'sv-selected':'sv-muted')}<circle cx="${101+i*204}" cy="320" r="19" class="sv-stage-dot ${i===step?'sv-breathe':''}"/><text x="${101+i*204}" y="326" text-anchor="middle" class="sv-stage-number">${i+1}</text>`).join('')}`,LESSONS[topic].steps[step][1]);
-  }
-  function conditionsDiagram(step) {
-    const high=step===0,hot=step===1;
-    return svg(`<text x="45" y="38" class="sv-diagram-note">${['COLD CELLS · CHECK VOLTAGE','HOT CELLS · CHECK OUTPUT','UNEVEN SHADE · MISMATCH','AGEING / STRESS · VERIFY THE CAUSE'][step]}</text>${node(150,175,'pv','PV module',step===2?'Uneven irradiance':'Conditions matter')}<g transform="translate(342 75)"><rect x="0" y="0" width="34" height="165" rx="17" class="sv-thermometer"/><rect x="8" y="${hot?15:100}" width="18" height="${hot?140:55}" rx="9" class="sv-temperature ${hot?'sv-hot':'sv-cold'} sv-breathe"/><circle cx="17" cy="179" r="30" class="sv-temperature ${hot?'sv-hot':'sv-cold'}"/></g><g transform="translate(465 107)"><text y="-18" class="sv-node-sub">Relative voltage / output illustration</text><rect width="315" height="40" rx="8" class="sv-meter-track"/><rect width="${high?295:step===2?145:step===3?175:200}" height="40" rx="8" class="sv-storage-fill"/><text y="77" class="sv-node-sub">No percentage loss is inferred here</text></g>${step===2?'<rect x="91" y="113" width="118" height="70" rx="12" class="sv-shade"/>':''}<text x="450" y="357" text-anchor="middle" class="sv-big-equation">Use datasheet coefficients + measured site conditions</text>`,LESSONS.conditions.steps[step][1]);
-  }
-  function monitoringDiagram(step) {
-    return svg(`<text x="45" y="38" class="sv-diagram-note">MONITOR · COMPARE · INVESTIGATE · RETAIN</text>${node(134,179,step===0?'sensor':'battery',step===0?'Sensors':'BMS','Parameters + events')}${path('M207 179H313',true)}<g transform="translate(330 83)"><rect width="478" height="230" rx="16" class="sv-node-bg"/><path d="M35 186H449M35 36v150" class="sv-chart-axis"/><path d="M35 161 88 123 141 107 194 75 247 68 300 89 353 115 406 138" class="sv-chart-reference"/><path d="M35 174 88 137 141 122 194 87 247 81 300 ${step===2?163:103} 353 ${step===2?165:130} 406 156" class="sv-chart-measured sv-breathe"/><text x="37" y="216" class="sv-node-sub">Illustrative trend · not project telemetry</text></g><text x="450" y="370" text-anchor="middle" class="sv-big-equation">${step===3?'BESS local records: at least 12 months':'Conditions + measurements help explain a change'}</text>`,LESSONS.monitoring.steps[step][1]);
-  }
-  function settlementDiagram(step,imports,exports) {
-    const r=settlementExample(imports,exports,step);
-    return svg(`<text x="45" y="38" class="sv-diagram-note">${['BILLING-PERIOD IMPORT + EXPORT','NET METERING · UNITS','NET ACCOUNTING · SURPLUS','NET PLUS · SEPARATE IMPORT BILL'][step]}</text>${node(118,161,'home','Site')}${path('M190 143H355',true,'sv-battery-flow')}${path('M355 180H190',true,'sv-grid-flow')}${node(427,161,'meter','Meter',`${imports} in / ${exports} out`)}${path('M499 161H663',true)}${node(736,161,'grid','Utility')}<g class="sv-billing-labels"><text x="450" y="326" text-anchor="middle" class="sv-big-equation">${step===0?'Energy totals do not automatically equal cash income':step===1?`${r.offset} kWh offset · ${r.banked} kWh banked`:step===2?`${r.offset} kWh offset · ${r.paidUnits} kWh cash-eligible surplus`:`${r.paidUnits} kWh export · ${imports} kWh import bill`}</text><text x="450" y="370" text-anchor="middle" class="sv-node-sub">${step===1?'Cash export: zero in Net Metering':'Eligibility, tariff, caps and signed agreement apply'}</text></g>`,LESSONS.settlement.steps[step][1]);
-  }
-  function diagram(topic,step,state) {
-    if(topic==='energy'||topic==='grid')return energyDiagram(step,topic==='grid');
-    if(topic==='storage')return storageDiagram(state.power,state.energy);
-    if(topic==='array')return arrayDiagram(step);
-    if(topic==='protection')return protectionDiagram(step);
-    if(topic==='conditions')return conditionsDiagram(step);
-    if(topic==='monitoring')return monitoringDiagram(step);
-    if(topic==='settlement')return settlementDiagram(step,state.imports,state.exports);
-    return processDiagram(topic,step);
-  }
-  function slider(id,key,label,value,min,max,unit) {return `<label class="sv-slider" for="${id}-${key}"><span>${label}<output data-sv-value="${key}">${value} ${unit}</output></span><input type="range" id="${id}-${key}" data-sv-input="${key}" min="${min}" max="${max}" step="1" value="${value}" aria-label="${label}"/><span class="sv-range-ends"><span>${min} ${unit}</span><span>${max} ${unit}</span></span></label>`;}
+  function slider(id,key,label,value,min,max,unit,step=1) {return `<label class="sv-slider" for="${id}-${key}"><span>${label}<output data-sv-value="${key}">${value} ${unit}</output></span><input type="range" id="${id}-${key}" data-sv-input="${key}" data-sv-unit="${unit}" min="${min}" max="${max}" step="${step}" value="${value}" aria-label="${label}"/><span class="sv-range-ends"><span>${min} ${unit}</span><span>${max} ${unit}</span></span></label>`;}
   function sourceLink(topic) {const key=LESSONS[topic].source,s=typeof DirectiveRules!=='undefined'?DirectiveRules.SOURCES[key]:null;return s?.url?`<a href="${esc(s.url)}" target="_blank" rel="noopener noreferrer">Read the source document ↗</a>`:'';}
   function bind(container) {
     container.querySelectorAll('[data-sv-root]').forEach(root=>{
       if(root.dataset.svBound)return;
       root.dataset.svBound='true';
       const reduced=typeof matchMedia!=='undefined'&&matchMedia('(prefers-reduced-motion: reduce)').matches;
-      const state={topic:LESSONS[root.dataset.svTopic]?root.dataset.svTopic:'energy',step:0,power:5,energy:20,imports:300,exports:400,paused:reduced};
+      const state={topic:LESSONS[root.dataset.svTopic]?root.dataset.svTopic:'energy',step:0,power:5,energy:20,imports:300,exports:400,paused:reduced,autoplay:false};
       root._svState=state;
       const paintDiagram=()=>{
         root.querySelector('[data-sv-diagram]').innerHTML=diagram(state.topic,state.step,state);
+        PVLearningScenes.setPaused(root,state.paused);
+        const ledger=root.querySelector('[data-rpv-ledger]');if(ledger)ledger.innerHTML=ledgerHtml(state);
         const status=root.querySelector('[data-sv-storage-status]');
         if(status){const s=storageState(state.power,state.energy);status.className=`sv-example-status ${s.status==='assessment'?'sv-example-review':''}`;status.textContent=s.status==='within'?`Within the 5-hour criterion · ${s.hours.toFixed(1)} hours`:`Engineering assessment required · ${s.hours.toFixed(1)} hours`;}
       };
@@ -169,22 +144,31 @@ const StandardsVisuals = (() => {
         root.dataset.svTopic=state.topic;
         root.dataset.svPaused=String(state.paused);
         root.querySelectorAll('[data-sv-topic-button]').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.svTopicButton===state.topic)));
-        root.querySelector('[data-sv-player]').innerHTML=`<div class="sv-scene"><div class="sv-scene-title"><span>${icon(l.icon)}${esc(l.title)}</span><span>STEP ${state.step+1} OF ${l.steps.length}</span></div><div data-sv-diagram tabindex="0" role="region" aria-label="Scrollable illustration"></div>${state.topic==='storage'?`<div class="sv-example-inputs">${slider(id,'power','Continuous inverter power',state.power,1,40,'kW')}${slider(id,'energy','Declared usable battery energy',state.energy,0,200,'kWh')}</div><p data-sv-storage-status class="sv-example-status"></p>`:state.topic==='settlement'?`<div class="sv-example-inputs">${slider(id,'imports','Billing-period import',state.imports,0,1000,'kWh')}${slider(id,'exports','Billing-period export',state.exports,0,1000,'kWh')}</div>`:''}</div><div class="sv-explanation"><p class="eyebrow">THE IDEA</p><h3 aria-live="polite">${esc(step[0])}</h3><p>${esc(step[1])}</p><div class="sv-check"><strong>What to check</strong><p>${esc(step[2])}</p></div><ol class="sv-steps">${l.steps.map((s,i)=>`<li><button type="button" data-sv-step="${i}" aria-current="${state.step===i?'step':'false'}"><span>${i+1}</span>${esc(s[0])}</button></li>`).join('')}</ol><div class="sv-source">${sourceLink(state.topic)}<span>Exact conditions remain in the requirement tables.</span></div></div>`;
+        root.querySelector('[data-sv-player]').innerHTML=`<div class="sv-scene"><div class="sv-scene-title"><span>${icon(l.icon)}${esc(l.title)}</span><span>STEP ${state.step+1} OF ${l.steps.length}</span></div><div class="rpv-view"><button type="button" class="rpv-zoom" data-rpv-zoom aria-expanded="false">Enlarge diagram</button><div data-sv-diagram tabindex="0" role="region" aria-label="Scrollable illustration"></div></div><div data-rpv-ledger></div>${state.topic==='storage'?`<div class="sv-example-inputs">${slider(id,'power','Continuous inverter power',state.power,1,40,'kW')}${slider(id,'energy','Declared usable battery energy',state.energy,0,200,'kWh')}</div><p data-sv-storage-status class="sv-example-status"></p>`:state.topic==='energy'?`<div class="sv-example-inputs">${slider(id,'pvDC','Available PV DC power',PVLearningScenes.powerScenario(state.step,false,state).pvAvailable,0,12,'kW',0.1)}${slider(id,'loadKW','General load demand',PVLearningScenes.powerScenario(state.step,false,state).generalRequested,0,10,'kW',0.1)}</div>`:state.topic==='settlement'?`<div class="sv-example-inputs">${slider(id,'imports','Billing-period import',state.imports,0,1000,'kWh')}${slider(id,'exports','Billing-period export',state.exports,0,1000,'kWh')}</div>`:''}</div><div class="sv-explanation"><p class="eyebrow">THE IDEA</p><h3 aria-live="polite">${esc(step[0])}</h3><p>${esc(step[1])}</p><div class="sv-check"><strong>What to check</strong><p>${esc(step[2])}</p></div><ol class="sv-steps">${l.steps.map((s,i)=>`<li><button type="button" data-sv-step="${i}" aria-current="${state.step===i?'step':'false'}"><span>${i+1}</span>${esc(s[0])}</button></li>`).join('')}</ol><div class="sv-source">${sourceLink(state.topic)}<span>Exact conditions remain in the requirement tables.</span></div></div>`;
         root.querySelector('[data-sv-count]').textContent=`${state.step+1} / ${l.steps.length}`;
         root.querySelector('[data-sv-prev]').disabled=state.step===0;
         root.querySelector('[data-sv-next]').disabled=state.step===l.steps.length-1;
         const play=root.querySelector('[data-sv-play]');play.textContent=reduced?'Reduced motion enabled':state.paused?'Play animation':'Pause animation';play.disabled=reduced;play.setAttribute('aria-pressed',String(!state.paused));
         paintDiagram();
+        const story=root.querySelector('[data-sv-story]');story.textContent=state.autoplay?'Pause story':'Play story';story.disabled=reduced;
+        if(state.topic==='energy'&&state.step===2)root.querySelector('[data-sv-input="pvDC"]').disabled=true;
       };
       root._svPaint=paint;
+      let storyTimer;
+      const stopStory=()=>{state.autoplay=false;clearTimeout(storyTimer);};
+      root._svStopStory=stopStory;
+      const advanceStory=()=>{clearTimeout(storyTimer);storyTimer=setTimeout(()=>{if(!root.isConnected||!state.autoplay)return;if(document.hidden){advanceStory();return;}if(state.step===LESSONS[state.topic].steps.length-1){stopStory();paint();return;}state.step++;delete state.pvDC;delete state.loadKW;paint();advanceStory();},8000);};
       root.addEventListener('click',e=>{
         const b=e.target.closest('button');if(!b)return;
+        if(b.hasAttribute('data-rpv-zoom')){const view=b.closest('.rpv-view');const zoom=view.classList.toggle('rpv-zoomed');b.textContent=zoom?'Show overview':'Enlarge diagram';b.setAttribute('aria-expanded',String(zoom));return;}
+        if(b.hasAttribute('data-sv-story')){if(state.autoplay){stopStory();paint();}else{state.autoplay=true;state.paused=false;if(state.step===3)state.step=0;delete state.pvDC;delete state.loadKW;paint();advanceStory();}return;}
         if(b.hasAttribute('data-sv-topic-button')){state.topic=b.dataset.svTopicButton;state.step=0;root.querySelector('[data-sv-context]').hidden=true;}
         else if(b.hasAttribute('data-sv-step'))state.step=Number(b.dataset.svStep);
         else if(b.hasAttribute('data-sv-prev'))state.step=Math.max(0,state.step-1);
         else if(b.hasAttribute('data-sv-next'))state.step=Math.min(LESSONS[state.topic].steps.length-1,state.step+1);
-        else if(b.hasAttribute('data-sv-play')){state.paused=!state.paused;root.dataset.svPaused=String(state.paused);b.textContent=state.paused?'Play animation':'Pause animation';b.setAttribute('aria-pressed',String(!state.paused));return;}
+        else if(b.hasAttribute('data-sv-play')){stopStory();root.querySelector('[data-sv-story]').textContent='Play story';state.paused=!state.paused;PVLearningScenes.setPaused(root,state.paused);root.dataset.svPaused=String(state.paused);b.textContent=state.paused?'Play animation':'Pause animation';b.setAttribute('aria-pressed',String(!state.paused));return;}
         else return;
+        stopStory();delete state.pvDC;delete state.loadKW;
         paint();
         // Repainted step buttons keep keyboard focus on the chosen step.
         if(b.hasAttribute('data-sv-step'))root.querySelector(`[data-sv-step="${state.step}"]`).focus();
@@ -193,7 +177,7 @@ const StandardsVisuals = (() => {
         const key=e.target.dataset.svInput;if(!key)return;
         e.stopPropagation();
         state[key]=Number(e.target.value);
-        root.querySelector(`[data-sv-value="${key}"]`).textContent=`${state[key]} ${key==='power'?'kW':'kWh'}`;
+        root.querySelector(`[data-sv-value="${key}"]`).textContent=`${state[key]} ${e.target.dataset.svUnit}`;
         paintDiagram();
       });
       root.addEventListener('change',e=>e.stopPropagation());
@@ -204,7 +188,7 @@ const StandardsVisuals = (() => {
       btn.addEventListener('click',()=>{
         const root=container.querySelector('[data-sv-root]'),index=Number(btn.dataset.svBessReference);
         if(!root||typeof DirectiveRules==='undefined')return;
-        root._svState.topic='quality';root._svState.step=[0,0,1,3,1,3,2][index]??0;root._svPaint();
+        root._svStopStory();root._svState.topic='batterySafety';root._svState.step=[0,1,0,3,0,3,1][index]??0;root._svPaint();
         const context=root.querySelector('[data-sv-context]'),ref=DirectiveRules.BESS_STANDARDS[index];context.hidden=false;context.textContent=`${ref[0]} / ${ref[1]}: ${ref[2]}. Check the source guide for applicability; this lesson illustrates its broader concept.`;
         root.scrollIntoView({block:'start',behavior:'auto'});root.querySelector('h2').focus({preventScroll:true});
       });
@@ -212,7 +196,7 @@ const StandardsVisuals = (() => {
   }
   function showForStandard(container,standard) {
     const root=container.querySelector('[data-sv-root]');if(!root)return;
-    root._svState.topic=STANDARD_TOPICS[standard.id]||'approval';root._svState.step=0;root._svPaint();
+    root._svStopStory();root._svState.topic=standard.lesson||STANDARD_TOPICS[standard.id]||'approval';root._svState.step=standard.lessonStep??0;root._svPaint();
     const context=root.querySelector('[data-sv-context]');context.hidden=false;context.textContent=`Related concept for ${standard.code}: ${standard.title}. Use the detailed requirement table for its exact scope and limits.`;
     root.scrollIntoView({block:'start',behavior:'auto'});root.querySelector('h2').focus({preventScroll:true});
   }

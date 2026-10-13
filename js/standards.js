@@ -1,7 +1,7 @@
 /**
  * standards.js — Standards Reference & Quick-Check Calculators
- * All major IEC, SLS, PUCSL standards for PV design & inspection.
- * Each standard: what it says + interactive formula calculator with step-by-step working.
+ * Source-linked Sri Lankan scopes and selected planning/evidence comparisons.
+ * Exact licensed clauses and project acceptance remain with the applicable evidence.
  */
 
 const Standards = (() => {
@@ -21,543 +21,7 @@ const Standards = (() => {
   // STANDARDS DATA
   // -----------------------------------------------------------------------
 
-  const STANDARDS = [
-    {
-      id: 'iec62446',
-      code: 'IEC 62446-1:2016 + AMD1:2018',
-      title: 'Grid-Connected PV Systems — Commissioning Tests & Documentation',
-      scope: 'Defines minimum documentation and tests required when commissioning a grid-tied PV system. Mandatory for any professional installation.',
-      keyPoints: [
-        'String Voc must be measured and compared to expected (temperature-corrected) value',
-        'String Isc must be measured and compared to datasheet',
-        'Insulation resistance: minimum 1 MΩ at 500V DC test voltage',
-        'Continuity of protective earth conductors must be verified',
-        'All strings, combiner boxes, inverters must be labelled',
-        'As-built documentation: string layout, single-line diagram, component datasheets',
-        'Functional test: inverter startup, shutdown, protection relay check',
-      ],
-      limits: [
-        { param: 'Min Insulation Resistance', value: '1 MΩ', note: 'At 500V DC, DC+ and DC− to earth separately' },
-        { param: 'Voc tolerance', value: '±2% of expected', note: 'After temperature correction' },
-        { param: 'Isc tolerance', value: '±5% of expected', note: 'After irradiance correction' },
-      ],
-      sources: [
-        {
-          title: 'IEC 62446-1:2016+AMD1:2018 CSV (IEC Webstore)',
-          url: 'https://webstore.iec.ch/en/publication/29052',
-          note: 'Current consolidated publication used for commissioning limits.'
-        }
-      ],
-      calcs: ['ir_test', 'voc_check', 'isc_check']
-    },
-    {
-      id: 'iec61215',
-      code: 'IEC 61215:2021',
-      title: 'PV Modules — Design Qualification & Type Approval',
-      scope: 'Performance and durability qualification testing for terrestrial PV modules. Ensures modules can withstand field conditions over 25+ year lifetime.',
-      keyPoints: [
-        'Thermal cycling: -40°C to +85°C, 200 cycles',
-        'Damp heat: 85°C / 85% RH for 1000 hours',
-        'UV pre-conditioning: 15 kWh/m² UV exposure',
-        'Mechanical load: 2400 Pa front and rear',
-        'Hail impact: 25 mm hailstones at 23 m/s',
-        'Maximum power degradation allowed: 5% after sequence A, 8% after sequence B',
-        'Insulation test: 1000V + 2×Vmax for 1 minute',
-      ],
-      limits: [
-        { param: 'Max power degradation', value: '≤5% (Seq A) / ≤8% (Seq B)', note: 'After complete test sequence' },
-        { param: 'Insulation test voltage', value: '1000V + 2×Vsys_max', note: '1 minute duration' },
-        { param: 'Mechanical load', value: '2400 Pa', note: 'Both front and rear' },
-      ],
-      calcs: ['insulation_test_voltage', 'power_degradation']
-    },
-    {
-      id: 'iec61730',
-      code: 'IEC 61730:2023',
-      title: 'PV Module Safety Qualification',
-      scope: 'Safety requirements for PV modules — construction (Part 1) and testing (Part 2). Covers protection against electrical shock, fire, and mechanical failure.',
-      keyPoints: [
-        'Module class: Class A (dangerous voltage/power), Class B (limited voltage/power), Class C (low voltage/power)',
-        'Maximum system voltage must be marked on module label',
-        'Earthing: all conductive accessible parts must be bonded to earth',
-        'Bypass diodes must pass thermal test at Isc for 1 hour',
-        'Reverse current overload: module must withstand 1.35 × Isc_max_series_fuse',
-        'Wet leakage current: must not exceed 50 µA after wet conditioning',
-        'Hot-spot endurance: 5 hours at worst-case hot-spot conditions',
-      ],
-      limits: [
-        { param: 'Wet leakage current', value: '≤50 µA', note: 'After wet conditioning at Vmax' },
-        { param: 'Reverse current overload', value: '1.35 × Isc × fuse rating', note: '1 hour duration' },
-        { param: 'Frame earthing resistance', value: '< 0.1 Ω', note: 'Between any two earthed points on frame' },
-      ],
-      calcs: ['reverse_current', 'bypass_diode_check']
-    },
-    {
-      id: 'iec60364',
-      code: 'IEC 60364-7-712:2025',
-      title: 'Electrical Installations — Solar PV Power Supply Systems',
-      scope: 'Wiring rules, protection, and earthing requirements specifically for PV systems as part of building electrical installations.',
-      keyPoints: [
-        'DC circuits must be protected against overcurrent with string fuses or CBs',
-        'String fuse rating: must not exceed module reverse current rating (Series Fuse Rating on datasheet)',
-        'DC isolators required at inverter DC input (lockable)',
-        'AC isolator required between inverter and grid connection',
-        'Earthing: TN-S or TT system earthing for AC side',
-        'Earth electrode resistance: target < 1 Ω for effective fault protection',
-        'Cable sizing: DC cable must handle 1.25 × Isc continuous (derating factors apply)',
-        'All outdoor DC cables must be UV-resistant and suitable for DC use',
-      ],
-      limits: [
-        { param: 'Earth electrode resistance', value: '< 1 Ω', note: 'IEC 60364-5-54 reference' },
-        { param: 'DC cable current capacity', value: '≥ 1.25 × Isc', note: 'Continuous current, apply derating' },
-        { param: 'String fuse rating', value: '≤ Series Fuse Rating on module label', note: 'Never exceed module reverse current limit' },
-      ],
-      sources: [
-        {
-          title: 'IEC 60364-7-712:2025 (IEC Webstore)',
-          url: 'https://webstore.iec.ch/en/publication/65748',
-          note: 'Latest published edition for PV electrical installations.'
-        }
-      ],
-      calcs: ['cable_sizing', 'cable_selector_adv', 'string_fuse', 'earth_resistance']
-    },
-    {
-      id: 'iec61643',
-      code: 'IEC 61643-32:2017 + COR1:2019 / SLS 1522:2016',
-      title: 'DC-Side Surge Protective Devices (SPD) — PV Systems',
-      scope: 'Requirements for SPDs on the DC side of PV installations. SLS 1522 is the Sri Lankan equivalent. Both are mandatory in Sri Lanka per PUCSL guidelines.',
-      keyPoints: [
-        'SPD required at array combiner box and at inverter DC input',
-        'SPD protection level (Up) must be less than inverter DC input withstand voltage',
-        'SPD must be rated for DC voltage (UC ≥ 1.2 × Voc_max_string)',
-        'SPD discharge current (In) minimum 5 kA, recommended 20 kA for exposed sites',
-        'Type 2 SPD for most PV applications; Type 1+2 for locations with direct lightning risk',
-        'SPD must be equipped with remote signalling or visual indication of failure',
-        'Minimum isolation provided by disconnect switch integral or external to SPD',
-      ],
-      limits: [
-        { param: 'SPD voltage rating (UC)', value: '≥ 1.2 × Voc_string_max', note: 'At lowest temperature' },
-        { param: 'Min discharge current (In)', value: '≥ 5 kA', note: '20 kA recommended for exposed/rural' },
-        { param: 'Protection level (Up)', value: '< inverter DC withstand', note: 'Typically ≤ 2.5 kV' },
-      ],
-      sources: [
-        {
-          title: 'IEC 61643-32:2017 (IEC Webstore)',
-          url: 'https://webstore.iec.ch/en/publication/26432',
-          note: 'PV DC-side SPD product standard; app labels include published corrigendum context.'
-        }
-      ],
-      calcs: ['spd_uc_rating', 'spd_summary']
-    },
-    {
-      id: 'iec62305',
-      code: 'IEC 62305-1/-2/-3/-4:2024',
-      title: 'Lightning Protection and Coordination for PV Installations',
-      scope: 'Defines lightning risk management, LPS design, and surge protection coordination for structures with PV systems.',
-      keyPoints: [
-        'Use IEC 62305-2 risk management to determine required lightning protection measures.',
-        'IEC 62305-3 governs external LPS design: air terminals, down conductors, and earth termination.',
-        'IEC 62305-4 governs surge protection measures (SPM) and coordinated SPD placement.',
-        'PV systems increase exposure through roof-mounted metalwork and DC cable entry routes.',
-        'Coordinate Type 1/Type 2 SPDs between service entrance, inverter AC side, and PV DC side.',
-      ],
-      limits: [
-        { param: 'Rolling sphere radius (LPL I/II/III/IV)', value: '20 m / 30 m / 45 m / 60 m', note: 'Used when selecting interception geometry for external LPS.' },
-        { param: 'Risk basis', value: 'Nd = Ng × Aeq × Cd × 1e-6', note: 'Screening form from IEC 62305-2 event frequency concept.' },
-        { param: 'Coordination requirement', value: 'Type 1+2 and Type 2 SPD coordination', note: 'As applicable to exposure and incoming line conditions.' },
-      ],
-      sources: [
-        {
-          title: 'IEC 62305-1:2024 (General principles)',
-          url: 'https://webstore.iec.ch/en/publication/27136',
-          note: 'Core principles and lightning parameters.'
-        },
-        {
-          title: 'IEC 62305-2:2024 (Risk management)',
-          url: 'https://webstore.iec.ch/publication/28137',
-          note: 'Risk-management method used for protection decision-making.'
-        },
-        {
-          title: 'IEC 62305-3:2024 (Physical damage and life hazard)',
-          url: 'https://webstore.iec.ch/en/publication/33680',
-          note: 'External LPS requirements for structures.'
-        },
-        {
-          title: 'IEC 62305-4:2024 (Electrical/electronic systems)',
-          url: 'https://webstore.iec.ch/en/publication/29590',
-          note: 'Internal surge protection coordination, including PV-related guidance.'
-        }
-      ],
-      calcs: ['lightning_risk_screen']
-    },
-    {
-      id: 'iec60269_6',
-      code: 'IEC 60269-6:2010 + AMD1:2021',
-      title: 'PV Fuse-Links (gPV) for String and Array Protection',
-      scope: 'Supplementary requirements for low-voltage fuse-links used to protect PV strings/arrays, coordinated with PV array design rules.',
-      keyPoints: [
-        'Use gPV utilization class fuse-links for photovoltaic string/array protection.',
-        'Coordinate fuse current rating with module Isc and module series-fuse maximum rating.',
-        'Check fuse voltage rating against maximum string Voc at minimum site temperature.',
-        'Check fuse breaking capacity against prospective DC fault current at installation point.',
-        'Apply fusing where required by string parallel configuration and reverse-current risk.',
-      ],
-      limits: [
-        { param: 'Utilization class', value: 'gPV', note: 'PV-dedicated fuse-link class per IEC 60269-6.' },
-        { param: 'Current selection window', value: '1.25 × 1.25 × Isc ≤ In ≤ module max series fuse', note: 'Coordination with IEC 62548-1 and module datasheet.' },
-        { param: 'Voltage and breaking checks', value: 'Ue_fuse ≥ Voc_string_tmin and Icn_fuse ≥ I_fault', note: 'Mandatory device selection checks before approval.' },
-      ],
-      sources: [
-        {
-          title: 'IEC 60269-6:2010+AMD1:2021 CSV (IEC Webstore)',
-          url: 'https://webstore.iec.ch/en/publication/68843',
-          note: 'Current consolidated publication for PV fuse-links.'
-        },
-        {
-          title: 'IEC 60269-6:2010 (base publication)',
-          url: 'https://webstore.iec.ch/en/publication/1245',
-          note: 'Original supplementary requirements for PV fuse-links.'
-        }
-      ],
-      calcs: ['pv_fuse_link_check']
-    },
-    {
-      id: 'iec61724',
-      code: 'IEC 61724-1:2021',
-      title: 'PV System Performance Monitoring & Analysis',
-      scope: 'Defines performance metrics, measurement requirements, and reporting for PV power plants. PR is the key metric for commissioning acceptance and ongoing monitoring.',
-      keyPoints: [
-        'Performance Ratio (PR): normalised energy output accounting for irradiation and capacity',
-        'PR > 80% generally expected for a well-performing new system in Sri Lanka',
-        'Specific yield (kWh/kWp) varies: Sri Lanka typically 1300–1600 kWh/kWp/year',
-        'Temperature-corrected PR removes the effect of ambient temperature on PR',
-        'System availability: ratio of time system is operational vs available to operate',
-        'Capacity factor: actual kWh / theoretical maximum kWh at full capacity 24/7',
-      ],
-      limits: [
-        { param: 'Acceptable PR (new system)', value: '≥ 75%', note: 'Below 70% warrants full investigation' },
-        { param: 'Sri Lanka specific yield', value: '1300–1600 kWh/kWp/year', note: 'Location-dependent' },
-        { param: 'PR degradation rate', value: '≤ 0.5–0.7% per year', note: 'Typical mono-Si modules' },
-      ],
-      calcs: ['pr_calc', 'specific_yield', 'capacity_factor']
-    },
-    {
-      id: 'iec62804',
-      code: 'IEC TS 62804-1:2025',
-      title: 'Potential-Induced Degradation (PID) Test Methods',
-      scope: 'Defines test methods for detecting PID in PV modules. PID is a major degradation mechanism in tropical, high-humidity climates like Sri Lanka.',
-      keyPoints: [
-        'PID occurs when high negative voltage between module frame and cells drives leakage current',
-        'Most vulnerable: p-type cells in negative-grounded or ungrounded systems',
-        'N-type cells (TOPCon, HJT) generally more PID-resistant',
-        'Prevention: negative grounding of array, PID recovery boxes, or positive ground systems',
-        'Test voltage: system maximum voltage applied between frame and short-circuited module terminals',
-        'Test duration: 96 hours at 60°C, 85% RH',
-        'Pass criterion: Pmax degradation ≤ 5%',
-      ],
-      limits: [
-        { param: 'PID test Pmax degradation', value: '≤ 5%', note: '96h at 60°C/85%RH' },
-        { param: 'High-risk humidity', value: '> 60% RH ambient', note: 'Sri Lanka coastal: high PID risk' },
-      ],
-      calcs: ['pid_risk']
-    },
-    {
-      id: 'iec62548',
-      code: 'IEC 62548-1:2023 + AMD1:2025',
-      title: 'PV Array Design Requirements',
-      scope: 'Requirements for the design of PV arrays including string sizing, protection, earthing, and labelling. The primary design standard for PV arrays.',
-      keyPoints: [
-        'Maximum string Voc must not exceed inverter or cable/component rating at minimum temperature',
-        'String Voc at Tmin = Voc_stc × (1 + αVoc × (Tmin − 25))',
-        'Minimum string Vmp must stay above MPPT minimum at maximum cell temperature',
-        'Maximum reverse current per module must not exceed Series Fuse Rating × 1.35',
-        'String fuse required if more than 3 strings are paralleled',
-        'DC wiring must be polarised (+ and − clearly marked) throughout',
-        'Array earth fault detection required for ungrounded systems',
-      ],
-      limits: [
-        { param: 'String Voc at Tmin', value: '≤ inverter Vmax', note: 'Critical sizing constraint' },
-        { param: 'String Vmp at Tmax_cell', value: '≥ inverter MPPT Vmin', note: 'Ensures MPPT tracking' },
-        { param: 'String fuse required when', value: '> 3 strings in parallel', note: 'Per combiner MPPT' },
-      ],
-      sources: [
-        {
-          title: 'IEC 62548-1:2023+AMD1:2025 CSV (IEC Webstore)',
-          url: 'https://webstore.iec.ch/en/publication/92565',
-          note: 'Latest published PV array design requirements.'
-        }
-      ],
-      calcs: ['string_voc_tmin', 'string_vmp_tmax', 'max_strings_no_fuse']
-    },
-    {
-      id: 'pucsl',
-      code: 'PUCSL Guidelines (Latest)',
-      title: 'Sri Lanka — Rooftop Solar PV Installation Guidelines',
-      scope: 'Public Utilities Commission of Sri Lanka mandatory guidelines for grid-connected rooftop solar. Applies to all net-metering and net-accounting solar installations in Sri Lanka.',
-      keyPoints: [
-        'System size limits: residential ≤ sanctioned load, commercial/industrial subject to PUCSL approval',
-        'Mandatory use of CEB/LECO approved bi-directional meter for net accounting',
-        'Anti-islanding protection mandatory — inverter must comply with IEC 62116',
-        'Over/under voltage protection: disconnect at ±10% of nominal (230V)',
-        'Over/under frequency protection: disconnect outside 49–51 Hz',
-        'All equipment must be CE marked or carry equivalent approval',
-        'Mandatory commissioning inspection by PUCSL-registered service provider',
-        'SPD installation mandatory per SLS 1522',
-        'System must carry public liability insurance',
-        'Net metering: export to grid at buy-back tariff set by PUCSL',
-      ],
-      limits: [
-        { param: 'Voltage tolerance', value: '230V ± 10% (207–253V)', note: 'Disconnect outside range' },
-        { param: 'Frequency tolerance', value: '50 Hz ± 1 Hz (49–51 Hz)', note: 'Disconnect outside range' },
-        { param: 'Max residential system', value: '≤ sanctioned load (kVA)', note: 'PUCSL approval for larger' },
-      ],
-      calcs: ['grid_voltage_check', 'system_size_check']
-    },
-    {
-      id: 'ceb_leco_approval',
-      code: 'CEB/LECO Approval Path (Sri Lanka Practice)',
-      title: 'Export-Enabled Hybrid Utility Workflow',
-      scope: 'Practical utility workflow checks before enabling parallel operation and export in Sri Lanka.',
-      keyPoints: [
-        'Submit complete application package: SLD, interconnection/protection details, and supporting documents for initial review.',
-        'Use licensee-approved inverter model/profile and utility-compliant import/export metering arrangement.',
-        'Complete witnessed commissioning tests and execute the interconnection agreement before export.',
-        'Do not change approved inverter protection settings without prior written utility permission.',
-      ],
-      limits: [
-        { param: 'Sustained OV (<1MW)', value: '10-min avg <= 1.06 pu; trip <= 3 s above limit', note: 'CEB recommended inverter settings (2025-02-25).' },
-        { param: 'Sustained OV (>=1MW)', value: '10-min avg <= 1.05 pu; trip <= 3 s above limit', note: 'CEB recommended inverter settings (2025-02-25).' },
-        { param: 'Emergency trip (<1MW)', value: 'OV2 1.20/0.16s, OV1 1.15/2s, UV1 0.70/10s, UV2 0.45/0.32s', note: 'Protection values in CEB settings sheet.' },
-        { param: 'Emergency trip (>=1MW)', value: 'OV2 1.20/0.16s, OV1 1.15/5s, UV1 0.70/21s, UV2 0.45/5s', note: 'Protection values in CEB settings sheet.' },
-        { param: 'Reconnect (<1MW)', value: '0.94 < V < 1.06 and 49.5 < f < 50.5; delay >= 600 s', note: 'Service-enable gate.' },
-        { param: 'Reconnect (>=1MW)', value: '0.95 < V < 1.05 and 49.5 < f < 50.5; delay >= 600 s', note: 'Service-enable gate.' },
-        { param: 'Enter-service ramp', value: 'Linear 900 s ramp (nameplate/900s)', note: 'Limits abrupt power step at reconnection.' },
-        { param: 'Standard LV supply reference', value: '230 V (L-N), 50 Hz', note: 'LECO Supply Services Code agreement template.' },
-        { param: 'Retail service connection sizes', value: '1ph 15A/30A, 3ph 30A/60A', note: 'LECO new-connection instruction baseline.' },
-        { param: 'Bulk customer threshold', value: 'Contract demand > 42 kVA', note: 'LECO definition used for service/process class.' },
-        { param: 'Retail meter accuracy', value: 'Within +/-2.5%', note: 'Meter test threshold under LECO SSC metering clause.' },
-        { param: 'Indicative connection lead time', value: 'Retail 10 working days; Bulk 40 working days', note: 'Subject to payment realization and prerequisites.' },
-        { param: 'Setting changes', value: 'Prior written permission required', note: 'CEB addendum X.3.9: do not change submitted settings without permission.' },
-        { param: 'Parallel operation/export', value: 'Only after commissioning + agreement + final utility authorization', note: 'PUCSL workflow and utility clauses.' },
-      ],
-      calcs: ['ceb_readiness_check', 'ceb_setting_match', 'ceb_export_gate'],
-      sources: [
-        {
-          title: 'CEB Standards / Specifications Portal',
-          url: 'https://www.ceb.lk/standard-spec/en',
-          note: 'Primary CEB publication portal for standards/specification documents.'
-        },
-        {
-          title: 'LECO Official Portal',
-          url: 'https://www.leco.lk/index_e.php',
-          note: 'LECO service and utility reference portal used during interconnection coordination.'
-        },
-        {
-          title: 'PUCSL - Guidelines on Rooftop Solar PV Installation for Utility Providers (Revision 1, Sep 2022)',
-          url: 'https://www.pucsl.gov.lk/wp-content/uploads/2022/10/Guidelines-on-Rooftop-Solar-PV-installation-for-Utility-Providers_Revision-01.pdf',
-          note: 'Process steps, initial clearance, commissioning witness, agreement, and parallel-operation authorization.'
-        },
-        {
-          title: 'CEB - Net Metering / Net Accounting / Net Plus Addendum (Annex)',
-          url: 'https://ceb.lk/front_img/1608095391ADDENDEM.pdf',
-          note: 'Type-approved inverter requirement, metering clauses, and written permission for setting changes.'
-        },
-        {
-          title: 'CEB - Recommended Settings for Solar PV Inverters (GM meeting 2025-02-25)',
-          url: 'https://www.ceb.lk/front_img/img_reports/1742277909Solar_Inverter_settings.pdf',
-          note: 'Utility numeric setpoints for sustained/emergency operation, reconnect criteria, and ramp controls.'
-        },
-        {
-          title: 'CEB - Grid Connection Code (Published July 2024)',
-          url: 'https://www.ceb.lk/front_img/img_reports/1723552921Grid_Connection_Code_for_publishing_in_CEB_web.pdf',
-          note: 'LVRT/frequency/power-quality framework referenced by current inverter profile sheets.'
-        },
-        {
-          title: 'CEB - RTSPV Tariff Announcement (2025)',
-          url: 'https://www.ceb.lk/front_img/img_reports/1744891684Tariff%20Announcement%20For%20Rooftop%20Solar%20PV%20(RTSPV)%20Systems%20-%202025.pdf',
-          note: 'Applicable tariff bands by AC capacity for projects cleared under 2025 policy window.'
-        },
-        {
-          title: 'LECO - Supply Services Code (March 2015, Rev 00)',
-          url: 'https://www.pucsl.gov.lk/wp-content/uploads/2020/11/Supply-Services-Code-LECO-E.pdf',
-          note: 'Service classes, connection prerequisites, meter accuracy (+/-2.5%), and customer/service process limits.'
-        },
-      ]
-    },
-    {
-      id: 'iec62116',
-      code: 'IEC 62116:2014',
-      title: 'Anti-Islanding Protection for Grid-Connected Inverters',
-      scope: 'Test procedure for verifying that grid-connected PV inverters disconnect from the grid when grid supply is lost. Mandatory in Sri Lanka per PUCSL.',
-      keyPoints: [
-        'Inverter must detect islanding within 2 seconds and disconnect',
-        'Active anti-islanding methods: frequency shift, voltage shift, impedance monitoring',
-        'Passive methods: rate of change of frequency (ROCOF), voltage vector shift',
-        'Must not trip on normal grid disturbances (nuisance tripping)',
-        'Must reconnect automatically after grid is stable for ≥ 60 seconds',
-        'ROCOF protection setting: typically 0.5–1.0 Hz/s',
-      ],
-      limits: [
-        { param: 'Islanding detection time', value: '≤ 2 seconds', note: 'From loss of grid to disconnection' },
-        { param: 'Reconnection delay', value: '≥ 60 seconds', note: 'After grid returns to stable limits' },
-        { param: 'ROCOF setting', value: '0.5–1.0 Hz/s', note: 'Typical Sri Lanka grid setting' },
-      ],
-      calcs: []
-    },
-    {
-      id: 'sls1522',
-      code: 'SLS 1522:2016',
-      title: 'Code of Practice for Grid-Connected PV Systems (Sri Lanka)',
-      scope: 'Sri Lanka Bureau of Standards mandatory code covering documentation, design, installation, testing, and commissioning of grid-connected PV systems. This is the primary Sri Lanka-specific PV installation standard.',
-      keyPoints: [
-        'All grid-connected PV systems in Sri Lanka must comply with this code',
-        'SPD (Surge Protective Device) mandatory on DC side — UC ≥ 1.2 × Voc_max',
-        'DC isolator: lockable, accessible, rated for DC current interruption',
-        'AC isolator: between inverter AC output and grid connection point',
-        'Earthing: all metallic parts of array structure must be bonded to earth',
-        'Earth resistance: < 1 Ω for effective fault protection',
-        'Cable sizing: DC cables rated for 1.25 × Isc continuous, UV-resistant, PV1-F or equivalent',
-        'Inverter must carry CEB/LECO type approval for grid connection',
-        'Anti-islanding protection mandatory (IEC 62116 compliant)',
-        'Commissioning test record must be submitted to CEB/LECO with net-metering application',
-        'Labels: string polarity, DC/AC isolation points, warning signs on all junction boxes',
-      ],
-      limits: [
-        { param: 'SPD UC rating', value: '≥ 1.2 × Voc_string_max', note: 'DC side — both at combiner and inverter input' },
-        { param: 'Earth resistance', value: '< 1 Ω', note: 'Fall-of-potential or clamp test method' },
-        { param: 'DC cable type', value: 'PV1-F or TUV approved', note: 'UV-resistant, double insulation, rated 90°C' },
-      ],
-      calcs: ['spd_uc_rating', 'inverter_sizing', 'cable_vdrop', 'cable_selector_adv', 'dc_fuse_sizing']
-    },
-    {
-      id: 'sl_supporting_pack',
-      code: 'Sri Lanka Supporting Standards Pack (SLS set)',
-      title: 'Supporting SLS References for Solar Installation Hardware',
-      scope: 'Supporting Sri Lanka standards used with SLS 1522 for PV cables, enclosures, switchgear, BOS durability, and supplier quality systems.',
-      keyPoints: [
-        'SLS 1542 (IEC 60227-6 / IEC 62930) covers PV cable suitability for solar DC wiring.',
-        'SLS 1554 references low-voltage switchgear assemblies used in combiner and distribution boards.',
-        'SLS 1544 (IEC 62208) applies to empty enclosures used for protective assemblies.',
-        'SLS 1637 (IEC 62093) is referenced for PV balance-of-system design qualification.',
-        'SLS 1472 (ISO 9001) and SLS 1473 (ISO 14001) are listed quality/environment management references for supply-chain control.'
-      ],
-      limits: [
-        { param: 'PV cable compliance', value: 'SLS 1542 / IEC 62930', note: 'Use UV-resistant, DC-rated PV cable selected for the installation method.' },
-        { param: 'Switchgear/enclosure compliance', value: 'SLS 1554 + SLS 1544', note: 'Combiner/DB assemblies should match LV switchgear and enclosure standards.' },
-        { param: 'BOS qualification reference', value: 'SLS 1637 / IEC 62093', note: 'Use qualified BOS components for long-term reliability.' },
-      ],
-      sources: [
-        {
-          title: 'Sri Lanka Supporting Standards for Solar System (SLSEA)',
-          url: 'https://www.energy.gov.lk/images/soorya-bala/sri-lanka-supporting-standards%20for-solar-system.pdf',
-          note: 'Government-published supporting standards list for solar systems.'
-        },
-        {
-          title: 'PUCSL Guidelines for Utility Providers (Revision 01, 2022)',
-          url: 'https://www.pucsl.gov.lk/wp-content/uploads/2022/10/Guidelines-on-Rooftop-Solar-PV-installation-for-Utility-Providers_Revision-01.pdf',
-          note: 'Regulatory process baseline for rooftop PV interconnection.'
-        },
-        {
-          title: 'PUCSL Guidelines for Service Providers (2024)',
-          url: 'https://www.pucsl.gov.lk/wp-content/uploads/2024/09/Guidelines-on-Rooftop-Solar-PV-installation-for-Service-Providers.pdf',
-          note: 'Latest publicly posted service-provider guideline update.'
-        }
-      ],
-      calcs: ['cable_selector_adv']
-    },
-    {
-      id: 'sls1543',
-      code: 'SLS 1543 / IEC 62109-1/-2',
-      title: 'Safety of Power Converters for Use in PV Power Systems',
-      scope: 'Safety requirements for inverters, charge controllers, and converters used in PV systems. Covers electrical safety, thermal limits, insulation, and protection. This standard is the basis for CEB/LECO inverter type approval in Sri Lanka.',
-      keyPoints: [
-        'Inverter must have CE marking or CEB/LECO type approval — SLS 1543 compliance required',
-        'Over/under voltage protection: must trip at ±10% of nominal grid voltage (207–253V)',
-        'Over/under frequency protection: must trip outside 49–51 Hz',
-        'Anti-islanding: must detect and disconnect within 2 seconds (IEC 62116)',
-        'DC injection: max 0.5% of rated current injected into AC grid',
-        'Efficiency: rated inverter efficiency must be stated; CEC efficiency preferred metric',
-        'Thermal protection: inverter must not exceed rated operating temperature range',
-        'Enclosure: minimum IP65 for outdoor installation',
-        'Ground fault detection: required for ungrounded (IT) DC systems',
-        'Short-circuit and overcurrent protection integral or external must be provided',
-      ],
-      limits: [
-        { param: 'Grid trip voltage', value: '207–253 V (230V ±10%)', note: 'Disconnect outside this range' },
-        { param: 'Grid trip frequency', value: '49–51 Hz (50 Hz ±1 Hz)', note: 'Disconnect outside this range' },
-        { param: 'Max DC injection', value: '≤ 0.5% of rated AC current', note: 'IEC 62109-2 requirement' },
-        { param: 'Min enclosure rating', value: 'IP65 (outdoor)', note: 'IP54 minimum for sheltered installation' },
-      ],
-      calcs: ['grid_voltage_check', 'inverter_sizing']
-    },
-    {
-      id: 'sls1547',
-      code: 'SLS 1547 / IEC 61727:2004',
-      title: 'Characteristics of the Utility Interface for PV Systems',
-      scope: 'Defines the interface requirements between grid-connected PV systems and the utility grid. Sets limits for power quality, protection settings, and reconnection conditions. Referenced by PUCSL for all net-metering applications in Sri Lanka.',
-      keyPoints: [
-        'Defines interconnection technical requirements between PV system and CEB/LECO grid',
-        'Voltage regulation: PV system must not cause grid voltage to exceed ±5% at point of connection',
-        'Power factor: unity power factor preferred; inverters must not cause PF < 0.9',
-        'Harmonics: THD of injected current must be ≤ 5% of fundamental',
-        'DC injection: ≤ 1% of rated output current (or ≤ 0.5A, whichever is less)',
-        'Reconnection: after grid outage, inverter must wait ≥ 60 seconds before reconnecting',
-        'Reconnection window: grid must be within 230V ±5% and 50 Hz ±0.5 Hz before reconnecting',
-        'Voltage unbalance: single-phase injection limited to avoid excessive unbalance on LV network',
-      ],
-      limits: [
-        { param: 'Grid voltage impact', value: '±5% at POC', note: 'Point of Connection — check with CEB/LECO for large systems' },
-        { param: 'Current THD', value: '≤ 5%', note: 'Of rated output current' },
-        { param: 'Power factor', value: '≥ 0.9 lagging/leading', note: 'Unity preferred for residential' },
-        { param: 'Reconnection delay', value: '≥ 60 seconds', note: 'After grid voltage/frequency return to normal' },
-      ],
-      calcs: ['grid_voltage_check', 'inverter_sizing']
-    },
-    {
-      id: 'iec61853',
-      code: 'IEC 61853:2011–2018',
-      title: 'PV Module Performance Rating & Energy Evaluation',
-      scope: 'Multi-part standard defining how module performance is rated across a matrix of irradiance and temperature conditions. Used for accurate energy yield prediction.',
-      keyPoints: [
-        'Defines NOCT (Nominal Operating Cell Temperature) test conditions: 800 W/m², 20°C ambient, 1 m/s wind',
-        'Module temperature in field: T_cell = T_amb + (NOCT − 20) / 800 × G',
-        'Low-light performance rated at 200 W/m² — important for cloudy climates',
-        'Annual energy prediction uses climate dataset × module performance matrix',
-        'Spectral correction factor (FSF) applied for different climates',
-      ],
-      limits: [
-        { param: 'NOCT test conditions', value: '800 W/m², 20°C, 1 m/s wind', note: 'Module-only, no enclosure' },
-        { param: 'Cell temp formula', value: 'T_amb + (NOCT − 20)/800 × G', note: 'IEC 61853 / IEC 61215' },
-      ],
-      calcs: ['cell_temp_noct']
-    },
-    {
-      id: 'pv_degradation',
-      code: 'IEC 61215 / SLS 1553 — PV Module Degradation',
-      title: 'PV Module Power Degradation — Formulas, Benchmarks & Sri Lanka Requirements',
-      scope: 'Covers how PV module power output degrades over time, applicable calculation formulas (linear and compound), industry benchmarks by technology type, and Sri Lanka-specific requirements under SLS 1553 / IEC 61215. Used for energy yield prediction, warranty assessment, and commissioning acceptance.',
-      keyPoints: [
-        'IEC 61215: modules must retain ≥95% of initial power after design qualification stress tests (simulating ~5–10 years)',
-        'SLS 1553 (Sri Lanka) adopts IEC 61215 and IEC 61730 through SLSI — CEB/LECO grid connection requires valid IEC 61215 certificate',
-        '25-year linear power guarantee common requirement in Sri Lanka: ≥80% of initial power at Year 25',
-        'Linear degradation formula: P(n) = P₀ × (1 − LID) − P₀ × d × (n − 1)',
-        'Compound degradation formula: P(n) = P₀ × (1 − LID) × (1 − d)^(n−1)',
-        'LID (Light-Induced Degradation): initial Year 1 loss, typically 1.0–2.5% for crystalline silicon',
-        'Annual degradation rate (d): 0.3–0.5% mono-Si, 0.5–0.8% poly-Si, 0.6–1.0% thin-film',
-        'Sri Lanka tropical factors: high humidity/heat can cause PID and encapsulant browning; coastal sites risk salt mist corrosion of interconnects',
-        'N-type modules (TOPCon, HJT) have lower LID and better long-term degradation performance',
-      ],
-      limits: [
-        { param: 'Year 1 LID (mono-Si typical)', value: '1.0–2.5%', note: 'Light-Induced Degradation — occurs in first hours of sunlight exposure' },
-        { param: 'Annual degradation — monocrystalline', value: '0.3–0.5%/year', note: 'Expected output at Year 25: 88–93%' },
-        { param: 'Annual degradation — polycrystalline', value: '0.5–0.8%/year', note: 'Expected output at Year 25: 80–88%' },
-        { param: 'Annual degradation — thin-film', value: '0.6–1.0%/year', note: 'Expected output at Year 25: 75–85%' },
-        { param: 'Warranty minimum at Year 25 (SLS 1553)', value: '≥80% of initial power', note: '25-year linear guarantee standard in Sri Lanka' },
-        { param: 'IEC 61215 stress test limit', value: '≤5% power loss', note: 'After Sequence A (or ≤8% Sequence B)' },
-      ],
-      calcs: ['linear_degradation', 'compound_degradation', 'warranty_check']
-    },
-  ];
+  const STANDARDS = SriLankaStandards.getRecords();
 
   // -----------------------------------------------------------------------
   // RENDER MAIN PAGE
@@ -570,11 +34,11 @@ const Standards = (() => {
         ${typeof StandardsVisuals!=='undefined'?StandardsVisuals.hub():''}
 
         <div class="info-box">
-          ${STANDARDS.length} standards covered — IEC international &amp; Sri Lanka (PUCSL / SLS 1522 / SLS 1543 / SLS 1547).
-          Each standard: summary, key limits, and interactive formula calculators with step-by-step working.
+          ${STANDARDS.length} reference entries: listed Sri Lankan adoptions, international reference families, 2026 PV/BESS requirements and planning models.
+          Choose a discipline or search a code to see its scope, source and associated illustration.
         </div>
         <div class="info-box" style="margin-top:8px">
-          Standards version check updated on 2026-04-09 for key installation references (IEC 60364-7-712:2025, IEC 62548-1:2023+AMD1:2025, IEC 61643-32:2017 family) and current Sri Lanka utility publications.
+          Scope cross-references checked on 13 October 2026 against SLSEA and PUCSL publications. Listed local editions and later IEC editions are distinct. Exact numerical clauses depend on the applicable edition, product and approved project specification.
         </div>
 
         <!-- SEARCH -->
@@ -583,6 +47,7 @@ const Standards = (() => {
         </div>
 
         <!-- STANDARDS LIST -->
+        <div class="std-family-filter" role="group" aria-label="Filter standards by discipline"><button type="button" data-std-family="all" aria-pressed="true">All references</button>${Object.entries(SriLankaStandards.GROUPS).map(([key,label])=>`<button type="button" data-std-family="${key}" aria-pressed="false">${_esc(label)}</button>`).join('')}</div>
         <div id="std-list">
           ${STANDARDS.map(s => _stdCard(s)).join('')}
         </div>
@@ -594,13 +59,16 @@ const Standards = (() => {
       container.querySelectorAll('[data-visual-standard]').forEach(btn=>btn.addEventListener('click',()=>StandardsVisuals.showForStandard(container,STANDARDS.find(s=>s.id===btn.dataset.visualStandard))));
     }
     // Search filter
-    container.querySelector('#std-search').addEventListener('input', e => {
-      const q = e.target.value.toLowerCase();
+    let family='all';
+    const filter=()=>{
+      const q=container.querySelector('#std-search').value.toLowerCase();
       container.querySelectorAll('.std-card').forEach(card => {
         const text = card.textContent.toLowerCase();
-        card.style.display = text.includes(q) ? '' : 'none';
+        card.style.display = text.includes(q)&&(family==='all'||card.dataset.stdFamily===family) ? '' : 'none';
       });
-    });
+    };
+    container.querySelector('#std-search').addEventListener('input',filter);
+    container.querySelectorAll('.std-family-filter [data-std-family]').forEach(btn=>btn.addEventListener('click',()=>{family=btn.dataset.stdFamily;container.querySelectorAll('.std-family-filter [data-std-family]').forEach(b=>b.setAttribute('aria-pressed',String(b===btn)));filter();}));
 
     // Expand/collapse
     container.querySelectorAll('.std-expand-btn').forEach(btn => {
@@ -644,7 +112,7 @@ const Standards = (() => {
       </button>`).join('');
 
     return `
-      <div class="std-card card" id="std-card-${s.id}" style="margin-bottom:10px">
+      <div class="std-card card" id="std-card-${s.id}" data-std-family="${s.group}" style="margin-bottom:10px">
         <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px">
           <div style="flex:1">
             <div style="font-size:0.75rem;font-weight:700;color:var(--primary);text-transform:uppercase;letter-spacing:0.05em">${s.code}</div>
@@ -661,7 +129,7 @@ const Standards = (() => {
           <ul style="margin:0 0 12px 18px;font-size:0.83rem;line-height:1.7">
             ${pointsHtml}
           </ul>
-          <div class="section-title">Key Limits &amp; Values</div>
+          <div class="section-title">Scope &amp; applicable requirements</div>
           <div style="overflow-x:auto;margin-bottom:12px">
             <table class="status-table">
               <thead><tr><th>Parameter</th><th>Limit / Value</th><th>Note</th></tr></thead>
@@ -709,8 +177,8 @@ const Standards = (() => {
       pid_risk:             'PID Risk Assessment',
       string_voc_tmin:      'String Voc at Tmin',
       string_vmp_tmax:      'String Vmp at Tmax',
-      max_strings_no_fuse:  'Max Strings (No Fuse)',
-      grid_voltage_check:   'Grid Voltage Check',
+      max_strings_no_fuse:  'Parallel-string Reverse-current Bound',
+      grid_voltage_check:   'Compare Entered Grid Values',
       system_size_check:    'System Size Check',
       ceb_readiness_check:  'CEB/LECO Readiness Check',
       ceb_setting_match:    'Setting Match Check',
@@ -764,10 +232,12 @@ const Standards = (() => {
     switch (calcId) {
 
       case 'ir_test': return `
-        <div class="info-box">IEC 62446-1 Cl.5.3.3: IR ≥ 1 MΩ at 500V DC. Test DC+ to earth AND DC− to earth.</div>
+        <div class="info-box">Voltage-dependent comparison from the PUCSL September 2022 service-provider guideline, Table C1 / insulation table (PDF pp. 59, 83). Use the accepted test procedure. This illustration records method 1 readings; daylight PV can remain live.</div>
         <div class="form-row cols-2">
-          ${_inp('c-ir-pos', 'DC+ to Earth (MΩ)', '0.00', '', 'Measured with 500V DC insulation tester')}
-          ${_inp('c-ir-neg', 'DC− to Earth (MΩ)', '0.00', '', 'Measured with 500V DC insulation tester')}
+          ${_inp('c-ir-system', 'System voltage for the test plan (V)', 'Voc STC × 1.25', '', 'Source table uses Voc STC × 1.25; confirm the accepted procedure.')}
+          ${_inp('c-ir-test', 'Actual applied test voltage (V)', '', '', '250 V below 120 V; 500 V from 120–500 V; 1000 V above 500 V, per the cited table.')}
+          ${_inp('c-ir-pos', 'DC+ to Earth (MΩ)', '0.00', '', 'Recorded method 1 reading')}
+          ${_inp('c-ir-neg', 'DC− to Earth (MΩ)', '0.00', '', 'Recorded method 1 reading')}
         </div>
         <button class="btn btn-primary btn-sm calc-run-btn">Check</button>
         <div id="calc-result"></div>`;
@@ -1035,14 +505,20 @@ const Standards = (() => {
         <div id="calc-result"></div>`;
 
       case 'max_strings_no_fuse': return `
-        <div class="info-box">IEC 62548-1 Cl.9.4: String fuses are NOT required if the number of parallel strings ≤ 3 (when each string's Isc_max_reverse ≤ module fuse rating). For &gt; 3 strings, fuses are required.</div>
+        <div class="info-box">PV-only reverse-current bound: (N − 1) × design Isc, compared with the module maximum series-fuse value (PUCSL September 2022 guideline, section 3.1). Other fault sources and the complete protection/cable design require separate assessment.</div>
         ${_inp('c-nstr', 'Number of Parallel Strings', '', '', 'Strings connected to same MPPT input')}
+        ${_inp('c-string-isc','Design Isc per string (A)','','','Include applicable irradiance/current corrections.')}
+        ${_inp('c-max-series-fuse','Module maximum series-fuse value (A)','','','From the exact module datasheet.')}
+        <label class="checkbox-item"><input type="checkbox" id="c-other-source"/> Battery or another source can contribute fault current to this branch</label>
         <button class="btn btn-primary btn-sm calc-run-btn">Check</button>
         <div id="calc-result"></div>`;
 
       case 'grid_voltage_check': return `
-        <div class="info-box">PUCSL / IEC 62116: Inverter must disconnect at ±10% of 230V (207–253V). Record measured grid voltage.</div>
+        <div class="info-box">Compare one recorded voltage with the entered project limits. This does not test protection timing, averaging, ride-through or reconnection. Reference the actual DL-approved schedule.</div>
         ${_inp('c-vgrid', 'Measured Grid Voltage (V)', '', '', 'L-N at point of connection')}
+        ${_inp('c-grid-low','Approved lower comparison value (V)','','','Use the actual approved schedule.')}
+        ${_inp('c-grid-high','Approved upper comparison value (V)','','','Use the actual approved schedule.')}
+        <div class="form-group"><label class="form-label" for="c-grid-ref">Approved schedule reference</label><input class="form-input" id="c-grid-ref" type="text"/></div>
         <button class="btn btn-primary btn-sm calc-run-btn">Check</button>
         <div id="calc-result"></div>`;
 
@@ -1303,16 +779,12 @@ const Standards = (() => {
         case 'ir_test': {
           const pos = _g(area, 'c-ir-pos');
           const neg = _g(area, 'c-ir-neg');
-          const MIN = 1.0;
-          const posOk = isNaN(pos) || pos >= MIN;
-          const negOk = isNaN(neg) || neg >= MIN;
-          const allOk = posOk && negOk;
+          const check=SriLankaStandards.irCheck(_g(area,'c-ir-system'),_g(area,'c-ir-test'),pos,neg);
           result.innerHTML = _steps([
-            `Minimum IR per IEC 62446-1 = ${MIN} MΩ`,
-            `DC+ to Earth: ${isNaN(pos)?'not entered':pos+' MΩ'} → ${isNaN(pos)?'N/A':pos>=MIN?'✓ PASS':'✗ FAIL'}`,
-            `DC− to Earth: ${isNaN(neg)?'not entered':neg+' MΩ'} → ${isNaN(neg)?'N/A':neg>=MIN?'✓ PASS':'✗ FAIL'}`,
-            allOk ? `Both ≥ 1 MΩ → System passes IEC 62446-1 insulation test` : `One or more < 1 MΩ → DO NOT ENERGISE. Find and rectify earth fault.`
-          ], allOk ? '✓ PASS — Insulation OK' : '✗ FAIL — Earth Fault Suspected', allOk ? 'alert-safe' : 'alert-unsafe');
+            `Required test voltage in the cited band: ${check.requiredTest??'not determined'} V`,
+            `Minimum in that band: ${check.minimum??'not determined'} MΩ`,
+            `DC+: ${Number.isFinite(pos)?pos:'not recorded'} MΩ; DC−: ${Number.isFinite(neg)?neg:'not recorded'} MΩ`,check.note
+          ],check.status==='within'?'Entered readings meet the cited comparison':check.status==='below'?'Reading below the cited criterion':'REVIEW — incomplete or inconsistent test evidence',check.status==='within'?'alert-safe':check.status==='below'?'alert-unsafe':'alert-warn');
           break;
         }
 
@@ -1816,33 +1288,16 @@ const Standards = (() => {
         }
 
         case 'max_strings_no_fuse': {
-          const n = _g(area, 'c-nstr');
-          if (isNaN(n)) { result.innerHTML = '<div class="danger-box">Enter number of strings</div>'; break; }
-          const fuse_req = n > 3;
-          result.innerHTML = _steps([
-            `IEC 62548-1 Cl.9.4.1: String fuses not required if parallel strings ≤ 3`,
-            `(Condition: each module's max reverse current ≤ module Series Fuse Rating)`,
-            `Number of parallel strings = ${n}`,
-            fuse_req ? `${n} > 3 → String fuses ARE required` : `${n} ≤ 3 → String fuses not required (verify module reverse current rating still satisfied)`,
-            `Note: Even if fuses are not required, string monitoring is recommended for fault detection.`
-          ], fuse_req ? `✗ Fuses Required (${n} > 3 strings)` : `✓ Fuses Not Required (${n} ≤ 3 strings)`, fuse_req?'alert-warn':'alert-safe');
+          const n=_g(area,'c-nstr'), isc=_g(area,'c-string-isc'), maximum=_g(area,'c-max-series-fuse');
+          const check=SriLankaStandards.reverseCurrent(n,isc,maximum,_gc(area,'c-other-source'));
+          result.innerHTML=_steps([`Parallel strings: ${n}; design Isc: ${isc} A; module maximum series-fuse value: ${maximum} A`, `Other-string reverse-current bound: ${check.current??'not determined'} A`, 'Cable/device limits, fault sources and the applicable complete design must also be reviewed.'],check.status==='review'?'REVIEW — incomplete data or other fault sources':check.status==='protection_required'?'Reverse-current bound exceeds the entered module value':'Entered bound satisfied — complete protection review still required',check.status==='protection_required'?'alert-unsafe':'alert-warn');
           break;
         }
-
         case 'grid_voltage_check': {
-          const V = _g(area, 'c-vgrid');
-          if (isNaN(V)) { result.innerHTML = '<div class="danger-box">Enter measured voltage</div>'; break; }
-          const nominal = 230;
-          const lo = 207, hi = 253;
-          const pass = V >= lo && V <= hi;
-          const dev = ((V - nominal) / nominal * 100).toFixed(1);
-          result.innerHTML = _steps([
-            `PUCSL / IEC 62116: Inverter must disconnect outside 230V ±10%`,
-            `Acceptable range: ${lo} V to ${hi} V`,
-            `Step 1: Measured voltage = ${V} V`,
-            `Step 2: Deviation from nominal = (${V} − ${nominal}) ÷ ${nominal} × 100 = ${dev}%`,
-            pass ? `${V} V is within ${lo}–${hi} V range → ✓ Normal` : `${V} V is outside ${lo}–${hi} V range → Inverter should trip. Notify CEB/LECO.`
-          ], pass ? `✓ Normal — ${V} V (${dev>=0?'+':''}${dev}%)` : `✗ Out of Range — ${V} V`, pass?'alert-safe':'alert-unsafe');
+          const voltage=_g(area,'c-vgrid'),low=_g(area,'c-grid-low'),high=_g(area,'c-grid-high'),reference=_gs(area,'c-grid-ref');
+          if(![voltage,low,high].every(Number.isFinite)||low<=0||high<=low||!reference){result.innerHTML='<div class="warn-box">Record the measurement, valid project limits and approved schedule reference.</div>';break;}
+          const inside=voltage>=low&&voltage<=high;
+          result.innerHTML=_steps([`Measured: ${voltage} V; entered comparison: ${low}–${high} V`, `Schedule: ${reference}`, 'This is an instantaneous comparison only. Timed protection, averaging, ride-through and reconnection are not tested.'],inside?'Measurement within entered comparison values':'Measurement outside entered comparison values',inside?'alert-warn':'alert-unsafe');
           break;
         }
 

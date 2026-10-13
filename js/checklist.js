@@ -30,7 +30,7 @@ var Checklist = (() => {
         { id: 'dc_polarity_verified',text: 'String polarity verified before inverter connection' },
         { id: 'dc_voc_measured',     text: 'String Voc measured and within ±5% of STC-corrected value' },
         { id: 'dc_isc_measured',     text: 'String Isc measured and within ±10% of STC-corrected value' },
-        { id: 'dc_ir_pass',          text: 'DC insulation resistance ≥1 MΩ (IEC 62446-1)' },
+        { id: 'dc_ir_pass',          text: 'DC insulation records meet the accepted voltage-dependent criterion (IEC 62446-1 / test plan)' },
         { id: 'dc_spd_installed',    text: 'DC surge protection device (SPD) installed and rated correctly' },
         { id: 'dc_fuses_rated',      text: 'String fuses / combiner box rated per design, installed correctly' },
         { id: 'dc_earthing',         text: 'Array frame earthing complete, continuity <1 Ω' },
