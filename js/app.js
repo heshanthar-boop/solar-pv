@@ -171,7 +171,7 @@ const App = (() => {
     {
       group: 'Reference & Settings',
       tiles: [
-        { page: 'standards',     icon: '&#128218;', label: 'Standards Reference', desc: 'IEC / SLS / PUCSL' },
+        { page: 'standards',     icon: '&#128218;', label: 'Standards Reference', desc: 'Animations · IEC / SLS / PUCSL' },
         { page: 'reportbuilder', icon: '&#128196;', label: 'Report Builder',       desc: 'Combined PDF report' },
         { page: 'settings',      icon: '&#9881;',   label: 'Settings',             desc: 'Profile & data mgmt' },
       ]
@@ -794,7 +794,8 @@ const App = (() => {
     main.scrollTop = 0;
     page.render(main);
     WorkspaceUI.polishForms(main, pageId);
-    if (pageId === 'standards' && typeof DirectiveUI !== 'undefined') main.querySelector('.page-title')?.insertAdjacentHTML('afterend', DirectiveUI.sources());
+    if (pageId === 'standards' && typeof DirectiveUI !== 'undefined') (main.querySelector('[data-sv-root]')||main.querySelector('.page-title'))?.insertAdjacentHTML('afterend', DirectiveUI.sources());
+    if(typeof StandardsVisuals!=='undefined')StandardsVisuals.bind(main);
   }
 
   // -----------------------------------------------------------------------
@@ -941,7 +942,7 @@ const App = (() => {
         <div class="dashboard-heading"><div><p class="eyebrow">YOUR SOLAR WORKSPACE</p><h1>From first design to final sign-off.</h1><p>Everything you need to plan, test and deliver your next solar project.</p></div><span class="workspace-status"><span></span> ${navigator.onLine ? 'Device online' : 'Working offline'}</span></div>
         <div class="dashboard-intro">
           <section class="workspace-hero" aria-label="Start a solar design">
-            <div class="hero-copy"><span class="hero-kicker">ENGINEER WITH CONFIDENCE</span><h2>Better decisions.<br><span>Brighter outcomes.</span></h2><p>Turn site conditions into a complete system design, one considered step at a time.</p><button class="btn hero-action" id="home-start-design">Start system design ${WorkspaceUI.icon('arrow')}</button><div class="hero-footnote">${WorkspaceUI.icon('utilityvalidator')} Design · Validate · Report</div></div>
+            <div class="hero-copy"><span class="hero-kicker">ENGINEER WITH CONFIDENCE</span><h2>Better decisions.<br><span>Brighter outcomes.</span></h2><p>Turn site conditions into a complete system design, one considered step at a time.</p><button class="btn hero-action" id="home-start-design">Start system design ${WorkspaceUI.icon('arrow')}</button><button type="button" class="hero-learn" id="home-learn-standards">Learn with animated guides ${WorkspaceUI.icon('arrow')}</button><div class="hero-footnote">${WorkspaceUI.icon('utilityvalidator')} Design · Validate · Report</div></div>
             ${WorkspaceUI.solarScene()}
           </section>
           <section class="active-project" id="home-project-card" aria-label="Active project">
@@ -1003,6 +1004,10 @@ const App = (() => {
     container.querySelector('#home-project-edit-btn').addEventListener('click', () => _showProjectModal(container));
     container.querySelector('#home-backup-warn').addEventListener('click', () => navigate('settings'));
     container.querySelector('#home-catalog-link').addEventListener('click', () => navigate('database'));
+    container.querySelector('#home-learn-standards').addEventListener('click', () => {
+      if(!_isPageAllowed('standards')) {state.projectType='all';localStorage.setItem('solarpv_project_type','all');}
+      navigate('standards');
+    });
     container.querySelector('#home-start-design').addEventListener('click', () => {
       if (!_isPageAllowed('systemdesigner')) {
         state.projectType = 'all'; localStorage.setItem('solarpv_project_type', 'all');
