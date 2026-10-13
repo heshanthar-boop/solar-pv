@@ -567,6 +567,7 @@ const Standards = (() => {
     container.innerHTML = `
       <div class="page">
         <div class="page-title">&#128218; Standards Reference</div>
+        ${typeof StandardsVisuals!=='undefined'?StandardsVisuals.hub():''}
 
         <div class="info-box">
           ${STANDARDS.length} standards covered — IEC international &amp; Sri Lanka (PUCSL / SLS 1522 / SLS 1543 / SLS 1547).
@@ -588,6 +589,10 @@ const Standards = (() => {
       </div>
     `;
 
+    if(typeof StandardsVisuals!=='undefined') {
+      StandardsVisuals.bind(container);
+      container.querySelectorAll('[data-visual-standard]').forEach(btn=>btn.addEventListener('click',()=>StandardsVisuals.showForStandard(container,STANDARDS.find(s=>s.id===btn.dataset.visualStandard))));
+    }
     // Search filter
     container.querySelector('#std-search').addEventListener('input', e => {
       const q = e.target.value.toLowerCase();
@@ -639,7 +644,7 @@ const Standards = (() => {
       </button>`).join('');
 
     return `
-      <div class="std-card card" style="margin-bottom:10px">
+      <div class="std-card card" id="std-card-${s.id}" style="margin-bottom:10px">
         <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px">
           <div style="flex:1">
             <div style="font-size:0.75rem;font-weight:700;color:var(--primary);text-transform:uppercase;letter-spacing:0.05em">${s.code}</div>
@@ -647,6 +652,7 @@ const Standards = (() => {
             <div style="font-size:0.8rem;color:var(--text-secondary);margin-top:4px">${s.scope}</div>
           </div>
         </div>
+        ${typeof StandardsVisuals!=='undefined'?`<button class="btn btn-secondary btn-sm std-visual-btn" data-visual-standard="${s.id}">See animated guide · ${_esc(s.code)}</button>`:''}
         <button class="btn btn-secondary btn-sm std-expand-btn" data-std-id="${s.id}" style="margin-top:10px;width:100%">
           ▼ Show details &amp; calculators
         </button>

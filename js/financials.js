@@ -274,12 +274,14 @@ var Financials = (() => {
     `;
 
     const donor = App.state.designerResults;
+    if(typeof StandardsVisuals!=='undefined')container.querySelector('.page-title').insertAdjacentHTML('afterend',StandardsVisuals.help('settlement'));
     container.querySelector('#fi-calc-btn').insertAdjacentHTML('beforebegin', DirectiveUI.tariffForm('fi-fit', donor?.fitInputs||{}));
     const lifeInput=container.querySelector('#fi-life');
     lifeInput.closest('.form-group').insertAdjacentHTML('afterend', `<div class="form-group"><label class="form-label" for="fi-contract-years">Remaining PV SPPA Term (years)</label><input class="form-input" id="fi-contract-years" type="number" min="1" max="40" value="20"/><div class="form-hint">Planning term until replaced by the signed agreement. Feed-in income stops after this term; no renewal tariff is assumed.</div></div><div class="form-group"><label class="form-label" for="fi-battery-fade">Battery Capacity Degradation (%/yr)</label><input class="form-input" id="fi-battery-fade" type="number" min="0" max="20" step="0.1" value="1.6"/><div class="form-hint">PUCSL prosumer tariff-model assumption; replace with project warranty data.</div></div><div class="form-group"><label class="form-label" for="fi-priority-kwh">Measured / Estimated Priority Export (kWh/year)</label><input class="form-input" id="fi-priority-kwh" type="number" min="0" value="${donor?.dispatch?donor.dispatch.total.priorityKwh.toFixed(1):0}"/><div class="form-hint">Used only without a linked dispatch model. Declare exported energy for the 17:30–21:30 window, not battery nominal capacity.</div></div>`);
     if (donor?.selfUse) {container.querySelector('#fi-load').value=(donor.annualLoad/12).toFixed(1);container.querySelector('#fi-selfuse').value=(donor.selfUse.selfUseRatio*100).toFixed(1);}
-    container.addEventListener('input',e=>{if(!e.target.closest('#fi-results'))container.querySelector('#fi-results').classList.add('hidden');});
-    container.addEventListener('change',()=>container.querySelector('#fi-results').classList.add('hidden'));
+    const financialPage=container.querySelector('.page');
+    financialPage.addEventListener('input',e=>{if(!e.target.closest('#fi-results'))container.querySelector('#fi-results').classList.add('hidden');});
+    financialPage.addEventListener('change',()=>container.querySelector('#fi-results').classList.add('hidden'));
     container.querySelector('#fi-calc-btn').addEventListener('click', () => {
       App.btnSpinner(container.querySelector('#fi-calc-btn'), () => _calculate(container));
     });

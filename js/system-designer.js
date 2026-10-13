@@ -462,10 +462,12 @@ const SystemDesigner = (() => {
     `;
 
     container.querySelector('#sd-run').closest('.btn-group').insertAdjacentHTML('beforebegin', DirectiveUI.form('sd-policy') + DirectiveUI.tariffForm('sd-fit'));
+    if(typeof StandardsVisuals!=='undefined')StandardsVisuals.bind(container);
     let designDirty=true;
     const markDesignDirty=e=>{if(e.target.closest('#sd-results'))return;designDirty=true;container.querySelector('#sd-results').classList.add('hidden');};
-    container.addEventListener('input',markDesignDirty);
-    container.addEventListener('change',markDesignDirty);
+    const designerPage=container.querySelector('.page');
+    designerPage.addEventListener('input',markDesignDirty);
+    designerPage.addEventListener('change',markDesignDirty);
     container.querySelector('#sd-policy-connection').addEventListener('change',e=>{
       const scheme=container.querySelector('#sd-fit-scheme');
       if(e.target.value!=='grid_export')scheme.value='zero_export';else if(scheme.value==='zero_export')scheme.value='net_accounting';

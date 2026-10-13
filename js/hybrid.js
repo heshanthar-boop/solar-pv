@@ -1079,6 +1079,7 @@ const HybridSetup = (() => {
       const policyRoot=container.querySelector('#hy-policy-rules');
       policyRoot.addEventListener('input', () => {App.state.hybridInputs={...(App.state.hybridInputs||{}),directivePolicy:DirectiveUI.read(container,'hy-policy')};});
       for(const [id,kind] of [['hy-inv-model','inverter'],['hy-bat-model','battery']]) container.querySelector('#'+id).addEventListener('change',()=>DirectiveUI.updateModel(container,'hy-policy',kind,kind==='inverter'?_getInverter(container.querySelector('#'+id).value):_getBattery(container.querySelector('#'+id).value)));
+      if(typeof StandardsVisuals!=='undefined')StandardsVisuals.bind(container);
     }
     container.querySelector('#hy-chem').addEventListener('change', () => _applyChemistryDefaults(container));
     container.querySelector('#hy-inv-model').addEventListener('change', () => _updateCatalogueHints(container));

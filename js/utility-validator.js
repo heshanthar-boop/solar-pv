@@ -187,6 +187,7 @@ const UtilityValidator = (() => {
 
     _renderPage(container, vm, packState);
     if (typeof DirectiveUI !== 'undefined') container.querySelector('.page-title').insertAdjacentHTML('afterend',DirectiveUI.form('uv-policy',vm.inputs.directivePolicy||{connection:vm.inputs.exportMode==='export'?'grid_export':'zero_export'})+DirectiveUI.review(vm.utilitySubmission?.directiveReview));
+    if(typeof StandardsVisuals!=='undefined')StandardsVisuals.bind(container);
 
     const applyState = async (showToast) => {
       if (typeof HybridSetup.updateUtilitySubmissionState === 'function') {
