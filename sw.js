@@ -1,8 +1,8 @@
 /**
- * sw.js — Service Worker (cache-first offline support)
+ * sw.js — Fresh app navigation with cached offline assets
  */
 
-const CACHE_NAME = 'solarpv-v38';
+const CACHE_NAME = 'solarpv-v39';
 const CACHE_PREFIX = 'solarpv-v';
 
 const LOCAL_ASSETS = [
@@ -17,16 +17,16 @@ const LOCAL_ASSETS = [
   './icons/solar-mark.svg',
   './css/style.css?v=12',
   './css/workspace.css?v=4',
-  './js/catalog-store.js?v=20261013-4',
+  './js/catalog-store.js?v=20261013-5',
   './js/db.js',
-  './js/directives-2026.js?v=20261013-4',
-  './js/standards-rules.js?v=20261013-4',
+  './js/directives-2026.js?v=20261013-5',
+  './js/standards-rules.js?v=20261013-5',
   './js/pv-calc.js',
   './js/standards-calc.js',
   './js/sizing.js',
   './js/wire-calc.js',
-  './js/hybrid.js?v=20261013-4',
-  './js/utility-validator.js?v=20261013-4',
+  './js/hybrid.js?v=20261013-5',
+  './js/utility-validator.js?v=20261013-5',
   './js/temp-correct.js',
   './js/field-test.js?v=3',
   './js/fault.js',
@@ -40,19 +40,19 @@ const LOCAL_ASSETS = [
   './js/inverter-perf.js',
   './js/shading.js',
   './js/yield-estimator.js?v=4',
-  './js/system-designer.js?v=20261013-4',
+  './js/system-designer.js?v=20261013-5',
   './js/pv-inspector.js',
   './js/fault-ai.js',
   './js/checklist.js?v=2',
   './js/report-builder.js?v=2',
   './js/cable-schedule.js',
   './js/basic-calc.js',
-  './js/financials.js?v=20261013-4',
+  './js/financials.js?v=20261013-5',
   './js/roof-layout.js',
   './js/firebase-sync.js',
   './js/workspace-ui.js?v=2',
-  './js/directives-ui.js?v=20261013-4',
-  './js/app.js?v=20261013-4',
+  './js/directives-ui.js?v=20261013-5',
+  './js/app.js?v=20261013-5',
   './css/style.css',
   './css/workspace.css',
   './js/catalog-store.js',
@@ -105,6 +105,22 @@ self.addEventListener('activate', event => {
 self.addEventListener('fetch', event => {
   // Only handle GET requests
   if (event.request.method !== 'GET') return;
+
+  // Reloads must fetch the published app shell so returning users see new releases.
+  // Static/versioned assets retain cache-first behavior and navigation works offline.
+  if (event.request.mode === 'navigate') {
+    event.respondWith((async () => {
+      const cache = await caches.open(CACHE_NAME);
+      try {
+        const response = await fetch(event.request, { cache: 'no-cache' });
+        if (response && response.status === 200 && response.headers?.get('content-type')?.includes('text/html')) await cache.put('./index.html', response.clone()).catch(() => {});
+        return response;
+      } catch {
+        return (await cache.match('./index.html')) || cache.match(event.request);
+      }
+    })());
+    return;
+  }
 
   event.respondWith(
     caches.open(CACHE_NAME).then(cache => cache.match(event.request)).then(cached => {

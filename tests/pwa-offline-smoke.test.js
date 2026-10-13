@@ -135,6 +135,14 @@ test('fetch handler serves cached response before network', async () => {
   assert.equal(fetchCalls, 0);
 });
 
+test('online navigation fetches the new app shell even when the previous shell is cached', async () => {
+  const stale={version:'previous'}, fresh={status:200,headers:{get:()=> 'text/html'},version:'published',clone(){return this;}};
+  const sw=bootServiceWorker({match:()=>stale,fetch:async(request,options)=>{assert.equal(options.cache,'no-cache');return fresh;}});
+  let responsePromise;
+  sw.handlers.fetch({request:{method:'GET',mode:'navigate'},respondWith:p=>{responsePromise=p;}});
+  assert.equal(await responsePromise,fresh);
+});
+
 test('fetch ignores stale responses in older caches on the same origin', async () => {
   const current = { version: 'current' };
   const stale = { version: 'old' };
