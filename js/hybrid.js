@@ -47,7 +47,7 @@ const HybridSetup = (() => {
     },
     ceb_2025: {
       id: 'ceb_2025',
-      label: 'CEB Settings (2025)',
+      label: 'CEB reference (2025) - current DL schedule required',
       exportEnabled: true,
       utility: 'CEB',
       voltageWindow: 'Sustained OV <=1.06 pu (<1MW), <=1.05 pu (>=1MW)',
@@ -56,7 +56,7 @@ const HybridSetup = (() => {
     },
     leco_2025: {
       id: 'leco_2025',
-      label: 'LECO Settings (2025)',
+      label: 'LECO reference (2025) - current DL schedule required',
       exportEnabled: true,
       utility: 'LECO',
       voltageWindow: '0.94-1.06 pu (<1MW), 0.95-1.05 pu (>=1MW) reconnect gate',
@@ -456,6 +456,9 @@ const HybridSetup = (() => {
       id,
       manufacturer,
       model,
+      phase: raw.phase, mpptRatedMin_V: raw.mpptRatedMin_V,
+      batteryMinV: raw.batteryMinV, batteryMaxV: raw.batteryMaxV,
+      stringsPerMppt: raw.stringsPerMppt, maxIscPerMppt_A: raw.maxIscPerMppt_A,
       acRated_kW: _num(raw.acRated_kW, 0),
       surge_kW: _num(raw.surge_kW, 0),
       surge_s: _num(raw.surge_s, 0),
@@ -487,7 +490,8 @@ const HybridSetup = (() => {
       id,
       manufacturer,
       model,
-      chemistry: _cleanText(raw.chemistry || 'lifepo4', 32).toLowerCase(),
+      usableEnergy_kWh: raw.usableEnergy_kWh, maxPower_kW: raw.maxPower_kW, batteryMinV: raw.batteryMinV, batteryMaxV: raw.batteryMaxV, ipRating: raw.ipRating,
+      chemistry: _cleanText(raw.chemistry || 'unknown', 32).toLowerCase(),
       nominalV: _num(raw.nominalV, 48),
       capacityAh: _num(raw.capacityAh, 0),
       recommendedDod: _num(raw.recommendedDod, 0.8),
@@ -1070,6 +1074,12 @@ const HybridSetup = (() => {
       </div>
     `;
 
+    if (typeof DirectiveUI !== 'undefined') {
+      container.querySelector('.page-title').insertAdjacentHTML('afterend', DirectiveUI.form('hy-policy', s.directivePolicy || {connection:s.exportMode==='export'?'grid_export':'zero_export'}));
+      const policyRoot=container.querySelector('#hy-policy-rules');
+      policyRoot.addEventListener('input', () => {App.state.hybridInputs={...(App.state.hybridInputs||{}),directivePolicy:DirectiveUI.read(container,'hy-policy')};});
+      for(const [id,kind] of [['hy-inv-model','inverter'],['hy-bat-model','battery']]) container.querySelector('#'+id).addEventListener('change',()=>DirectiveUI.updateModel(container,'hy-policy',kind,kind==='inverter'?_getInverter(container.querySelector('#'+id).value):_getBattery(container.querySelector('#'+id).value)));
+    }
     container.querySelector('#hy-chem').addEventListener('change', () => _applyChemistryDefaults(container));
     container.querySelector('#hy-inv-model').addEventListener('change', () => _updateCatalogueHints(container));
     container.querySelector('#hy-bat-model').addEventListener('change', () => _updateCatalogueHints(container));
@@ -1538,6 +1548,7 @@ const HybridSetup = (() => {
       exportMode: container.querySelector('#hy-export-mode').value,
       utilityProfile: container.querySelector('#hy-utility-profile').value,
       ...utilityInputs,
+      directivePolicy: typeof DirectiveUI !== 'undefined' ? DirectiveUI.read(container, 'hy-policy') : undefined,
     };
     if (Object.values(inputs).some(v => typeof v === 'number' && Number.isNaN(v))) { App.toast('Please fill all numeric fields', 'error'); return; }
 
@@ -1560,7 +1571,7 @@ const HybridSetup = (() => {
     const catalogue = _evaluateCatalogueChecks(inputs, { battery, pv, inverter, batteryAh, charge });
     if (catalogue.summary.fail > 0) warnings.push(`${catalogue.summary.fail} catalogue hard-limit checks failed. Review catalogue check table.`);
     if (catalogue.summary.warn > 0) warnings.push(`${catalogue.summary.warn} catalogue checks require engineering review.`);
-    if (catalogue.approvalRequired) warnings.push('Export mode selected: utility acceptance is required before enabling grid export.');
+    if (catalogue.approvalRequired) warnings.push(inputs.exportMode==='export'?'Export mode selected: utility acceptance is required before enabling grid export.':'Complete the 2026 design and installation review before releasing the final package.');
     if (catalogue.utilitySubmission && catalogue.utilitySubmission.applicable && !catalogue.utilitySubmission.strictPass) {
       const us = catalogue.utilitySubmission;
       if (us.missingDocuments.length) warnings.push(`Utility submission missing documents: ${us.missingDocuments.join('; ')}.`);
@@ -1580,16 +1591,31 @@ const HybridSetup = (() => {
     App.toast('Hybrid sizing completed', 'success');
   }
 
+  function _review2026(inputs, inverterModel) {
+    if (typeof DirectiveRules === 'undefined') return null;
+    const bat=_getBattery(inputs.batteryModelId), panel=_getPanel(inputs.panelId), policy=inputs.directivePolicy||{};
+    const count=Number(policy.inverterCount)||1, parallel=Math.max(1,Number(inputs.batteryParallel)||1);
+    const declared=Number(policy.installedUsableKwh);
+    const usable=declared>0?declared:bat?(bat.usableEnergy_kWh>0?bat.usableEnergy_kWh:bat.nominalV*bat.capacityAh*bat.recommendedDod/1000)*parallel:null;
+    const usableEnergyBasis=declared>0?'user-declared':bat?.usableEnergy_kWh>0?'manufacturer':'estimate';
+    const pv=panel&&inputs.modulesPerString>0?panel.Pmax*inputs.modulesPerString*inputs.stringsPerMppt*(Number(policy.mpptsUsed)||inverterModel?.mpptCount||1)/1000:null;
+    const r=DirectiveRules.evaluate({...policy,usableEnergyBasis,connection:policy.connection||(inputs.exportMode==='export'?'grid_export':'zero_export'),inverter:inverterModel,battery:bat,panel,inverterKW:inverterModel?inverterModel.acRated_kW*count:null,usableKwh:usable,pvKW:pv,batteryVoltage:policy.batteryVoltage??bat?.nominalV??inputs.batteryVoltage_V,chemistry:inputs.chemistry,rtePct:policy.rtePct??(inputs.etaBatt!==undefined?inputs.etaBatt*100:null),modulesPerString:inputs.modulesPerString,stringsPerMppt:inputs.stringsPerMppt,mpptsUsed:policy.mpptsUsed||inverterModel?.mpptCount,tMinC:inputs.siteTmin_C,tCellMaxC:inputs.cellTmax_C,batteryUnits:parallel});
+    if ((inputs.exportMode==='export')!==(r.inputs.connection==='grid_export')) {r.checks.push({id:'mode_match',label:'Operating arrangement / export mode',status:'fail',actual:inputs.exportMode,target:'Align the operating arrangement and export mode',source:'interconnection',clause:'Ch. 10-11'});r.counts.fail++;r.status='blocked';r.canRelease=false;}
+    return r;
+  }
+
   function _evaluateUtilitySubmission(inputs, profile, inverterModel) {
+    const directiveReview=_review2026(inputs,inverterModel);
     const applicable = inputs.exportMode === 'export';
     if (!applicable) {
       return {
-        applicable: false,
-        checks: [],
+        applicable: !!directiveReview,
+        directiveReview,
+        checks: directiveReview ? directiveReview.checks.map(c=>({check:c.label,value:c.actual,target:c.target,status:c.status==='review'?'warn':c.status,note:c.note||'',source:DirectiveRules.SOURCES[c.source]?.title||c.source})) : [],
         missingDocuments: [],
         gateBlockers: [],
-        blockers: [],
-        strictPass: true,
+        blockers: directiveReview ? directiveReview.checks.filter(c=>c.status!=='pass').map(c=>c.label+': '+c.actual) : [],
+        strictPass: directiveReview ? directiveReview.canRelease : true,
         docProvided: 0,
         docTotal: UTILITY_SUBMISSION_DOCS.length,
       };
@@ -1635,6 +1661,12 @@ const HybridSetup = (() => {
       ...missingDocuments.map(label => `Missing required document: ${label}`),
       ...gateBlockers
     ];
+    if(directiveReview) {
+      for(const c of directiveReview.checks) {
+        checks.push({check:'2026: '+c.label,value:c.actual,target:c.target,status:c.status==='review'?'warn':c.status,note:c.note||'',source:(DirectiveRules.SOURCES[c.source]?.title||c.source)+' '+c.clause});
+        if(c.status!=='pass') blockers.push('2026 '+c.label+': '+c.actual);
+      }
+    }
     const strictPass = blockers.length === 0;
     const docProvided = UTILITY_SUBMISSION_DOCS.length - missingDocuments.length;
 
@@ -1651,6 +1683,7 @@ const HybridSetup = (() => {
 
     return {
       applicable: true,
+      directiveReview,
       checks,
       missingDocuments,
       gateBlockers,
@@ -1971,6 +2004,11 @@ const HybridSetup = (() => {
         'Workflow'
       );
     }
+    if (typeof DirectiveRules !== 'undefined') {
+      const hardFailures=checks.filter(c=>c.status==='fail').map(c=>'Design limit: '+c.check);
+      utilitySubmission.blockers.push(...hardFailures);
+      if(hardFailures.length) utilitySubmission.strictPass=false;
+    }
     if (utilitySubmission.applicable && !utilitySubmission.strictPass) approvalRequired = true;
 
     const summary = checks.reduce((acc, c) => {
@@ -2110,6 +2148,7 @@ const HybridSetup = (() => {
     const catalogueCard = _catalogueChecksCard(r);
     const utilityCard = _utilitySubmissionCard(r);
     out.innerHTML = `
+      ${typeof DirectiveUI !== 'undefined' ? DirectiveUI.review(packGate.utilitySubmission?.directiveReview) : ''}
       <div class="card">
         <div class="card-title">Sizing Summary (${_esc(r.date)})</div>
         ${badgeHtml}
@@ -2262,7 +2301,7 @@ const HybridSetup = (() => {
     const blockers = Array.isArray(us.blockers) ? us.blockers : [];
     const missingHtml = missing.length
       ? `<div class="warn-box"><strong>Missing Required Documents:</strong> ${_esc(missing.join(' | '))}</div>`
-      : '<div class="info-box">All required documents are marked as provided.</div>';
+      : '<div class="info-box">Legacy export-document checklist has no missing items. The 2026 evidence review must also be complete.</div>';
     const blockerHtml = blockers.length
       ? `<div class="warn-box"><strong>Blocking Conditions:</strong> ${_esc(blockers.join(' | '))}</div>`
       : '<div class="info-box">No submission blockers detected.</div>';
@@ -2714,6 +2753,8 @@ const HybridSetup = (() => {
     addBom('Earthing and bonding set', 1, 'Earth electrode, conductors, clamps, bonding links', 'Finalize conductor size with adiabatic and fault-current checks.', 'IEC 60364 / SLS 1522 / IEC 62305');
 
     const settingsSheet = [
+      ['2026 DL-approved settings schedule', i.directivePolicy && i.directivePolicy.dlSettingsRef || 'Not recorded'],
+      ['Reference-profile limitation', '2025 numeric values below are historical references. The signed project DL schedule governs actual commissioning settings.'],
       ['Export mode', i.exportMode === 'export' ? 'Export enabled' : 'No export'],
       ['Utility profile', profile ? profile.label : 'Off-grid'],
       ['Utility voltage window', profile ? profile.voltageWindow : 'N/A'],
@@ -2768,6 +2809,8 @@ const HybridSetup = (() => {
 
     return {
       format: 'solarpv.project-pack.v1',
+      directiveReview: us.directiveReview || null,
+      sourceDocuments: typeof DirectiveRules !== 'undefined' ? DirectiveRules.SOURCES : null,
       meta: {
         module: 'hybrid',
         generatedAt: exportedAt,

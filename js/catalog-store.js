@@ -75,6 +75,7 @@ const CatalogStore = (() => {
     /^Growatt$/i,
     /^Fronius$/i,
     /^Sungrow$/i,
+    /^Huawei$/i,
   ];
 
   function _isSriLankaGridInverter(row) {
@@ -234,8 +235,17 @@ const CatalogStore = (() => {
       maxDcVoc_V: Number(maxDcVoc_V.toFixed(3)),
       mpptMin_V: Number(mpptMin_V.toFixed(3)),
       mpptMax_V: Number(mpptMax_V.toFixed(3)),
+      mpptRatedMin_V: _num(raw.mpptRatedMin_V,0),
       mpptCount,
       maxCurrentPerMppt_A: Number(maxCurrentPerMppt_A.toFixed(3)),
+      phase: [1,3].includes(Number(raw.phase)) ? Number(raw.phase) : null,
+      usablePv_kW: _num(raw.usablePv_kW, 0),
+      stringsPerMppt: _num(raw.stringsPerMppt, 0),
+      maxIscPerMppt_A: _num(raw.maxIscPerMppt_A, 0),
+      batteryMinV: _num(raw.batteryMinV, 0),
+      batteryMaxV: _num(raw.batteryMaxV, 0),
+      ipRating: _cleanText(raw.ipRating, 8),
+      efficiencyPct: _num(raw.efficiencyPct, 0),
       supportedProfiles,
       utilityListed: {
         ceb_2025: utilityListedRaw.ceb_2025 === true,
@@ -247,7 +257,7 @@ const CatalogStore = (() => {
       },
       datasheetRev: _cleanText(raw.datasheetRev, 120),
       datasheetUrl: _safeUrl(raw.datasheetUrl),
-      sourceConfidence: _cleanText(raw.sourceConfidence || '', 20).toLowerCase() || 'unknown',
+      sourceConfidence: _cleanText(raw.sourceConfidence || '', 48).toLowerCase() || 'unknown',
       note: _cleanText(raw.note, 240),
     };
   }
@@ -282,7 +292,7 @@ const CatalogStore = (() => {
       id,
       manufacturer,
       model,
-      chemistry: _cleanText(raw.chemistry || 'lifepo4', 32).toLowerCase(),
+      chemistry: _cleanText(raw.chemistry || 'unknown', 32).toLowerCase(),
       nominalV: Number(nominalV.toFixed(3)),
       capacityAh: Number(capacityAh.toFixed(3)),
       recommendedDod: Number(recommendedDod.toFixed(4)),
@@ -292,6 +302,11 @@ const CatalogStore = (() => {
       peakDuration_s: Number(peakDuration_s.toFixed(3)),
       tempMinC: Number(tempMinC.toFixed(3)),
       tempMaxC: Number(tempMaxC.toFixed(3)),
+      usableEnergy_kWh: _num(raw.usableEnergy_kWh, 0),
+      maxPower_kW: _num(raw.maxPower_kW, 0),
+      batteryMinV: _num(raw.batteryMinV, 0),
+      batteryMaxV: _num(raw.batteryMaxV, 0),
+      ipRating: _cleanText(raw.ipRating, 8),
       datasheetRev: _cleanText(raw.datasheetRev, 120),
       datasheetUrl: _safeUrl(raw.datasheetUrl),
       note: _cleanText(raw.note, 240),
@@ -509,7 +524,7 @@ const CatalogStore = (() => {
   function getInvertersByTopology(topology) {
     const t = _cleanText(topology || '', 32).toLowerCase();
     if (!t) return getAllInverters();
-    return state.inverters.filter(x => _cleanText(x.topology, 32).toLowerCase() === t);
+    return getAllInverters().filter(x => _cleanText(x.topology, 32).toLowerCase() === t);
   }
 
   function getAllBatteries() {

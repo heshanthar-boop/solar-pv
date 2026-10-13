@@ -794,6 +794,7 @@ const App = (() => {
     main.scrollTop = 0;
     page.render(main);
     WorkspaceUI.polishForms(main, pageId);
+    if (pageId === 'standards' && typeof DirectiveUI !== 'undefined') main.querySelector('.page-title')?.insertAdjacentHTML('afterend', DirectiveUI.sources());
   }
 
   // -----------------------------------------------------------------------

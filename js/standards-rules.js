@@ -4,7 +4,7 @@
  */
 
 const StandardsRules = (() => {
-  const RULESET_VERSION = '2026.04.09';
+  const RULESET_VERSION = '2026.10.13';
 
   const FIELD_TEST_PROFILES = Object.freeze({
     iec62446_2016: Object.freeze({
@@ -44,7 +44,7 @@ const StandardsRules = (() => {
       fNominal: 50,
       fMin: 49,
       fMax: 51,
-      standardRef: 'PUCSL / IEC 62116 / utility profile'
+      standardRef: 'Historical 2025 practice; 2026 interconnection 4.8 requires project-specific DL/PUCSL-approved settings'
     }),
     cableVoltageDropPct: Object.freeze({
       dc: 1.0,
