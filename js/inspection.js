@@ -252,7 +252,7 @@ const Inspection = (() => {
         <div class="card-title">&#9989; System Checks — IEC 62446-1 / PUCSL</div>
         <div class="info-box">Per IEC 62446-1:2016 + AMD1:2018 commissioning requirements &amp; PUCSL Rooftop Solar Guidelines. Pass = compliant, Fail = action required.</div>
 
-        <div class="section-title">Protection &amp; Safety (SLS 1522 / IEC 61643-32)</div>
+        <div class="section-title">Protection &amp; Safety (SLS 1473 / IEC 61643-31/-32)</div>
         <div class="form-row cols-2">
           ${_scSelect('sc-spd-dc',  'SPD — DC Side', sc.spd_dc,  ['','Pass','Fail','N/A'])}
           ${_scSelect('sc-spd-ac',  'SPD — AC Side', sc.spd_ac,  ['','Pass','Fail','N/A'])}

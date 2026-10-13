@@ -225,15 +225,15 @@ const HybridSetup = (() => {
       id: 'sls1522',
       code: 'SLS 1522:2016',
       title: 'Sri Lanka PV Installation Code',
-      scope: 'Sri Lanka code for PV installation, protection, earthing, and records.',
+      scope: 'Sri Lanka code of practice for PV documentation, installation, testing and commissioning.',
       points: [
-        'DC SPD, DC isolator, and AC isolator are mandatory with correct ratings.',
+        'Verify isolation and coordinated protection against the approved design; PV SPD product/application evidence is SLS 1473.',
         'Earthing and bonding must be verified and documented.',
         'Commissioning records are required for handover and utility process.'
       ],
       limits: [
-        { p: 'SPD UC rating', v: '>= 1.2 x Voc_string_max', n: 'Use coldest-site string Voc.' },
-        { p: 'Earthing target', v: '< 1 ohm', n: 'Measured and documented.' },
+        { p: 'SPD selection', v: 'Project-specific coordination', n: 'Use SLS 1473 / IEC 61643-31/-32 and the actual array/LPS design.' },
+        { p: 'Earthing acceptance', v: 'Approved protection design', n: 'Record tests; no universal 1 ohm verdict is inferred from this scope.' },
         { p: 'DC cable current basis', v: '>= 1.25 x Isc', n: 'Before derating.' }
       ],
       calcs: [
@@ -2745,7 +2745,7 @@ const HybridSetup = (() => {
     }
     addBom('DC isolator', 1, 'PV DC rated isolator (voltage/current per final design)', 'Required near inverter/DC interface.', 'IEC 60364-7-712 / SLS 1522');
     addBom('AC isolator', 1, 'AC rated isolator near inverter output', 'Required for safe maintenance and utility access.', 'IEC 60364-7-712 / SLS 1522');
-    addBom('DC SPD', 1, 'Type II PV SPD, UC >= 1.2 x cold string Voc', 'Select exact MCOV from final string Voc.', 'SLS 1522 / IEC 61643-32');
+    addBom('DC SPD', 1, 'PV SPD selected for the final array and protection design', 'Coordinate type, MCOV, protective level, fault ratings and LPS design.', 'SLS 1473 / IEC 61643-31/-32');
     addBom('AC SPD', 1, 'Type II AC SPD at main board/inverter AC interface', 'Coordinate with earthing and board architecture.', 'IEC 60364 / SLS 1522');
     if (stringCount > 1) {
       addBom('String fuses', stringCount, 'PV fuse-links coordinated to string Isc and reverse current', 'Confirm fuse-link class and selectivity in detailed design.', 'IEC 60269-6');

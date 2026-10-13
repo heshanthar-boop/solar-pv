@@ -1,15 +1,14 @@
 const test=require('node:test');
 const assert=require('node:assert/strict');
-const fs=require('node:fs');
 const {loadBrowserModule}=require('./helpers/load-browser-module');
-const visuals=loadBrowserModule('js/standards-visuals.js','StandardsVisuals');
 const rules=loadBrowserModule('js/directives-2026.js','DirectiveRules');
+const registry=loadBrowserModule('js/sri-lanka-standards.js','SriLankaStandards',{DirectiveRules:rules});
+const visuals=loadBrowserModule('js/standards-visuals.js','StandardsVisuals',{SriLankaStandards:registry});
 
 test('every reference standard has a relevant illustrated lesson',()=>{
-  const data=fs.readFileSync('js/standards.js','utf8').split('function render(container)')[0];
-  const ids=[...data.matchAll(/id: '([^']+)'/g)].map(m=>m[1]);
-  assert.equal(ids.length,19);
-  for(const id of ids)assert.ok(visuals.LESSONS[visuals.STANDARD_TOPICS[id]],`Missing lesson for ${id}`);
+  const entries=registry.getRecords();
+  assert.equal(entries.length,50);
+  for(const entry of entries)assert.ok(visuals.LESSONS[visuals.STANDARD_TOPICS[entry.id]],`Missing lesson for ${entry.id}`);
 });
 test('battery illustration agrees with the governing five-hour check at boundaries',()=>{
   for(const [power,energy] of [[5,25],[5,25.1],[6,30],[6,30.1],[10,50]]){

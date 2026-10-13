@@ -218,7 +218,7 @@ const Reports = (() => {
         y += 5.5;
       }
 
-      scRow('SPD — DC Side (IEC 61643-32 / SLS 1522)',  sc.spd_dc);
+      scRow('SPD — DC Side (IEC 61643-32 / SLS 1473)',  sc.spd_dc);
       scRow('SPD — AC Side',                            sc.spd_ac);
       scRow('Earthing Continuity (IEC 60364-7-712)',    sc.earthing_cont);
       if (sc.earthing_resistance) scRow('Earth Resistance',  sc.earthing_resistance + ' Ω');
