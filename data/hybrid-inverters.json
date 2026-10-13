@@ -1,6 +1,6 @@
 {
-  "version": "2026-04-09",
-  "source": "Approved-list staging workbook for hybrid inverter coverage + preserved legacy entries",
+  "version": "2026-10-13",
+  "source": "Approved-list staging workbook for hybrid inverter coverage + preserved legacy entries; manufacturer-only MG5RL/MG6RL reference specifications (not approval evidence)",
   "inverters": [
     {
       "id": "deye_sun_10k_sg03lp3_eu",
@@ -2014,6 +2014,86 @@
       "datasheetRev": "48/5000 (engineering reference)",
       "datasheetUrl": "",
       "note": "Inverter-charger; MPPT checks only apply with external MPPT data."
+    },
+    {
+      "id": "sungrow_mg5rl",
+      "manufacturer": "Sungrow",
+      "model": "MG5RL",
+      "topology": "hybrid",
+      "acRated_kW": 5,
+      "surge_kW": 10,
+      "surge_s": 10,
+      "phase": 1,
+      "batteryBus_V": 48,
+      "maxCharge_A": 120,
+      "maxDischarge_A": 120,
+      "maxPv_kW": 10,
+      "usablePv_kW": 8,
+      "maxDcVoc_V": 500,
+      "mpptMin_V": 40,
+      "mpptMax_V": 425,
+      "mpptCount": 2,
+      "maxCurrentPerMppt_A": 20,
+      "maxIscPerMppt_A": 25,
+      "stringsPerMppt": 1,
+      "batteryMinV": 40,
+      "batteryMaxV": 60,
+      "efficiencyPct": 96.7,
+      "ipRating": "IP65",
+      "supportedProfiles": [
+        "offgrid",
+        "ceb_2025",
+        "leco_2025"
+      ],
+      "utilityListed": {
+        "ceb_2025": false,
+        "leco_2025": false
+      },
+      "listingSource": {},
+      "datasheetRev": "Supplied MG5/6RL training pp. 4-6, 22-28",
+      "sourceConfidence": "manufacturer-reference",
+      "note": "Reference limits only. Verify exact local SLSEA/DL approval, fitted AFCI and Pylontech-compatible battery protocol; the training deck is not an approval certificate.",
+      "mpptRatedMin_V": 230
+    },
+    {
+      "id": "sungrow_mg6rl",
+      "manufacturer": "Sungrow",
+      "model": "MG6RL",
+      "topology": "hybrid",
+      "acRated_kW": 6,
+      "surge_kW": 12,
+      "surge_s": 10,
+      "phase": 1,
+      "batteryBus_V": 48,
+      "maxCharge_A": 135,
+      "maxDischarge_A": 135,
+      "maxPv_kW": 12,
+      "usablePv_kW": 9.6,
+      "maxDcVoc_V": 500,
+      "mpptMin_V": 40,
+      "mpptMax_V": 425,
+      "mpptCount": 2,
+      "maxCurrentPerMppt_A": 20,
+      "maxIscPerMppt_A": 25,
+      "stringsPerMppt": 1,
+      "batteryMinV": 40,
+      "batteryMaxV": 60,
+      "efficiencyPct": 96.7,
+      "ipRating": "IP65",
+      "supportedProfiles": [
+        "offgrid",
+        "ceb_2025",
+        "leco_2025"
+      ],
+      "utilityListed": {
+        "ceb_2025": false,
+        "leco_2025": false
+      },
+      "listingSource": {},
+      "datasheetRev": "Supplied MG5/6RL training pp. 4-6, 22-28",
+      "sourceConfidence": "manufacturer-reference",
+      "note": "Reference limits only. Verify exact local SLSEA/DL approval, fitted AFCI and Pylontech-compatible battery protocol; the training deck is not an approval certificate.",
+      "mpptRatedMin_V": 230
     }
   ]
 }

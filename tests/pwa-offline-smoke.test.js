@@ -10,6 +10,7 @@ function bootServiceWorker(options) {
 
   const handlers = {};
   const addAllCalls = [];
+  const addAllRequests = [];
   const deletedKeys = [];
 
   const cacheObj = {
@@ -18,10 +19,12 @@ function bootServiceWorker(options) {
       return undefined;
     },
     addAll: async assets => {
-      addAllCalls.push(assets);
+      addAllRequests.push(assets);
+      addAllCalls.push(assets.map(asset => typeof asset === 'string' ? asset : asset.url));
       if (opts.rejectSecondAddAll && addAllCalls.length === 2) {
         throw new Error('CDN unavailable');
       }
+      if (opts.neverResolveCDN && addAllCalls.length === 2) return new Promise(() => {});
     },
     put: async () => {}
   };
@@ -51,11 +54,14 @@ function bootServiceWorker(options) {
     fetch: opts.fetch || (async () => ({ status: 200, clone() { return this; } })),
     Promise,
     console,
+    setTimeout: opts.fastTimeout ? fn => { queueMicrotask(fn); return 1; } : setTimeout,
+    clearTimeout: opts.fastTimeout ? () => {} : clearTimeout,
+    Request: class { constructor(url,options) { this.url=url;this.cache=options.cache; } },
   });
 
   vm.runInContext(source, context, { filename: 'sw.js' });
 
-  return { handlers, addAllCalls, deletedKeys };
+  return { handlers, addAllCalls, addAllRequests, deletedKeys };
 }
 
 test('service worker install caches local assets even if CDN caching fails', async () => {
@@ -149,4 +155,13 @@ test('every local script and stylesheet in the app shell is precached and exists
     assert.ok(sw.addAllCalls[0].includes(ref), `Missing precache asset: ${ref}`);
     assert.ok(fs.existsSync(path.resolve(process.cwd(), ref.split('?')[0])), `Missing local file: ${ref}`);
   }
+});
+
+test('an unresponsive optional CDN cannot hold a new rule cache installation forever', async () => {
+  const sw=bootServiceWorker({neverResolveCDN:true,fastTimeout:true});
+  let promise;
+  sw.handlers.install({waitUntil:p=>{promise=p;}});
+  await promise;
+  assert.ok(sw.addAllCalls[0].some(url => url.startsWith('./js/directives-2026.js?v=')));
+  assert.ok(sw.addAllRequests[0].every(request=>request.cache==='reload'));
 });

@@ -38,6 +38,10 @@ const UtilityValidator = (() => {
       const el = container.querySelector(`#uv-${item.key}`);
       patch[item.key] = !!(el && el.checked);
     });
+    if (typeof DirectiveUI !== 'undefined') {
+      patch.directivePolicy=DirectiveUI.read(container,'uv-policy');
+      if(patch.inverterModelId!==vm.inputs.inverterModelId) patch.directivePolicy.evidence={providerRegistered:patch.directivePolicy.evidence.providerRegistered===true};
+    }
     return patch;
   }
 
@@ -87,7 +91,7 @@ const UtilityValidator = (() => {
 
     const missingHtml = (us.missingDocuments && us.missingDocuments.length)
       ? `<div class="warn-box"><strong>Missing documents:</strong> ${_esc(us.missingDocuments.join(' | '))}</div>`
-      : '<div class="info-box">All required submission documents are marked as provided.</div>';
+      : '<div class="info-box">Legacy export-document checklist has no missing items. The 2026 evidence review must also be complete.</div>';
 
     const packReadyLabel = packState.ready ? 'READY' : 'BLOCKED';
     const packReadyBadge = _statusBadge(packState.ready ? 'pass' : 'fail');
@@ -182,6 +186,7 @@ const UtilityValidator = (() => {
     }
 
     _renderPage(container, vm, packState);
+    if (typeof DirectiveUI !== 'undefined') container.querySelector('.page-title').insertAdjacentHTML('afterend',DirectiveUI.form('uv-policy',vm.inputs.directivePolicy||{connection:vm.inputs.exportMode==='export'?'grid_export':'zero_export'})+DirectiveUI.review(vm.utilitySubmission?.directiveReview));
 
     const applyState = async (showToast) => {
       if (typeof HybridSetup.updateUtilitySubmissionState === 'function') {
@@ -195,7 +200,7 @@ const UtilityValidator = (() => {
     };
 
     container.querySelectorAll('input[type="checkbox"], select').forEach(el => {
-      el.addEventListener('change', () => { void applyState(false); });
+      if(!el.closest('.directive-form')) el.addEventListener('change', () => { void applyState(false); });
     });
 
     const runBtn = container.querySelector('#uv-run-btn');

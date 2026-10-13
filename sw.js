@@ -2,32 +2,32 @@
  * sw.js — Service Worker (cache-first offline support)
  */
 
-const CACHE_NAME = 'solarpv-v30';
+const CACHE_NAME = 'solarpv-v38';
 const CACHE_PREFIX = 'solarpv-v';
 
 const LOCAL_ASSETS = [
   './',
   './index.html',
   './manifest.json',
-  './css/style.css',
-  './css/style.css?v=12',
-  './css/workspace.css?v=3',
-  './icons/solar-mark.svg',
   './data/pv-modules.json',
   './data/grid-inverters.json',
   './data/hybrid-inverters.json',
   './data/hybrid-batteries.json',
-  './js/catalog-store.js',
+  './data/lk-costs.json',
+  './icons/solar-mark.svg',
+  './css/style.css?v=12',
+  './css/workspace.css?v=4',
+  './js/catalog-store.js?v=20261013-4',
   './js/db.js',
+  './js/directives-2026.js?v=20261013-4',
+  './js/standards-rules.js?v=20261013-4',
   './js/pv-calc.js',
-  './js/standards-rules.js',
   './js/standards-calc.js',
   './js/sizing.js',
   './js/wire-calc.js',
-  './js/hybrid.js',
-  './js/utility-validator.js',
+  './js/hybrid.js?v=20261013-4',
+  './js/utility-validator.js?v=20261013-4',
   './js/temp-correct.js',
-  './js/field-test.js',
   './js/field-test.js?v=3',
   './js/fault.js',
   './js/inspection.js',
@@ -40,23 +40,35 @@ const LOCAL_ASSETS = [
   './js/inverter-perf.js',
   './js/shading.js',
   './js/yield-estimator.js?v=4',
-  './js/system-designer.js',
-  './js/system-designer.js?v=2',
+  './js/system-designer.js?v=20261013-4',
   './js/pv-inspector.js',
   './js/fault-ai.js',
-  './js/checklist.js',
   './js/checklist.js?v=2',
-  './js/report-builder.js',
   './js/report-builder.js?v=2',
   './js/cable-schedule.js',
   './js/basic-calc.js',
-  './js/financials.js',
+  './js/financials.js?v=20261013-4',
   './js/roof-layout.js',
-  './data/lk-costs.json',
   './js/firebase-sync.js',
-  './js/app.js',
-  './js/app.js?v=14',
   './js/workspace-ui.js?v=2',
+  './js/directives-ui.js?v=20261013-4',
+  './js/app.js?v=20261013-4',
+  './css/style.css',
+  './css/workspace.css',
+  './js/catalog-store.js',
+  './js/directives-2026.js',
+  './js/standards-rules.js',
+  './js/hybrid.js',
+  './js/utility-validator.js',
+  './js/field-test.js',
+  './js/yield-estimator.js',
+  './js/system-designer.js',
+  './js/checklist.js',
+  './js/report-builder.js',
+  './js/financials.js',
+  './js/workspace-ui.js',
+  './js/directives-ui.js',
+  './js/app.js',
 ];
 
 const CDN_ASSETS = [
@@ -69,9 +81,13 @@ self.addEventListener('install', event => {
   event.waitUntil(
     caches.open(CACHE_NAME).then(cache => {
       // Cache local assets (must succeed)
-      const local = cache.addAll(LOCAL_ASSETS);
+      const local = cache.addAll(LOCAL_ASSETS.map(url => new Request(url, { cache: 'reload' })));
       // Cache CDN assets (best-effort — don't fail install if offline)
-      const cdn = cache.addAll(CDN_ASSETS).catch(() => {});
+      let cdnTimeout;
+      const cdn = Promise.race([
+        cache.addAll(CDN_ASSETS).catch(() => {}),
+        new Promise(resolve => { cdnTimeout = setTimeout(resolve, 3000); })
+      ]).finally(() => clearTimeout(cdnTimeout));
       return Promise.all([local, cdn]);
     }).then(() => self.skipWaiting())
   );

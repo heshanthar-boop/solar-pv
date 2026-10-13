@@ -9,15 +9,10 @@
  *  - CEB Net Metering savings model (Sri Lanka tariff tiers)
  *  - CO2 savings (SL grid emission factor)
  *
- * Sri Lanka CEB tariff (2026 Q2, domestic net metering):
- *  Retail tiers: CEB Tariff Revision 2023 gazette, PUCSL rates (pending next retail revision)
- *  Tier 1: 0–30 units → Rs. 7.85/kWh
- *  Tier 2: 31–60 units → Rs. 10.00/kWh
- *  Tier 3: 61–90 units → Rs. 27.75/kWh
- *  Tier 4: 91–120 units → Rs. 32.00/kWh
- *  Tier 5: 121–180 units → Rs. 45.00/kWh
- *  Tier 6: >180 units → Rs. 50.00/kWh
- *  Net metering export credit: Rs. 28.70/kWh — NSO submission to PUCSL, April 2026 (Solar Rooftop Q2-2026)
+ * Current feed-in bands come from DirectiveRules (PUCSL decision effective 2026-08-25).
+ * Import energy rates are user-entered from the current bill/approved tariff.
+ * Historical retail helper functions are retained only for API compatibility.
+ * Net metering banks units and never creates a cash export payment.
  *
  * Grid emission factor: 0.584 kgCO2/kWh (SLSEA 2022, national average)
  */
@@ -28,7 +23,7 @@ var Financials = (() => {
   function _fmt(n, dec) { return Number(n).toLocaleString('en-LK', { minimumFractionDigits: dec || 0, maximumFractionDigits: dec || 0 }); }
 
   // -----------------------------------------------------------------------
-  // CEB TARIFF DATA (Sri Lanka 2026 Q2)
+  // HISTORICAL APPROXIMATION ONLY — not used for current projections
   // -----------------------------------------------------------------------
   const CEB_TIERS = [
     { max: 30,   rate: 7.85  },
@@ -38,7 +33,6 @@ var Financials = (() => {
     { max: 180,  rate: 45.00 },
     { max: Infinity, rate: 50.00 },
   ];
-  const NET_METER_EXPORT_RATE = 28.70; // Rs./kWh — NSO/PUCSL Q2-2026 Solar Rooftop rate
   const CO2_FACTOR_KG_PER_KWH = 0.584; // SLSEA 2022
 
   /**
@@ -87,31 +81,23 @@ var Financials = (() => {
    * @param {number} self_use_pct      - % of solar consumed on-site (default 60%)
    * @param {number} custom_rate       - override tariff rate (0 = use CEB tiers)
    */
-  function annualSavings(solar_annual_kWh, load_monthly_kWh, self_use_pct, custom_rate) {
-    self_use_pct = self_use_pct || 60;
-    const load_annual = load_monthly_kWh * 12;
-    const self_fraction = self_use_pct / 100;
-
-    const self_consumed = solar_annual_kWh * self_fraction;
-    const exported      = solar_annual_kWh * (1 - self_fraction);
-
-    const tariff = custom_rate > 0 ? custom_rate : effectiveTariff(load_monthly_kWh);
-    const savings_self   = self_consumed * tariff;
-    const savings_export = exported * NET_METER_EXPORT_RATE;
-    const total = savings_self + savings_export;
-
-    // Monthly bill before solar (estimate)
-    const bill_before = cebBill(load_monthly_kWh) * 12;
-    // Monthly bill after solar (remaining consumption)
-    const residual_monthly = Math.max(0, load_monthly_kWh - self_consumed / 12);
-    const bill_after = cebBill(residual_monthly) * 12;
-
-    return {
-      self_consumed, exported, tariff,
-      savings_self, savings_export, total,
-      bill_before, bill_after,
-      bill_reduction_pct: bill_before > 0 ? (total / bill_before * 100) : 0,
-    };
+  function annualSavings(solar_annual_kWh, load_monthly_kWh, self_use_pct, custom_rate, options = {}) {
+    if (!(custom_rate > 0)) throw new Error('Enter the effective import energy rate from the current bill or approved tariff.');
+    if (![solar_annual_kWh,load_monthly_kWh,self_use_pct,custom_rate].every(Number.isFinite) || solar_annual_kWh<0 || load_monthly_kWh<0 || self_use_pct<0 || self_use_pct>100) throw new Error('Invalid energy or self-consumption inputs.');
+    const scheme=options.scheme||'net_metering', load_annual=load_monthly_kWh*12;
+    const direct=Array.isArray(options.periods)?options.periods.reduce((sum,p)=>sum+Math.max(0,Number(p.selfKwh)||0),0):solar_annual_kWh*self_use_pct/100;
+    const self_consumed=scheme==='net_plus'?0:Math.min(direct,load_annual);
+    const exported=scheme==='zero_export'||scheme==='offgrid'?0:Array.isArray(options.periods)?options.periods.reduce((sum,p)=>sum+Math.max(0,Number(p.otherKwh)||0)+Math.max(0,Number(p.priorityKwh)||0),0):Math.max(0,solar_annual_kWh-self_consumed);
+    const terms=options.terms || {scheme,status:'eligible',baseRate:0,priorityRate:0,priorityYears:0,exportCapPer30Days:null};
+    const priority=Math.min(exported,Math.max(0,Number(options.priorityKwh)||0));
+    const periods=options.periods || Array.from({length:12},(_,i)=>({otherKwh:(exported-priority)/12,priorityKwh:priority/12,importKwh:Math.max(0,load_annual-self_consumed)/12,days:[31,28,31,30,31,30,31,31,30,31,30,31][i]}));
+    const paid=DirectiveRules.settle(periods,{...terms,scheme},options.year||1,options.initialBankKwh||0);
+    const unit_offset=paid.offsetKwh;
+    const savings_self=(self_consumed+unit_offset)*custom_rate;
+    const savings_export=paid.amount===null?0:paid.amount;
+    const bill_before=load_annual*custom_rate;
+    const bill_after=Math.max(0,load_annual-self_consumed-unit_offset)*custom_rate;
+    return {self_consumed,exported,tariff:custom_rate,savings_self,savings_export,total:savings_self+savings_export,bill_before,bill_after,unit_offset,banked_units:paid.bankedKwh,paid_export_kWh:paid.paidKwh,settlementMethod:paid.method,bill_reduction_pct:bill_before>0?(bill_before-bill_after)/bill_before*100:0,unpaidKwh:paid.unpaidKwh||0,scheme,terms};
   }
 
   /**
@@ -157,21 +143,15 @@ var Financials = (() => {
    * Returns null if not convergent.
    */
   function irr(cashflows) {
-    let r = 0.1; // initial guess 10%
-    for (let iter = 0; iter < 100; iter++) {
-      let f = 0, df = 0;
-      for (let t = 0; t < cashflows.length; t++) {
-        const denom = Math.pow(1 + r, t);
-        f  += cashflows[t] / denom;
-        df -= t * cashflows[t] / Math.pow(1 + r, t + 1);
-      }
-      if (Math.abs(df) < 1e-12) break;
-      const r_new = r - f / df;
-      if (Math.abs(r_new - r) < 1e-6) { r = r_new; break; }
-      r = r_new;
-      if (r < -0.99 || r > 10) return null; // diverged
-    }
-    return r * 100; // percent
+    if(!Array.isArray(cashflows)||!cashflows.every(Number.isFinite))return null;
+    const signs=cashflows.filter(v=>v!==0).map(v=>Math.sign(v));
+    if(signs[0]!==-1||signs.filter((v,i)=>i>0&&v!==signs[i-1]).length!==1)return null;
+    const f=rate=>cashflows.reduce((sum,cf,y)=>sum+cf/Math.pow(1+rate,y),0);
+    let lo=-0.9999,hi=1;
+    while(f(hi)>0&&hi<1e6)hi*=2;
+    if(!Number.isFinite(f(lo))||f(lo)<0||f(hi)>0)return null;
+    for(let i=0;i<200;i++){const mid=(lo+hi)/2,value=f(mid);if(Math.abs(value)<1e-7)return mid*100;if(value>0)lo=mid;else hi=mid;}
+    return (lo+hi)/2*100;
   }
 
   /**
@@ -207,7 +187,7 @@ var Financials = (() => {
         <div class="page-title">&#128176; Financial Analysis</div>
 
         <div class="info-box">
-          ROI, payback, NPV, IRR, LCOE — based on CEB 2026 Q2 net metering tariffs (Sri Lanka).
+          Scheme-aware projection using the August 2026 feed-in decision. Enter the current effective import energy rate; fixed charges and exact utility billing are outside this planning model.
           ${yr ? `<br>&#9989; Yield data loaded from Yield Estimator: <strong>${_esc(solarKwh)} kWh/yr</strong>` : ''}
         </div>
 
@@ -252,12 +232,12 @@ var Financials = (() => {
               <div class="form-hint">Grid-tie with daytime loads: 60–75%</div>
             </div>
             <div class="form-group">
-              <label class="form-label">Tariff Override (Rs./kWh)</label>
-              <input class="form-input" id="fi-tariff-custom" type="number" step="0.5" value="0" placeholder="0 = use CEB tiers" />
-              <div class="form-hint">0 = auto from CEB 2026 Q2 tiers</div>
+              <label class="form-label">Current Import Energy Rate (LKR/kWh)</label>
+              <input class="form-input" id="fi-tariff-custom" type="number" step="0.01" min="0.01" required placeholder="From current bill / tariff" />
+              <div class="form-hint">Use the applicable marginal/effective energy rate; the old 2023 tier table is not applied automatically.</div>
             </div>
           </div>
-          <button class="btn btn-secondary btn-sm" id="fi-show-tiers-btn">Show CEB Tariff Tiers</button>
+          <button class="btn btn-secondary btn-sm" id="fi-show-tiers-btn">Show Approved Feed-in Bands</button>
           <div id="fi-tiers-detail" class="hidden" style="margin-top:8px"></div>
         </div>
 
@@ -275,13 +255,13 @@ var Financials = (() => {
               <div class="form-hint">Sri Lanka bank rate ~9–12%</div>
             </div>
             <div class="form-group">
-              <label class="form-label">Tariff Escalation (%/yr)</label>
-              <input class="form-input" id="fi-esc" type="number" step="0.5" value="5" />
-              <div class="form-hint">CEB tariff avg increase ~5–8%/yr historically</div>
+              <label class="form-label">Import Energy Rate Escalation (%/yr)</label>
+              <input class="form-input" id="fi-esc" type="number" step="0.5" value="0" />
+              <div class="form-hint">Planning assumption for avoided import costs only. Approved rooftop feed-in rates are held fixed.</div>
             </div>
             <div class="form-group">
               <label class="form-label">Panel Degradation (%/yr)</label>
-              <input class="form-input" id="fi-deg" type="number" step="0.1" value="0.5" />
+              <input class="form-input" id="fi-deg" type="number" step="0.1" value="0.4" />
               <div class="form-hint">Tier-1 mono: 0.4–0.5%/yr</div>
             </div>
           </div>
@@ -293,6 +273,13 @@ var Financials = (() => {
       </div>
     `;
 
+    const donor = App.state.designerResults;
+    container.querySelector('#fi-calc-btn').insertAdjacentHTML('beforebegin', DirectiveUI.tariffForm('fi-fit', donor?.fitInputs||{}));
+    const lifeInput=container.querySelector('#fi-life');
+    lifeInput.closest('.form-group').insertAdjacentHTML('afterend', `<div class="form-group"><label class="form-label" for="fi-contract-years">Remaining PV SPPA Term (years)</label><input class="form-input" id="fi-contract-years" type="number" min="1" max="40" value="20"/><div class="form-hint">Planning term until replaced by the signed agreement. Feed-in income stops after this term; no renewal tariff is assumed.</div></div><div class="form-group"><label class="form-label" for="fi-battery-fade">Battery Capacity Degradation (%/yr)</label><input class="form-input" id="fi-battery-fade" type="number" min="0" max="20" step="0.1" value="1.6"/><div class="form-hint">PUCSL prosumer tariff-model assumption; replace with project warranty data.</div></div><div class="form-group"><label class="form-label" for="fi-priority-kwh">Measured / Estimated Priority Export (kWh/year)</label><input class="form-input" id="fi-priority-kwh" type="number" min="0" value="${donor?.dispatch?donor.dispatch.total.priorityKwh.toFixed(1):0}"/><div class="form-hint">Used only without a linked dispatch model. Declare exported energy for the 17:30–21:30 window, not battery nominal capacity.</div></div>`);
+    if (donor?.selfUse) {container.querySelector('#fi-load').value=(donor.annualLoad/12).toFixed(1);container.querySelector('#fi-selfuse').value=(donor.selfUse.selfUseRatio*100).toFixed(1);}
+    container.addEventListener('input',e=>{if(!e.target.closest('#fi-results'))container.querySelector('#fi-results').classList.add('hidden');});
+    container.addEventListener('change',()=>container.querySelector('#fi-results').classList.add('hidden'));
     container.querySelector('#fi-calc-btn').addEventListener('click', () => {
       App.btnSpinner(container.querySelector('#fi-calc-btn'), () => _calculate(container));
     });
@@ -303,26 +290,36 @@ var Financials = (() => {
     const el = container.querySelector('#fi-tiers-detail');
     const btn = container.querySelector('#fi-show-tiers-btn');
     if (el.classList.contains('hidden')) {
-      el.innerHTML = `
-        <table class="status-table">
-          <thead><tr><th>Units (kWh/month)</th><th>Rate (Rs./kWh)</th></tr></thead>
-          <tbody>
-            <tr><td>1 – 30</td><td>Rs. 7.85</td></tr>
-            <tr><td>31 – 60</td><td>Rs. 10.00</td></tr>
-            <tr><td>61 – 90</td><td>Rs. 27.75</td></tr>
-            <tr><td>91 – 120</td><td>Rs. 32.00</td></tr>
-            <tr><td>121 – 180</td><td>Rs. 45.00</td></tr>
-            <tr><td>&gt; 180</td><td>Rs. 50.00</td></tr>
-            <tr style="border-top:2px solid var(--border)"><td>Net Metering Export Credit</td><td><strong>Rs. 28.70</strong> <small>(Q2-2026)</small></td></tr>
-          </tbody>
-        </table>
-        <div style="font-size:0.75rem;color:var(--text-muted);margin-top:4px">Retail tiers: CEB 2023 gazette (PUCSL). Export credit: NSO–PUCSL submission Apr 2026 (Q2 Solar Rooftop rate Rs. 28.70). Verify current rates with CEB.</div>`;
+      el.innerHTML = `<table class="status-table"><thead><tr><th>New rooftop contracted AC capacity</th><th>Feed-in rate</th></tr></thead><tbody><tr><td>Up to 10 kW</td><td>23.11 LKR/kWh</td></tr><tr><td>Above 10 to 40 kW</td><td>19.15 LKR/kWh</td></tr><tr><td>Above 40 to 250 kW</td><td>17.11 LKR/kWh</td></tr><tr><td>Above 250 kW</td><td>15.81 LKR/kWh</td></tr></tbody></table><div class="form-hint">Valid clearance dated on/after 25 August 2026 is required. BESS priority tariffs have separate eligibility checks; net metering has no cash export payment. <a href="${DirectiveRules.SOURCES.tariffs.url}" target="_blank" rel="noopener noreferrer">Approved tariff source</a></div>`;
       el.classList.remove('hidden');
-      btn.textContent = 'Hide CEB Tariff Tiers';
+      btn.textContent = 'Hide Feed-in Bands';
     } else {
       el.classList.add('hidden');
-      btn.textContent = 'Show CEB Tariff Tiers';
+      btn.textContent = 'Show Approved Feed-in Bands';
     }
+  }
+
+  function projectCashflows(options) {
+    const {capex,solarKwh,load,selfUse,tariffOvr,life,disc,esc,deg,om,contractYears,batteryFade=0.016,priorityKwh=0,fit,terms,donor=null}=options;
+    const cashflows=[-capex],deliveredEnergy=[];
+    let npvValue=-capex;
+    for(let y=1;y<=life;y++) {
+      const pvFactor=Math.pow(1-deg/100,y-1), importRate=tariffOvr*Math.pow(1+esc/100,y-1);
+      let yearPeriods, yearSelfUse=selfUse, yearSolar=solarKwh*pvFactor, yearDelivered=yearSolar;
+      if(!!donor) {
+        const yearly=DirectiveRules.dispatch(donor.monthly.map(m=>({...m,E_mon:m.E_mon*pvFactor})),load*12,{profile:donor.profile.id,usableKwh:donor.system.batteryUsable_kWh*Math.pow(1-batteryFade,y-1),monthlyLoadKwh:donor.dispatchOptions.monthlyLoadKwh,rtePct:donor.dispatchOptions.rtePct,chargeKW:donor.dispatchOptions.chargeKW,dischargeKW:donor.dispatchOptions.dischargeKW,pvPowerKW:donor.system.P_ac,exportKW:donor.policy.connection==='grid_export'?donor.policy.approvedExportKW:0,mode:fit.scheme==='net_plus'?'net_plus':fit.applicant.includes('bess')?'priority_export':'self_consumption'});
+        yearDelivered=yearly.total.selfKwh+yearly.total.exportKwh;
+        yearPeriods=yearly.monthly;yearSelfUse=yearSolar>0?yearly.total.selfKwh/yearSolar*100:0;
+      }
+      const yearTerms={...terms,status:y-1<Math.min(contractYears,fit.applicant==='retrofit_bess'?Number(fit.remainingYears):contractYears)?'eligible':'expired',contractLimitYears:Math.min(contractYears,fit.applicant==='retrofit_bess'?Number(fit.remainingYears):contractYears)};
+      const yr=annualSavings(yearSolar,load,yearSelfUse,importRate,{scheme:fit.scheme,terms:yearTerms,year:y,priorityKwh:priorityKwh*pvFactor,periods:yearPeriods});
+      if(!donor&&(fit.scheme==='zero_export'||fit.scheme==='offgrid'))yearDelivered=yr.self_consumed;
+      deliveredEnergy.push(yearDelivered);
+      const cf=yr.total-om;
+      npvValue+=cf/Math.pow(1+disc/100,y);cashflows.push(cf);
+    }
+    return {npv:npvValue,cashflows,deliveredEnergy};
+
   }
 
   function _calculate(container) {
@@ -331,31 +328,43 @@ var Financials = (() => {
     const kwp      = parseFloat(container.querySelector('#fi-kwp').value);
     const om       = parseFloat(container.querySelector('#fi-om').value) || 0;
     const load     = parseFloat(container.querySelector('#fi-load').value);
-    const selfUse  = parseFloat(container.querySelector('#fi-selfuse').value) || 65;
+    const selfUse  = Number(container.querySelector('#fi-selfuse').value);
     const tariffOvr= parseFloat(container.querySelector('#fi-tariff-custom').value) || 0;
-    const life     = parseInt(container.querySelector('#fi-life').value) || 25;
-    const disc     = parseFloat(container.querySelector('#fi-discount').value) || 10;
-    const esc      = parseFloat(container.querySelector('#fi-esc').value) || 5;
-    const deg      = parseFloat(container.querySelector('#fi-deg').value) || 0.5;
+    const life     = Number(container.querySelector('#fi-life').value);
+    const disc     = Number(container.querySelector('#fi-discount').value);
+    const esc      = Number(container.querySelector('#fi-esc').value);
+    const deg      = Number(container.querySelector('#fi-deg').value);
 
     if (isNaN(capex) || capex <= 0) { App.toast('Enter system cost', 'error'); return; }
     if (isNaN(solarKwh) || solarKwh <= 0) { App.toast('Enter annual solar yield', 'error'); return; }
     if (isNaN(load) || load <= 0) { App.toast('Enter monthly consumption', 'error'); return; }
 
-    // Year-1 savings
-    const sav = annualSavings(solarKwh, load, selfUse, tariffOvr);
+    if (!(tariffOvr>0)) {App.toast('Enter the current import energy rate from your bill or approved tariff','error');return;}
+    const fit=DirectiveUI.readTariff(container,'fi-fit'), donor=App.state.designerResults;
+    const terms=DirectiveRules.tariff({...fit,usableKwh:fit.usableKwh??donor?.system?.batteryUsable_kWh??0});
+    container.querySelector('#fi-fit-tariff-preview').innerHTML=DirectiveUI.tariffSummary(terms);
+    if (terms.status!=='eligible') {App.toast('Resolve tariff eligibility or select the existing signed-SPPA option','warning');return;}
+    const contractYears=Number(container.querySelector('#fi-contract-years').value), batteryFade=Number(container.querySelector('#fi-battery-fade').value)/100;
+    const priorityKwh=Number(container.querySelector('#fi-priority-kwh').value);
+    if (![capex,solarKwh,om,load,selfUse,tariffOvr,life,disc,esc,deg,contractYears,batteryFade,priorityKwh].every(Number.isFinite)||om<0||batteryFade<0||batteryFade>=1||!(contractYears>0)||!Number.isInteger(life)||life<1||life>40||selfUse<0||selfUse>100||deg<0||deg>=100||disc<0||esc<0||!Number.isFinite(priorityKwh)||priorityKwh<0) {App.toast('Check financial percentages, export energy and agreement term','error');return;}
+    const linked=donor?.dispatch&&Math.abs(solarKwh-donor.summary.E_annual)<1&&Math.abs(load*12-donor.annualLoad)<2&&['installation','billingClass','scheme','applicant','capacityKW','existingRate','remainingYears','clearanceDate','usableKwh'].every(k=>String(fit[k]??'')===String(donor.fitInputs?.[k]??''))&&Math.abs(selfUse-donor.selfUse.selfUseRatio*100)<0.2;
+    const periods=linked?donor.dispatch.monthly:undefined;
+    const sav = annualSavings(solarKwh,load,selfUse,tariffOvr,{scheme:fit.scheme,terms,priorityKwh,periods});
+    const npvRes=projectCashflows({capex,solarKwh,load,selfUse,tariffOvr,life,disc,esc,deg,om,contractYears,batteryFade,priorityKwh,fit,terms,donor:linked?donor:null});
 
     // SPP
-    const spp = simplePayback(capex, sav.total);
+    const spp = simplePayback(capex, sav.total-om);
 
     // NPV + cash flows
-    const npvRes = npv(capex, sav.total, disc, esc, deg, life, om);
+    // Cash flows hold FIT rates fixed, end payments at the declared agreement term and apply battery fade separately.
 
     // IRR
     const irrVal = irr(npvRes.cashflows);
 
     // LCOE
-    const lcoeVal = lcoe(capex, om, disc, life, solarKwh, deg);
+    const discountedCosts=capex+npvRes.deliveredEnergy.reduce((sum,_,i)=>sum+om/Math.pow(1+disc/100,i+1),0);
+    const discountedEnergy=npvRes.deliveredEnergy.reduce((sum,e,i)=>sum+e/Math.pow(1+disc/100,i+1),0);
+    const lcoeVal=discountedEnergy>0?discountedCosts/discountedEnergy:Infinity;
 
     // CO2 savings
     const co2_annual = solarKwh * CO2_FACTOR_KG_PER_KWH / 1000; // tonnes/yr
@@ -420,21 +429,22 @@ var Financials = (() => {
 
       <!-- SAVINGS BREAKDOWN -->
       <div class="card">
-        <div class="card-title">&#9889; Year-1 Savings Breakdown</div>
+        <div class="card-title">Year-1 scheme-aware savings</div>
+        <div class="info-box">Settlement: ${_esc(d.sav.scheme)}. Net-metered surplus is banked as energy, not cash. This model offsets billing-period imports for Net Accounting before paying surplus; Net Metering carries credits within the modelled year. Historical credit ledgers and exact utility bills are not reconstructed. Banked surplus estimate: ${_fmt(d.sav.banked_units)} kWh.</div>
         <table class="status-table">
           <tbody>
             <tr><td>Solar Yield</td><td style="text-align:right">${_fmt(Math.round(d.solarKwh))} kWh/yr</td></tr>
-            <tr><td>Self-Consumed (${d.selfUse}%)</td><td style="text-align:right">${_fmt(Math.round(d.sav.self_consumed))} kWh/yr</td></tr>
-            <tr><td>Exported to Grid</td><td style="text-align:right">${_fmt(Math.round(d.sav.exported))} kWh/yr</td></tr>
-            <tr><td>Effective Tariff</td><td style="text-align:right">Rs. ${_fmt(d.sav.tariff.toFixed(2))}/kWh</td></tr>
-            <tr><td>Self-Consumption Savings</td><td style="text-align:right">Rs. ${_fmt(Math.round(d.sav.savings_self))}/yr</td></tr>
-            <tr><td>Export Credit (@ Rs. 22/kWh)</td><td style="text-align:right">Rs. ${_fmt(Math.round(d.sav.savings_export))}/yr</td></tr>
+            <tr><td>Self-Consumed (${(d.sav.self_consumed/d.solarKwh*100).toFixed(1)}%)</td><td style="text-align:right">${_fmt(Math.round(d.sav.self_consumed))} kWh/yr</td></tr>
+            <tr><td>Physical grid export</td><td style="text-align:right">${_fmt(Math.round(d.sav.exported))} kWh/yr</td></tr>
+            <tr><td>Paid export after netting / cap</td><td style="text-align:right">${_fmt(d.sav.paid_export_kWh)} kWh/yr</td></tr><tr><td>Effective Tariff</td><td style="text-align:right">Rs. ${_fmt(d.sav.tariff.toFixed(2))}/kWh</td></tr>
+            <tr><td>Self-consumption / unit-offset savings</td><td style="text-align:right">Rs. ${_fmt(Math.round(d.sav.savings_self))}/yr</td></tr>
+            <tr><td>Scheme-eligible cash export income</td><td style="text-align:right">Rs. ${_fmt(Math.round(d.sav.savings_export))}/yr</td></tr>
             <tr style="border-top:2px solid var(--border)">
               <td><strong>Total Annual Savings</strong></td>
               <td style="text-align:right;font-weight:700;color:var(--success)">Rs. ${_fmt(Math.round(d.sav.total))}/yr</td>
             </tr>
-            <tr><td>CEB Bill Before Solar</td><td style="text-align:right">Rs. ${_fmt(Math.round(d.sav.bill_before))}/yr</td></tr>
-            <tr><td>CEB Bill After Solar</td><td style="text-align:right">Rs. ${_fmt(Math.round(d.sav.bill_after))}/yr</td></tr>
+            <tr><td>Estimated energy cost before solar</td><td style="text-align:right">Rs. ${_fmt(Math.round(d.sav.bill_before))}/yr</td></tr>
+            <tr><td>Estimated energy cost after offsets</td><td style="text-align:right">Rs. ${_fmt(Math.round(d.sav.bill_after))}/yr</td></tr>
           </tbody>
         </table>
       </div>
@@ -444,7 +454,7 @@ var Financials = (() => {
         <div class="card-title">&#128200; Cumulative Cash Flow (${d.life} Years)</div>
         ${chartSvg}
         <div style="font-size:0.75rem;color:var(--text-muted);text-align:center;margin-top:4px">
-          Includes ${d.esc}% tariff escalation/yr, ${d.deg}%/yr panel degradation. Discount rate: ${d.disc}%.
+          Uses ${d.esc}% import-cost escalation/yr and ${d.deg}%/yr PV degradation. Rooftop FIT rates are fixed; agreement expiry and the 15-year priority period are applied. Discount rate: ${d.disc}%.
         </div>
       </div>
 
@@ -472,12 +482,12 @@ var Financials = (() => {
 
       <!-- LCOE CONTEXT -->
       <div class="card">
-        <div class="card-title">&#128218; LCOE Benchmarks (Sri Lanka 2026)</div>
+        <div class="card-title">&#128218; Delivered-energy LCOE and entered import energy rate</div>
         <table class="status-table">
           <tbody>
             <tr><td>This system LCOE</td><td style="text-align:right;font-weight:700;color:var(--primary)">Rs. ${_fmt(d.lcoeVal.toFixed(2))}/kWh</td></tr>
-            <tr><td>CEB avg residential tariff</td><td style="text-align:right">Rs. ~${_fmt(d.sav.tariff.toFixed(2))}/kWh</td></tr>
-            <tr><td>CEB high-use tier (&gt;180 kWh)</td><td style="text-align:right">Rs. 50.00/kWh</td></tr>
+            <tr><td>Entered import energy rate</td><td style="text-align:right">Rs. ~${_fmt(d.sav.tariff.toFixed(2))}/kWh</td></tr>
+
             <tr><td>Diesel generator (est.)</td><td style="text-align:right">Rs. 40–60/kWh</td></tr>
           </tbody>
         </table>
@@ -561,6 +571,6 @@ var Financials = (() => {
     </svg>`;
   }
 
-  return { render, cebBill, effectiveTariff, annualSavings, simplePayback, npv, irr, lcoe };
+  return { render, cebBill, effectiveTariff, annualSavings, simplePayback, npv, irr, lcoe, projectCashflows };
 
 })();

@@ -113,7 +113,7 @@ const SystemDesigner = (() => {
 
   function _getBatteries() {
     if (typeof CatalogStore !== 'undefined' && CatalogStore && typeof CatalogStore.getAllBatteries === 'function') {
-      try { return CatalogStore.getAllBatteries() || []; } catch (_) {}
+      try { const rows=CatalogStore.getAllBatteries() || []; return rows.concat(DirectiveRules.BATTERY_REFERENCES.filter(r=>!rows.some(b=>b.id===r.id))); } catch (_) {}
     }
     return [];
   }
@@ -158,37 +158,6 @@ const SystemDesigner = (() => {
     return rows;
   }
 
-  function _estimateSelfUse(annualPv, annualLoad, profile, batteryUsableKwh, pDc) {
-    const pv = Math.max(0, Number(annualPv) || 0);
-    const load = Math.max(0, Number(annualLoad) || 0);
-    const base = _clamp(Number(profile.baseSelfUse) || 0.4, 0.15, 0.85);
-    const battery = Math.max(0, Number(batteryUsableKwh) || 0);
-    const pdc = Math.max(0.1, Number(pDc) || 0.1);
-
-    const dailyPv = pv / 365;
-    const batteryShiftDays = dailyPv > 0 ? battery / dailyPv : 0;
-    const batteryBoost = _clamp(batteryShiftDays * 0.10, 0, 0.32);
-    const batteryDensityBoost = _clamp((battery / pdc) * 0.01, 0, 0.10);
-    const oversizePenalty = (load > 0 && pv > load)
-      ? _clamp((pv / load - 1) * 0.08, 0, 0.16)
-      : 0;
-
-    const selfUseRatio = _clamp(base + batteryBoost + batteryDensityBoost - oversizePenalty, 0.15, 0.97);
-    const selfConsumed_kWh = Math.min(pv * selfUseRatio, load);
-    const gridExport_kWh = Math.max(0, pv - selfConsumed_kWh);
-    const gridImport_kWh = Math.max(0, load - selfConsumed_kWh);
-
-    return {
-      selfUseRatio,
-      selfConsumed_kWh,
-      gridExport_kWh,
-      gridImport_kWh,
-      solarFraction: load > 0 ? (selfConsumed_kWh / load) : 0,
-      batteryBoost,
-      oversizePenalty,
-    };
-  }
-
   function _catalogLabel(panel, inverter, battery) {
     const tags = [];
     if (panel) tags.push('PV module');
@@ -198,44 +167,7 @@ const SystemDesigner = (() => {
   }
 
   function _componentSnapshot(panel, inverter, battery) {
-    return {
-      panel: panel ? {
-        id: panel.id,
-        manufacturer: panel.manufacturer,
-        model: panel.model,
-        Pmax: panel.Pmax,
-        Voc: panel.Voc,
-        Vmp: panel.Vmp,
-        Isc: panel.Isc,
-        Imp: panel.Imp,
-        coeffPmax: panel.coeffPmax,
-        NOCT: panel.NOCT,
-      } : null,
-      inverter: inverter ? {
-        id: inverter.id,
-        manufacturer: inverter.manufacturer,
-        model: inverter.model,
-        topology: inverter.topology,
-        acRated_kW: inverter.acRated_kW,
-        maxPv_kW: inverter.maxPv_kW,
-        maxDcVoc_V: inverter.maxDcVoc_V,
-        mpptMin_V: inverter.mpptMin_V,
-        mpptMax_V: inverter.mpptMax_V,
-        mpptCount: inverter.mpptCount,
-        batteryBus_V: inverter.batteryBus_V,
-      } : null,
-      battery: battery ? {
-        id: battery.id,
-        manufacturer: battery.manufacturer,
-        model: battery.model,
-        nominalV: battery.nominalV,
-        capacityAh: battery.capacityAh,
-        recommendedDod: battery.recommendedDod,
-        chemistry: battery.chemistry,
-        continuousCharge_A: battery.continuousCharge_A,
-        continuousDischarge_A: battery.continuousDischarge_A,
-      } : null,
-    };
+    return { panel: panel ? {...panel} : null, inverter: inverter ? {...inverter} : null, battery: battery ? {...battery} : null };
   }
 
   function _fmt(n, d) {
@@ -249,12 +181,12 @@ const SystemDesigner = (() => {
 
   function _renderResults(container, payload) {
     const r = payload;
-    const monthlyRows = r.monthly.map((m, i) => `
+    const monthlyRows = r.dispatch.monthly.map((m, i) => `
       <tr>
         <td>${_esc(m.monthName)}</td>
-        <td style="text-align:right">${_fmt(m.E_mon, 0)}</td>
+        <td style="text-align:right">${_fmt(m.pvKwh, 0)}</td>
         <td style="text-align:right">${_fmt(r.monthlyLoad[i].load_kWh, 0)}</td>
-        <td style="text-align:right">${_fmt(Math.max(0, m.E_mon - r.monthlyLoad[i].load_kWh), 0)}</td>
+        <td style="text-align:right">${_fmt(m.exportKwh, 0)}</td><td style="text-align:right">${_fmt(m.importKwh, 0)}</td><td style="text-align:right">${_fmt(m.batteryLossKwh, 0)}</td>
       </tr>
     `).join('');
 
@@ -267,21 +199,23 @@ const SystemDesigner = (() => {
       ? `${_esc(r.components.inverter.manufacturer)} ${_esc(r.components.inverter.model)} (${_esc(r.components.inverter.acRated_kW)} kW)`
       : 'Manual';
     const batteryRef = r.components && r.components.battery
-      ? `${_esc(r.components.battery.manufacturer)} ${_esc(r.components.battery.model)} (${_esc(r.components.battery.nominalV)}V, ${_esc(r.components.battery.capacityAh)}Ah)`
+      ? `${_esc(r.components.battery.manufacturer)} ${_esc(r.components.battery.model)} (${r.components.battery.usableEnergy_kWh>0?_esc(r.components.battery.usableEnergy_kWh)+' kWh declared usable':_esc(r.components.battery.nominalV)+'V, '+_esc(r.components.battery.capacityAh)+'Ah'})`
       : 'Not selected';
 
     const resultsDiv = container.querySelector('#sd-results');
     resultsDiv.classList.remove('hidden');
     resultsDiv.innerHTML = `
+      ${DirectiveUI.review(r.directiveReview)}
+      ${DirectiveUI.tariffSummary(r.tariff,r.exportRevenue)}
       <div class="card">
-        <div class="card-title">&#128200; Simulation Summary</div>
+        <div class="card-title">Draft design & simulation summary</div>
         <div class="btn-group" style="margin-bottom:10px">
           <span class="status-badge ${_esc(confidenceCls)}">${_esc(r.catalogLabel)}</span>
           <span class="status-badge ${_esc(dcacCls)}">DC/AC ${_esc(r.dcac.ratio.toFixed(2))}</span>
           <span class="status-badge badge-pass">Profile: ${_esc(r.profile.label)}</span>
         </div>
         <div class="result-grid-3">
-          <div class="result-box"><div class="result-value">${_fmt(r.summary.E_annual, 0)} kWh</div><div class="result-label">Annual PV Energy</div></div>
+          <div class="result-box"><div class="result-value">${_fmt(r.summary.E_annual, 0)} kWh</div><div class="result-label">Annual PV Potential</div></div>
           <div class="result-box"><div class="result-value">${_fmt(r.annualLoad, 0)} kWh</div><div class="result-label">Annual Load</div></div>
           <div class="result-box"><div class="result-value">${_fmt(r.annualLoad / 12, 1)} kWh</div><div class="result-label">Avg Monthly Load</div></div>
           <div class="result-box"><div class="result-value">${_fmt(r.annualLoad / 365, 2)} kWh</div><div class="result-label">Avg Daily Load</div></div>
@@ -315,7 +249,7 @@ const SystemDesigner = (() => {
               <th>Month</th>
               <th style="text-align:right">PV Energy (kWh)</th>
               <th style="text-align:right">Load (kWh)</th>
-              <th style="text-align:right">Surplus (kWh)</th>
+              <th style="text-align:right">Export (kWh)</th><th style="text-align:right">Import (kWh)</th><th style="text-align:right">Battery Loss (kWh)</th>
             </tr>
           </thead>
           <tbody>${monthlyRows}</tbody>
@@ -324,8 +258,7 @@ const SystemDesigner = (() => {
 
       <div class="info-box">
         <strong>Method note:</strong> PV generation uses the app yield physics (monthly irradiance, POA transposition,
-        temperature model, and configured losses). Self-consumption and grid exchange are estimated from selected load
-        profile and battery size heuristics, not sub-hourly measured load data.
+        temperature model, and configured losses). ${_esc(r.dispatch.method)} The AC-domain model is conservative for DC-coupled hybrids; DC-side capture above the AC conversion limit is not simulated. Battery/inverter AC-equivalent round-trip efficiency: ${_fmt(r.dispatchOptions.rtePct,1)}% (declared battery RTE × configured converter efficiency²). Grid charging is not assumed. Curtailed / clipped energy: ${_fmt(r.dispatch.total.curtailedKwh, 0)} kWh; battery losses: ${_fmt(r.dispatch.total.batteryLossKwh, 0)} kWh.
       </div>
     `;
 
@@ -334,7 +267,7 @@ const SystemDesigner = (() => {
   }
 
   async function render(container) {
-    if (typeof YieldEstimator === 'undefined' || !YieldEstimator || typeof YieldEstimator.simulateMonthly !== 'function') {
+    if (typeof DirectiveRules === 'undefined' || typeof DirectiveUI === 'undefined' || typeof YieldEstimator === 'undefined' || !YieldEstimator || typeof YieldEstimator.simulateMonthly !== 'function') {
       container.innerHTML = `
         <div class="page">
           <div class="card">
@@ -448,7 +381,7 @@ const SystemDesigner = (() => {
         </div>
 
         <div class="card">
-          <div class="card-title">3. Catalog Components</div>
+          <div class="card-title">3. Catalog and Manufacturer References</div>
           <div class="form-row cols-2">
             <div class="form-group">
               <label class="form-label">PV Module (database)</label>
@@ -470,7 +403,7 @@ const SystemDesigner = (() => {
               <label class="form-label">Battery (database)</label>
               <select class="form-select" id="sd-battery">
                 <option value="">No battery</option>
-                ${batteries.map(b => `<option value="${_esc(b.id)}">${_esc(b.manufacturer)} ${_esc(b.model)} (${_esc(b.nominalV)}V, ${_esc(b.capacityAh)}Ah)</option>`).join('')}
+                ${batteries.map(b => `<option value="${_esc(b.id)}">${_esc(b.manufacturer)} ${_esc(b.model)} (${b.usableEnergy_kWh>0?_esc(b.usableEnergy_kWh)+' kWh usable · manufacturer reference':_esc(b.nominalV)+'V, '+_esc(b.capacityAh)+'Ah'})</option>`).join('')}
               </select>
             </div>
             <div class="form-group">
@@ -524,10 +457,20 @@ const SystemDesigner = (() => {
           <button class="btn btn-secondary" id="sd-open-yield">&#10145; Open Detailed Yield Module</button>
         </div>
 
-        <div id="sd-results" class="hidden" style="margin-top:12px"></div>
+        <div class="btn-group mt-12"><button class="btn btn-secondary" id="sd-export-review">Export draft design JSON</button><button class="btn btn-secondary" id="sd-open-financials">Open scheme-aware financials</button></div><div id="sd-results" class="hidden" style="margin-top:12px"></div>
       </div>
     `;
 
+    container.querySelector('#sd-run').closest('.btn-group').insertAdjacentHTML('beforebegin', DirectiveUI.form('sd-policy') + DirectiveUI.tariffForm('sd-fit'));
+    let designDirty=true;
+    const markDesignDirty=e=>{if(e.target.closest('#sd-results'))return;designDirty=true;container.querySelector('#sd-results').classList.add('hidden');};
+    container.addEventListener('input',markDesignDirty);
+    container.addEventListener('change',markDesignDirty);
+    container.querySelector('#sd-policy-connection').addEventListener('change',e=>{
+      const scheme=container.querySelector('#sd-fit-scheme');
+      if(e.target.value!=='grid_export')scheme.value='zero_export';else if(scheme.value==='zero_export')scheme.value='net_accounting';
+    });
+    container.querySelector('#sd-policy-installation').addEventListener('change',e=>{container.querySelector('#sd-fit-installation').value=e.target.value;});
     const profileSel = container.querySelector('#sd-profile');
     const profileNote = container.querySelector('#sd-profile-note');
     const panelSel = container.querySelector('#sd-panel');
@@ -550,8 +493,10 @@ const SystemDesigner = (() => {
       noct: false,
       gamma: false,
       battery: false,
+      etaInv: false,
     };
 
+    container.querySelector('#sd-eta-inv').addEventListener('input',()=>{manual.etaInv=true;});
     pdcEl.addEventListener('input', () => { manual.pdc = true; });
     pacEl.addEventListener('input', () => { manual.pac = true; });
     noctEl.addEventListener('input', () => { manual.noct = true; });
@@ -602,6 +547,8 @@ const SystemDesigner = (() => {
     inverterSel.addEventListener('change', () => {
       const inv = inverters.find(i => String(i.id) === String(inverterSel.value));
       if (!inv) return;
+      DirectiveUI.updateModel(container, 'sd-policy', 'inverter', inv);
+      if(!manual.etaInv&&inv.efficiencyPct>0)container.querySelector('#sd-eta-inv').value=inv.efficiencyPct;
       const ac = Number(inv.acRated_kW);
       const maxPv = Number(inv.maxPv_kW);
       if (!manual.pac && Number.isFinite(ac) && ac > 0) pacEl.value = ac.toFixed(1);
@@ -613,23 +560,43 @@ const SystemDesigner = (() => {
 
     batterySel.addEventListener('change', () => {
       const bat = batteries.find(b => String(b.id) === String(batterySel.value));
+      manual.battery=false;
       if (!bat) {
+        DirectiveUI.updateModel(container, 'sd-policy', 'battery', null);
+        batteryKwhEl.value = '0';
         batteryKwhEl.readOnly = false;
         if (batteryKwhNoteEl) batteryKwhNoteEl.textContent = 'No battery selected. Enter usable battery manually or keep 0.';
         return;
       }
+      DirectiveUI.updateModel(container, 'sd-policy', 'battery', bat);
       const nominal = Number(bat.nominalV);
       const ah = Number(bat.capacityAh);
       const dod = Number.isFinite(Number(bat.recommendedDod)) ? Number(bat.recommendedDod) : 0.8;
-      if (!manual.battery && Number.isFinite(nominal) && Number.isFinite(ah) && nominal > 0 && ah > 0) {
-        const usable = nominal * ah * dod / 1000;
+      if (!manual.battery && (bat.usableEnergy_kWh>0 || Number.isFinite(nominal) && Number.isFinite(ah) && nominal > 0 && ah > 0)) {
+        const usable = bat.usableEnergy_kWh > 0 ? bat.usableEnergy_kWh : nominal * ah * dod / 1000;
         batteryKwhEl.value = usable.toFixed(1);
       }
-      batteryKwhEl.readOnly = true;
-      if (batteryKwhNoteEl) batteryKwhNoteEl.textContent = 'Auto-filled from selected battery record (V x Ah x DoD).';
+      batteryKwhEl.readOnly = bat.usableEnergy_kWh > 0;
+      if (batteryKwhNoteEl) batteryKwhNoteEl.textContent = bat.usableEnergy_kWh > 0 ? 'Manufacturer-declared usable energy (not derated a second time by DoD).' : 'Estimate from V × Ah × selected DoD; replace with the manufacturer usable-energy declaration for compliance review.';
       if (typeof App !== 'undefined' && App) App.toast(`Battery loaded: ${bat.manufacturer} ${bat.model}`, 'success');
     });
     batterySel.dispatchEvent(new Event('change'));
+    const unitInput = container.querySelector('#sd-policy-inverterCount');
+    unitInput.addEventListener('input', () => {
+      const inv=inverters.find(i=>i.id===inverterSel.value);
+      if(inv) pacEl.value=(inv.acRated_kW*Number(unitInput.value||1)).toFixed(2);
+    });
+    container.querySelector('#sd-policy-batteryUnits').addEventListener('input', () => {
+      const bat=batteries.find(b=>b.id===batterySel.value), count=Number(container.querySelector('#sd-policy-batteryUnits').value);
+      if(bat&&count>0) batteryKwhEl.value=((bat.usableEnergy_kWh>0?bat.usableEnergy_kWh:bat.nominalV*bat.capacityAh*bat.recommendedDod/1000)*count).toFixed(2);
+    });
+    container.querySelector('#sd-export-review').addEventListener('click', () => {
+      const r=App.state.designerResults;
+      if(!r||designDirty){App.toast('Run a simulation with the current inputs first','warning');return;}
+      const blob=new Blob([JSON.stringify({format:'solarpv.design-review.v2026',documentStatus:'DRAFT — decision support, not authority approval',project:App.getProject(),...r},null,2)],{type:'application/json'});
+      const url=URL.createObjectURL(blob), a=document.createElement('a');a.href=url;a.download='solarpv-design-review-2026.json';a.click();URL.revokeObjectURL(url);
+    });
+    container.querySelector('#sd-open-financials').addEventListener('click', () => {if(designDirty){App.toast('Run the current design before opening linked financials','warning');return;}App.navigate('financials');});
 
     container.querySelector('#sd-autosize').addEventListener('click', () => {
       const annualLoad = _num(annualLoadEl.value, 0);
@@ -639,7 +606,8 @@ const SystemDesigner = (() => {
       }
       const suggested = _suggestDcFromLoad(annualLoad);
       pdcEl.value = suggested.toFixed(2);
-      const pac = suggested / 1.2;
+      const chosenInv=inverters.find(i=>i.id===inverterSel.value);
+      const pac = chosenInv?chosenInv.acRated_kW*(Number(container.querySelector('#sd-policy-inverterCount').value)||1):suggested / 1.2;
       pacEl.value = pac.toFixed(2);
       if (typeof App !== 'undefined' && App) App.toast(`Suggested size: ${suggested.toFixed(2)} kWp DC`, 'success');
     });
@@ -683,17 +651,18 @@ const SystemDesigner = (() => {
         App.toast('Load and system ratings must be positive', 'error');
         return;
       }
+      if (!(etaInv>0&&etaInv<=1)||[lossCable,lossSoiling,lossMismatch,lossOther].some(v=>v<0||v>=1)||tilt<0||tilt>90||rho<0||rho>1||noct<=0||noct>100) {App.toast('Check efficiency, loss fractions, tilt, reflectance and NOCT ranges','error');return;}
       if (coeffPmax >= 0) {
         App.toast('Pmax temperature coefficient should be negative', 'error');
         return;
       }
 
       const losses = {
-        eta_inv: _clamp(etaInv, 0.7, 1),
-        L_cable: _clamp(lossCable, 0, 0.4),
-        L_soiling: _clamp(lossSoiling, 0, 0.4),
-        L_mismatch: _clamp(lossMismatch, 0, 0.3),
-        L_other: _clamp(lossOther, 0, 0.4),
+        eta_inv: etaInv,
+        L_cable: lossCable,
+        L_soiling: lossSoiling,
+        L_mismatch: lossMismatch,
+        L_other: lossOther,
       };
 
       const monthly = YieldEstimator.simulateMonthly(loc, pDc, noct, coeffPmax, tilt, azimuth, losses, _clamp(rho, 0, 1));
@@ -705,7 +674,7 @@ const SystemDesigner = (() => {
         SY_annual: monthly.reduce((s, m) => s + m.E_mon, 0) / pDc,
       };
       const monthlyLoad = _monthlyLoadSplit(annualLoad, profile);
-      const selfUse = _estimateSelfUse(summary.E_annual, annualLoad, profile, batteryUsable, pDc);
+      let selfUse;
 
       const panel = panels.find(p => String(p.id) === String(panelSel.value));
       const inverter = inverters.find(i => String(i.id) === String(inverterSel.value));
@@ -739,7 +708,24 @@ const SystemDesigner = (() => {
         }
       }
 
+      const policy = DirectiveUI.read(container, 'sd-policy');
+      const fitInputs = {...DirectiveUI.readTariff(container,'sd-fit'),usableKwh:batteryUsable};
+      const usableEnergyBasis=!battery?'user-declared':battery.usableEnergy_kWh>0?'manufacturer':manual.battery?'user-declared':'estimate';
+      const directiveReview = DirectiveRules.evaluate({...policy,usableEnergyBasis,inverter,panel,battery,inverterKW:pAc,usableKwh:batteryUsable,pvKW:pDc,batteryVoltage:policy.batteryVoltage??battery?.nominalV,chemistry:battery?.chemistry||policy.chemistry});
+      const tariff = DirectiveRules.tariff(fitInputs);
+      const count=Number(policy.inverterCount)||1, batteryCount=Number(policy.batteryUnits)||1;
+      const inverterCharge=inverter.maxCharge_A>0 ? inverter.maxCharge_A*(Number(policy.batteryMinV)||Number(battery?.nominalV)||inverter.batteryBus_V)/1000*count : pAc;
+      const inverterDischarge=inverter.maxDischarge_A>0 ? inverter.maxDischarge_A*(Number(policy.batteryMinV)||Number(battery?.nominalV)||inverter.batteryBus_V)/1000*count : pAc;
+      const batteryCharge=battery?.maxPower_kW>0?battery.maxPower_kW*batteryCount:battery?.continuousCharge_A>0?battery.continuousCharge_A*battery.nominalV/1000*batteryCount:pAc;
+      const batteryDischarge=battery?.maxPower_kW>0?battery.maxPower_kW*batteryCount:battery?.continuousDischarge_A>0?battery.continuousDischarge_A*battery.nominalV/1000*batteryCount:pAc;
+      const chargeKW=Math.min(Number(policy.chargeKW)||0,pAc,inverterCharge,batteryCharge), dischargeKW=Math.min(Number(policy.dischargeKW)||0,pAc,inverterDischarge,batteryDischarge);
+      const mode=fitInputs.scheme==='net_plus'?'net_plus':fitInputs.applicant.includes('bess')?'priority_export':'self_consumption';
+      const dispatchOptions={monthlyLoadKwh:monthlyLoad.map(m=>m.load_kWh),profile:profile.id,usableKwh:batteryUsable,rtePct:Number(policy.rtePct)*losses.eta_inv*losses.eta_inv,chargeKW,dischargeKW,pvPowerKW:pAc,exportKW:policy.connection==='offgrid'||policy.connection==='zero_export'?0:policy.approvedExportKW,mode};
+      const dispatch = DirectiveRules.dispatch(monthly,annualLoad,dispatchOptions);
+      selfUse={selfUseRatio:summary.E_annual>0?dispatch.total.selfKwh/summary.E_annual:0,selfConsumed_kWh:dispatch.total.selfKwh,gridExport_kWh:dispatch.total.exportKwh,gridImport_kWh:dispatch.total.importKwh,solarFraction:dispatch.total.selfKwh/annualLoad};
+      const exportRevenue=DirectiveRules.settle(dispatch.monthly,tariff);
       const payload = {
+        policy,fitInputs,usableEnergyBasis,directiveReview,tariff,exportRevenue,dispatch,dispatchOptions,
         date: (typeof App !== 'undefined' && App && typeof App.localDateISO === 'function') ? App.localDateISO() : '',
         location: { id: loc.id, name: loc.name, lat: loc.lat, lon: loc.lon },
         profile,
@@ -770,7 +756,9 @@ const SystemDesigner = (() => {
         };
       }
 
+      designDirty=false;
       _renderResults(container, payload);
+      container.querySelector('#sd-results').scrollIntoView({behavior:'smooth',block:'start'});
       App.toast('System Designer simulation completed', 'success');
     });
 
