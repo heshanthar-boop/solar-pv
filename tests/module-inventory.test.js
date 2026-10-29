@@ -32,13 +32,16 @@ test('site inventory rejects duplicate serials and assigns positions per string 
 });
 
 test('Excel export preserves leading zeroes and formula-like serials as text',()=>{
-  const a=inventory.makeRecord(site,'001234',1,null,'camera',moment);
+  const a=inventory.makeRecord(site,'001234',1,{latitude:6.91,longitude:79.86,accuracy:8,timestamp:moment.getTime()},'camera',moment);
   const b=inventory.makeRecord(site,'=1+1',2,null,'manual',moment);
   inventory.exportWorkbook([a,b],site.site);
   assert.match(saved.name,/\.xlsx$/);
   const book=XLSX.read(saved.data,{type:'base64'}),sheet=book.Sheets['Module inventory'];
   assert.equal(sheet.F2.v,'001234');assert.equal(sheet.F2.t,'s');
   assert.equal(sheet.F3.v,'=1+1');assert.equal(sheet.F3.t,'s');assert.equal(sheet.F3.f,undefined);
+  const restored=inventory.parseWorkbook(book);
+  assert.equal(restored.length,2);assert.equal(restored[0].serial,'001234');assert.equal(restored[0].scannedAt,moment.toISOString());assert.equal(restored[0].latitude,6.91);assert.equal(restored[0].operator,'Nimal');
+  sheet.F2={t:'n',v:1234};assert.throws(()=>inventory.parseWorkbook(book),/serial must be text/i);
 });
 
 test('large strings keep a bounded recent view while the site export includes every module',async()=>{

@@ -49,6 +49,7 @@ public class MainActivity extends Activity {
         setContentView(view, new FrameLayout.LayoutParams(-1, -1));
         WebSettings settings = view.getSettings();
         settings.setJavaScriptEnabled(true);
+        settings.setUserAgentString(settings.getUserAgentString() + " SolarPVFieldTool/1.0 (+https://heshanthar-boop.github.io/solar-pv/)");
         settings.setDomStorageEnabled(true);
         settings.setMediaPlaybackRequiresUserGesture(false);
         settings.setGeolocationEnabled(true);

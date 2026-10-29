@@ -2,7 +2,7 @@
  * sw.js — Fresh app navigation with cached offline assets
  */
 
-const CACHE_NAME = 'solarpv-v50';
+const CACHE_NAME = 'solarpv-v51';
 const CACHE_PREFIX = 'solarpv-v';
 
 const LOCAL_ASSETS = [
@@ -24,7 +24,12 @@ const LOCAL_ASSETS = [
   './css/module-inventory.css?v=1',
   './js/vendor/xlsx.full.min.js',
   './js/vendor/zxing.min.js',
-  './js/module-inventory.js?v=1',
+  './js/module-inventory.js?v=2',
+  './css/site-survey.css?v=1',
+  './js/site-survey.js?v=1',
+  './js/vendor/leaflet.css',
+  './js/vendor/leaflet.js',
+  './js/vendor/esri-leaflet.js',
   './js/pv-learning-scenes.js?v=4',
   './js/pv-learning-scenes.js',
   './js/sri-lanka-standards.js?v=3',
@@ -69,9 +74,9 @@ const LOCAL_ASSETS = [
   './js/financials.js?v=20261013-15',
   './js/roof-layout.js',
   './js/firebase-sync.js',
-  './js/workspace-ui.js?v=3',
+  './js/workspace-ui.js?v=4',
   './js/directives-ui.js?v=20261013-15',
-  './js/app.js?v=20261029-1',
+  './js/app.js?v=20261029-2',
   './css/style.css',
   './css/workspace.css',
   './js/catalog-store.js',
@@ -124,6 +129,11 @@ self.addEventListener('activate', event => {
 self.addEventListener('fetch', event => {
   // Only handle GET requests
   if (event.request.method !== 'GET') return;
+  // Map providers require ordinary HTTP caching; never precache or retain tiles here.
+  if (event.request.url) {
+    const host = new URL(event.request.url).hostname;
+    if (host === 'tile.openstreetmap.org' || host.endsWith('.arcgisonline.com') || host === 'static.arcgis.com') return;
+  }
 
   // Reloads must fetch the published app shell so returning users see new releases.
   // Static/versioned assets retain cache-first behavior and navigation works offline.

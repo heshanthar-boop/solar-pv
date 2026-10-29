@@ -74,6 +74,7 @@ const App = (() => {
     fault:      { title: 'Fault Checker',       render: (c) => FaultChecker.render(c) },
     inspection: { title: 'Inspection Log',      render: (c) => Inspection.render(c) },
     moduleinventory: { title: 'Module Serial Scanner', render: (c) => ModuleInventory.render(c) },
+    sitesurvey: { title: 'Ground Site Survey', render: (c) => SiteSurvey.render(c) },
     pr:         { title: 'PR & IR Test',        render: (c) => PRCalc.render(c) },
     standards:   { title: 'Standards Reference',        render: (c) => Standards.render(c) },
     degradation: { title: 'Module Degradation',         render: (c) => Degradation.render(c) },
@@ -129,7 +130,7 @@ const App = (() => {
     },
   };
 
-  Object.values(PROJECT_TYPES).forEach(type=>{if(!type.pages.includes('moduleinventory'))type.pages.push('moduleinventory');});
+  Object.values(PROJECT_TYPES).forEach(type=>{for(const page of ['moduleinventory','sitesurvey'])if(!type.pages.includes(page))type.pages.push(page);});
   // Home screen tile definitions — grouped, with project-type visibility
   const HOME_TILES = [
     {
@@ -153,6 +154,7 @@ const App = (() => {
       group: 'Field Testing',
       tiles: [
         { page: 'moduleinventory', icon: '&#128247;', label: 'Module Serial Scanner', desc: 'Scan modules by site, MPPT and string' },
+        { page: 'sitesurvey', icon: '&#127759;', label: 'Ground Site Survey', desc: 'Map GPS boundary, area and distances' },
         { page: 'checklist',   icon: '&#9989;',   label: 'Commissioning',        desc: 'Pre-energisation checklist' },
         { page: 'fieldtest',   icon: '&#128202;', label: 'Field Test vs STC',    desc: 'Voc/Isc correction' },
         { page: 'temp',        icon: '&#127777;', label: 'Temp Correction',      desc: 'Module temp derating' },
@@ -852,6 +854,9 @@ const App = (() => {
 
           <button class="basic-home-tile" data-page="moduleinventory">
             <span class="basic-home-tile-icon">&#128247;</span><div><div class="basic-home-tile-label">Module Serial Scanner</div><div class="basic-home-tile-desc">Scan modules by site, MPPT and string</div></div><span class="basic-home-tile-arrow">&#8250;</span>
+          </button>
+          <button class="basic-home-tile" data-page="sitesurvey">
+            <span class="basic-home-tile-icon">&#127759;</span><div><div class="basic-home-tile-label">Ground Site Survey</div><div class="basic-home-tile-desc">Map boundary, area and distances</div></div><span class="basic-home-tile-arrow">&#8250;</span>
           </button>
 
           <button class="basic-home-tile" data-page="basiccalc">
