@@ -1,0 +1,21 @@
+name: Android test APK
+on:
+  push:
+    branches: [codex/android-test-apk]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  build:
+    runs-on: windows-2022
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build and verify signed test APK
+        shell: pwsh
+        run: |
+          ./android/build.ps1 -JavaHome $env:JAVA_HOME_17_X64 -AndroidJar "$env:ANDROID_HOME/platforms/android-35/android.jar" -BuildTools "$env:ANDROID_HOME/build-tools/35.0.0"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: SolarPV-Android-test
+          path: artifacts/SolarPV-Android-test.apk
+          if-no-files-found: error

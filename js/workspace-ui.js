@@ -13,6 +13,7 @@ const WorkspaceUI = (() => {
     rooflayout: '<path d="m3 10 9-7 9 7M5 9v12h14V9M9 14h6v7"/>',
     systemdesigner: '<path d="m12 2 10 6-10 6L2 8zM2 12l10 6 10-6M2 16l10 6 10-6"/>',
     inspector: '<rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 3v18M14 13h3m-3 4h3"/>',
+    moduleinventory: '<path d="M4 8V4h4M16 4h4v4M20 16v4h-4M8 20H4v-4M7 9v6m3-6v6m2-6v6m3-6v6m2-6v6"/>',
     shading: '<path d="M12 3a9 9 0 1 0 0 18zM16 4l-1 2m5 2-2 1m3 5h-2m0 5-2-1"/>',
     checklist: '<rect x="5" y="4" width="14" height="17" rx="2"/><rect x="9" y="2" width="6" height="4" rx="1"/><path d="m9 13 2 2 4-4"/>',
     fieldtest: '<path d="M3 12h4l3-8 4 16 3-8h4"/>',
