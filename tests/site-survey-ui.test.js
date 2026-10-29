@@ -6,7 +6,7 @@ const {IDBFactory}=require('fake-indexeddb');
 const XLSX=require('../js/vendor/xlsx.full.min.js');
 
 test('survey UI captures GPS boundary, ruler and radius then exports and restores data',async()=>{
-  const dom=new JSDOM('<!doctype html><body><main id="app"></main></body>',{url:'https://local.example/',runScripts:'outside-only'}),w=dom.window;
+  const dom=new JSDOM('<!doctype html><body><main id="app"></main></body>',{url:'https://local.example/',runScripts:'outside-only'}),w=dom.window;w.confirm=()=>true;
   w.indexedDB=new IDBFactory();w.XLSX=XLSX;let saved,clickHandler,coords={latitude:6.91,longitude:79.86,accuracy:5,altitude:30,altitudeAccuracy:8};
   w.AndroidInventory={saveWorkbook:(name,data)=>saved={name,data}};
   Object.defineProperty(w.navigator,'geolocation',{value:{getCurrentPosition(ok){ok({coords:{...coords},timestamp:Date.now()});}}});
@@ -20,6 +20,7 @@ test('survey UI captures GPS boundary, ruler and radius then exports and restore
   $('gps').click();await waitFor(()=>$('boundary-count').textContent==='1 boundary points');
   clickHandler({latlng:{lat:6.91,lng:79.861}});clickHandler({latlng:{lat:6.911,lng:79.861}});
   assert.equal($('boundary-count').textContent,'3 boundary points');assert.match($('area-units').textContent,/acres/);
+  $('rows').querySelector('[data-point="1"]').click();assert.equal($('boundary-count').textContent,'2 boundary points');clickHandler({latlng:{lat:6.91,lng:79.861}});assert.equal($('boundary-count').textContent,'3 boundary points');
   w.document.querySelector('[data-mode="ruler"]').click();$('gps').click();coords={...coords,longitude:79.861,altitude:33};$('gps').click();assert.match($('distance').textContent,/m/);assert.match($('bearing').textContent,/GPS slope/);
   w.document.querySelector('[data-mode="radius"]').click();clickHandler({latlng:{lat:6.91,lng:79.86}});clickHandler({latlng:{lat:6.91,lng:79.861}});assert.match($('radius-value').textContent,/m/);
   $('export').click();await waitFor(()=>!!saved);const workbook=XLSX.read(saved.data,{type:'base64'});assert.equal(w.survey.parseWorkbook(workbook).boundary.length,3);
