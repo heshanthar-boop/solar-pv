@@ -1,10 +1,10 @@
 # SolarPV Android test build
 
-The Android app packages the current web workspace and opens it at a local HTTPS origin in Android WebView. Calculations, local project data, and illustrations can work without a connection. Third-party libraries and live data services may still need internet. Data stored in this Android app is separate from data stored on the website.
+The Android app packages the current web workspace and opens it at a local HTTPS origin in Android WebView. The module scanner and Excel library are bundled. The scanner records site, inverter, MPPT, string, serial, operator, time and a recent GPS position/accuracy when available, and exports the whole site. Records live on this device; export them regularly. The website and Android app use separate local databases. Other third-party libraries and live data services may still need internet.
 
-The initial APK is signed with a locally generated test key. Keep `artifacts/android-debug.keystore` safe: updates to this installation need the same signing key. The debug key is not appropriate for a Play Store release.
+This test APK uses a new Android application ID so it can be installed alongside the earlier test app without deleting that app's data. Hosted test builds use temporary signing keys, so future test builds may require a separate installation or an uninstall; export your inventory first. A stable private release signing key is needed for future upgrades and a Play Store release.
 
-This initial wrapper opens source links in the browser and supports the Android file picker. Google sign-in is hidden because the existing web OAuth flow does not work in an embedded WebView. Blob-based exports and print popups require additional native integration; use the website for those features until they are implemented and verified. Location-based functions may need a future Android permission flow.
+The wrapper opens source links in the browser and supports the Android file picker. Camera and location permissions are requested when scanning. The module-inventory Excel export uses Android's document picker. Google sign-in is hidden because the existing web OAuth flow does not work in an embedded WebView. Other blob-based exports and print popups still require native integration; use the website for those features until they are implemented and verified.
 
 Build with Windows PowerShell and an Android SDK platform jar, Android build tools and JDK 17:
 

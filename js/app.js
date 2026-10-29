@@ -73,6 +73,7 @@ const App = (() => {
     fieldtest:  { title: 'Field Test vs STC',   render: (c) => FieldTest.render(c) },
     fault:      { title: 'Fault Checker',       render: (c) => FaultChecker.render(c) },
     inspection: { title: 'Inspection Log',      render: (c) => Inspection.render(c) },
+    moduleinventory: { title: 'Module Serial Scanner', render: (c) => ModuleInventory.render(c) },
     pr:         { title: 'PR & IR Test',        render: (c) => PRCalc.render(c) },
     standards:   { title: 'Standards Reference',        render: (c) => Standards.render(c) },
     degradation: { title: 'Module Degradation',         render: (c) => Degradation.render(c) },
@@ -128,6 +129,7 @@ const App = (() => {
     },
   };
 
+  Object.values(PROJECT_TYPES).forEach(type=>{if(!type.pages.includes('moduleinventory'))type.pages.push('moduleinventory');});
   // Home screen tile definitions — grouped, with project-type visibility
   const HOME_TILES = [
     {
@@ -150,6 +152,7 @@ const App = (() => {
     {
       group: 'Field Testing',
       tiles: [
+        { page: 'moduleinventory', icon: '&#128247;', label: 'Module Serial Scanner', desc: 'Scan modules by site, MPPT and string' },
         { page: 'checklist',   icon: '&#9989;',   label: 'Commissioning',        desc: 'Pre-energisation checklist' },
         { page: 'fieldtest',   icon: '&#128202;', label: 'Field Test vs STC',    desc: 'Voc/Isc correction' },
         { page: 'temp',        icon: '&#127777;', label: 'Temp Correction',      desc: 'Module temp derating' },
@@ -846,6 +849,10 @@ const App = (() => {
 
         <!-- Tool tiles -->
         <div class="basic-home-tools">
+
+          <button class="basic-home-tile" data-page="moduleinventory">
+            <span class="basic-home-tile-icon">&#128247;</span><div><div class="basic-home-tile-label">Module Serial Scanner</div><div class="basic-home-tile-desc">Scan modules by site, MPPT and string</div></div><span class="basic-home-tile-arrow">&#8250;</span>
+          </button>
 
           <button class="basic-home-tile" data-page="basiccalc">
             <span class="basic-home-tile-icon">&#128200;</span>
