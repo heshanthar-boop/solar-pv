@@ -42,3 +42,25 @@ test('field workflow saves scans, blocks duplicates, filters strings and exports
   assert.equal(rows[0].Operator,'Amal');assert.equal(rows[0].Latitude,6.91);assert.equal(rows[1]['Entry method'],'Camera');
   app.innerHTML='';dom.window.close();
 });
+
+test('scanner requests detailed rear video and exposes supported camera controls',async()=>{
+  const dom=new JSDOM('<!doctype html><body><main id="app"></main></body>',{url:'https://local.example/',runScripts:'outside-only'});
+  const w=dom.window;w.indexedDB=new IDBFactory();w.IDBKeyRange=IDBKeyRange;w.XLSX=XLSX;
+  const applied=[];let requested,hints,resetCount=0;
+  const track={getCapabilities:()=>({focusMode:['continuous','single-shot'],torch:true,zoom:{min:1,max:3,step:0.1}}),getSettings:()=>({deviceId:'rear',zoom:1}),applyConstraints:async value=>applied.push(value)};
+  Object.defineProperty(w.navigator,'mediaDevices',{value:{enumerateDevices:async()=>[{kind:'videoinput',deviceId:'rear',label:'Rear camera'},{kind:'videoinput',deviceId:'other',label:'Other camera'}]}});
+  w.ZXing={DecodeHintType:{TRY_HARDER:3},BrowserMultiFormatReader:class{constructor(h){hints=h;}async decodeFromConstraints(c,v){requested=c;v.srcObject={getVideoTracks:()=>[track]};}reset(){resetCount++;}}};
+  w.eval(fs.readFileSync('js/module-inventory.js','utf8')+'\nwindow.inventory=ModuleInventory;');w.inventory.render(w.document.querySelector('#app'));
+  for(const [key,value] of Object.entries({site:'Site',operator:'Amal',inverter:'I1',mppt:'1',string:'1'}))w.document.querySelector('#mi-'+key).value=value;
+  const waitFor=async predicate=>{for(let i=0;i<100;i++){if(predicate())return;await new Promise(r=>setTimeout(r,10));}throw Error('Timed out waiting for camera controls');};
+  w.document.querySelector('#mi-start').click();await waitFor(()=>!w.document.querySelector('#mi-camera-controls').hidden);
+  assert.equal(requested.video.facingMode.ideal,'environment');assert.equal(requested.video.width.ideal,1920);assert.equal(hints.get(3),true);
+  assert.equal(applied[0].advanced[0].focusMode,'continuous');assert.equal(w.document.querySelector('#mi-device').options.length,2);
+  w.document.querySelector('#mi-torch').click();await waitFor(()=>w.document.querySelector('#mi-torch').textContent==='Light off');
+  assert.equal(applied.at(-1).advanced[0].torch,true);assert.equal(applied.at(-1).advanced[0].focusMode,'continuous');
+  const zoom=w.document.querySelector('#mi-zoom');zoom.value='2';zoom.dispatchEvent(new w.Event('change'));await waitFor(()=>applied.at(-1).advanced[0].zoom===2);
+  assert.equal(applied.at(-1).advanced[0].torch,true);
+  w.document.querySelector('#mi-focus').click();await waitFor(()=>applied.at(-1).advanced[0].focusMode==='single-shot');
+  w.document.querySelector('#mi-stop').click();assert.ok(resetCount);assert.equal(w.document.querySelector('#mi-camera-controls').hidden,true);
+  w.document.querySelector('#app').innerHTML='';dom.window.close();
+});

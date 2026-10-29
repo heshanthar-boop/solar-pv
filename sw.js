@@ -2,7 +2,7 @@
  * sw.js — Fresh app navigation with cached offline assets
  */
 
-const CACHE_NAME = 'solarpv-v51';
+const CACHE_NAME = 'solarpv-v52';
 const CACHE_PREFIX = 'solarpv-v';
 
 const LOCAL_ASSETS = [
@@ -21,10 +21,10 @@ const LOCAL_ASSETS = [
   './css/standards-visuals.css',
   './css/realistic-learning.css?v=3',
   './css/realistic-learning.css',
-  './css/module-inventory.css?v=1',
+  './css/module-inventory.css?v=2',
   './js/vendor/xlsx.full.min.js',
   './js/vendor/zxing.min.js',
-  './js/module-inventory.js?v=2',
+  './js/module-inventory.js?v=3',
   './css/site-survey.css?v=1',
   './js/site-survey.js?v=1',
   './js/vendor/leaflet.css',
