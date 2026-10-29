@@ -62,9 +62,11 @@ public class MainActivity extends Activity {
                 catch (Exception e) { fileCallback = null; callback.onReceiveValue(null); return false; }
             }
         });
-        view.setDownloadListener((url, userAgent, contentDisposition, mimeType, contentLength) -> {
-            if (url.startsWith("https://") || url.startsWith("http://")) startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse(url)));
-            else Toast.makeText(this, "This export is available from the website in your browser.", Toast.LENGTH_LONG).show();
+        view.setDownloadListener(new DownloadListener() {
+            @Override public void onDownloadStart(String url, String userAgent, String contentDisposition, String mimeType, long contentLength) {
+                if (url.startsWith("https://") || url.startsWith("http://")) startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse(url)));
+                else Toast.makeText(MainActivity.this, "This export is available from the website in your browser.", Toast.LENGTH_LONG).show();
+            }
         });
         if (state == null) view.loadUrl("https://" + ORIGIN + "/assets/index.html");
         else view.restoreState(state);
