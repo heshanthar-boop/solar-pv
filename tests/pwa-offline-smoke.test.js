@@ -53,6 +53,7 @@ function bootServiceWorker(options) {
     caches,
     fetch: opts.fetch || (async () => ({ status: 200, clone() { return this; } })),
     Promise,
+    URL,
     console,
     setTimeout: opts.fastTimeout ? fn => { queueMicrotask(fn); return 1; } : setTimeout,
     clearTimeout: opts.fastTimeout ? () => {} : clearTimeout,
@@ -63,6 +64,13 @@ function bootServiceWorker(options) {
 
   return { handlers, addAllCalls, addAllRequests, deletedKeys };
 }
+
+test('map tile requests bypass the service-worker cache and use normal HTTP caching',()=>{
+  const sw=bootServiceWorker();
+  for(const url of ['https://tile.openstreetmap.org/12/1/2.png','https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/12/1/2']){
+    let intercepted=false;sw.handlers.fetch({request:{method:'GET',mode:'no-cors',url},respondWith:()=>{intercepted=true;}});assert.equal(intercepted,false);
+  }
+});
 
 test('service worker install caches local assets even if CDN caching fails', async () => {
   const sw = bootServiceWorker({ rejectSecondAddAll: true });
