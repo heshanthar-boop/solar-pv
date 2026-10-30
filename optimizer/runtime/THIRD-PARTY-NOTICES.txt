@@ -1,0 +1,1 @@
+Pyodide 0.29.2 is distributed under the Mozilla Public License 2.0; see PYODIDE-LICENSE.txt and source at https://github.com/pyodide/pyodide/tree/0.29.2. The individual Python wheel archives in this directory include their own package metadata and license files. The runtime is unmodified.
