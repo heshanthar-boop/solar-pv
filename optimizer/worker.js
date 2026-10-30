@@ -29,7 +29,21 @@ def _pvgis_get(url,*args,**kwargs):
         url=_android_proxy+url[len(prefix):]
     return _real_get(url,*args,**kwargs)
 requests.get=_pvgis_get
-from backend import mobile_adapter`);
+from backend import mobile_adapter
+if _android_proxy:
+    _weather=mobile_adapter.app.wx
+    _old_get_weather=_weather.get_weather
+    def _versioned_weather(source,*args,**kwargs):
+        data,meta=_old_get_weather(source,*args,**kwargs)
+        if source in ('pvgis_tmy','pvgis_year'):
+            meta={**meta,'source':str(meta.get('source','PVGIS'))+' · PVGIS API 5.3'}
+        return data,meta
+    _weather.get_weather=_versioned_weather
+    _old_multiyear=_weather.get_multiyear
+    def _versioned_multiyear(*args,**kwargs):
+        data,meta=_old_multiyear(*args,**kwargs)
+        return data,{**meta,'source':str(meta.get('source','PVGIS'))+' · PVGIS API 5.3'}
+    _weather.get_multiyear=_versioned_multiyear`);
   runtime=py;return py;
 }
 async function execute(event){const {id,path,payload,form}=event.data;try{const py=await loadRuntime();py.globals.set('_mobile_input',JSON.stringify({path,payload,form}));const response=await py.runPythonAsync('import json\n_req=json.loads(_mobile_input)\njson.dumps(await mobile_adapter.dispatch(_req["path"],_req["payload"],_req["form"]),allow_nan=False)');self.postMessage({id,response:JSON.parse(response)});}catch(e){self.postMessage({id,error:String(e.message||e)});}}
