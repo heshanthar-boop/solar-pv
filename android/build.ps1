@@ -8,7 +8,7 @@ $root = Split-Path -Parent $PSScriptRoot
 $output = Join-Path $root 'artifacts/android-build'
 $assets = Join-Path $output 'assets/web'
 New-Item -Force -ItemType Directory $assets, "$output/classes", "$output/dex" | Out-Null
-foreach($name in @('css','js','data','icons')) { Copy-Item -Recurse -Force (Join-Path $root $name) $assets }
+foreach($name in @('css','js','data','icons','optimizer')) { Copy-Item -Recurse -Force (Join-Path $root $name) $assets }
 Copy-Item -Force (Join-Path $root 'index.html'),(Join-Path $root 'manifest.json'),(Join-Path $root 'sw.js') $assets
 # Google OAuth does not support the embedded WebView flow. Keep this test build honest.
 $html = [System.IO.File]::ReadAllText("$assets/index.html")

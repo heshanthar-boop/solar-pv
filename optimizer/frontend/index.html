@@ -1,0 +1,735 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Solar Yield Optimizer — Tilt &amp; Azimuth Analysis</title>
+<link rel="stylesheet" href="css/style.css?v=20260709b">
+<link rel="stylesheet" href="vendor/leaflet.css?v=20260709b">
+<script src="vendor/leaflet.js?v=20260709b"></script>
+<script src="vendor/plotly.min.js?v=20260709b"></script>
+<script src="mobile-bridge.js"></script><link rel="stylesheet" href="mobile.css"></head>
+<body>
+<div class="app">
+  <!-- ===================== SIDEBAR (inputs) ===================== -->
+  <aside class="sidebar">
+    <div class="brand">
+      <div class="brand-mark">☀</div>
+      <div class="brand-text">
+        <h1>Solar Yield Optimizer</h1>
+        <span>Tilt &amp; azimuth generation analysis · pvlib engine</span>
+      </div>
+    </div>
+
+    <!-- Location -->
+    <section class="card">
+      <header class="card-h" data-toggle>
+        <span class="ci">📍</span><h2>Site location</h2><span class="chev">▾</span>
+      </header>
+      <div class="card-b">
+        <div class="row">
+          <label>Quick site (Sri Lanka)
+            <select id="site_preset"><option value="">— search / pick a town —</option></select>
+          </label>
+        </div>
+        <div id="map" class="map"></div>
+        <p class="hint">Click anywhere on the map (or drag the pin) to set the location.</p>
+        <div class="grid2">
+          <label>Latitude (°) <input id="lat" type="number" step="0.0001" value="6.3700"></label>
+          <label>Longitude (°) <input id="lon" type="number" step="0.0001" value="80.9800"></label>
+        </div>
+        <div class="grid2">
+          <label>Site name <input id="site_name" type="text" placeholder="e.g. Sevanagala"></label>
+          <label>Altitude (m) <input id="altitude" type="number" step="1" placeholder="auto"></label>
+        </div>
+        <div class="row">
+          <label>Local time UTC offset (hours)
+            <input id="utc_offset" type="number" step="0.5" min="-12" max="14" value="5.5">
+          </label>
+        </div>
+      </div>
+    </section>
+
+    <!-- Plant rating (prominent) -->
+    <section class="card rating">
+      <header class="card-h" data-toggle>
+        <span class="ci">🏭</span><h2>Plant rating &amp; size</h2><span class="chev">▾</span>
+      </header>
+      <div class="card-b">
+        <div class="grid2 big-inputs">
+          <label class="bigfield">Max DC input
+            <div class="unitwrap"><input id="dc_mw" type="number" step="0.01" value="3.70"><span>MW<sub>dc</sub></span></div>
+          </label>
+          <label class="bigfield">Total AC output
+            <div class="unitwrap"><input id="ac_mw" type="number" step="0.01" value="3.00"><span>MW<sub>ac</sub></span></div>
+          </label>
+        </div>
+        <div class="ilr-banner">
+          <span>DC / AC ratio (ILR)</span><b id="ilr">1.23</b>
+          <span id="ilr_hint" class="ilr-hint"></span>
+        </div>
+      </div>
+    </section>
+
+    <!-- Module -->
+    <section class="card">
+      <header class="card-h" data-toggle>
+        <span class="ci">🔆</span><h2>PV module</h2><span class="chev">▾</span>
+      </header>
+      <div class="card-b">
+        <div class="row"><label>Model
+          <select id="panel_id"></select></label></div>
+        <div class="grid2">
+          <label>Power bin (Wp)
+            <select id="panel_bin"></select></label>
+          <label>Bifaciality
+            <input id="bifaciality" type="number" step="0.01" value="0.85"></label>
+        </div>
+        <div class="grid2">
+          <label>γ Pmax (%/°C)
+            <input id="gamma_pmp" type="number" step="0.001" value="-0.260"></label>
+          <label>Module area (m²)
+            <input id="area_m2" type="number" step="0.001" value="2.701" readonly></label>
+        </div>
+        <div class="grid2">
+          <label>Length (m)<input id="length_m" type="number" step="0.001" value="2.382"></label>
+          <label>Width (m)<input id="width_m" type="number" step="0.001" value="1.134"></label>
+        </div>
+        <p class="hint" id="panel_note"></p>
+      </div>
+    </section>
+
+    <!-- Inverter -->
+    <section class="card">
+      <header class="card-h" data-toggle>
+        <span class="ci">⚡</span><h2>Inverter</h2><span class="chev">▾</span>
+      </header>
+      <div class="card-b">
+        <div class="row"><label>Inverter model
+          <select id="inverter_id"></select></label></div>
+        <div class="row"><label>PVWatts nominal efficiency (assumed)
+          <input id="eta_inv_nom" type="number" step="0.001" value="0.988"></label></div>
+        <p class="hint" id="inv_note"></p>
+      </div>
+    </section>
+
+    <!-- Electrical design assumptions -->
+    <section class="card">
+      <header class="card-h" data-toggle>
+        <span class="ci">🧮</span><h2>Electrical &amp; grid assumptions</h2><span class="chev">▾</span>
+      </header>
+      <div class="card-b">
+        <div class="sub">Temperature-only string-voltage simulation</div>
+        <div class="grid2">
+          <label>Minimum design temp (°C)
+            <input id="design_temp_min_c" type="number" step="1" value="21"></label>
+          <label>Maximum design cell temp (°C)
+            <input id="design_temp_max_cell_c" type="number" step="1" value="70"></label>
+        </div>
+        <p class="hint">Minimum temperature is used for cold Voc. Maximum cell temperature is used for hot Vmp and module power variation.</p>
+        <div class="sub">Equipment quantities</div>
+        <div class="grid2">
+          <label>Inverter quantity
+            <input id="inverter_count" type="number" min="1" step="1" placeholder="auto"></label>
+          <label>Transformer quantity
+            <input id="transformer_count" type="number" min="1" step="1" placeholder="best value"></label>
+        </div>
+        <div class="grid2">
+          <label>Transformer PF
+            <input id="transformer_pf" type="number" min="0.8" max="1" step="0.01" value="0.95"></label>
+          <label>Expected inverter TDD / THDi %
+            <input id="harmonic_tdd_pct" type="number" min="0" max="100" step="0.1" value="3.0"></label>
+        </div>
+        <p class="hint">Sri Lankan harmonic card uses the CEB/SEA TDD 5% current limit as a preliminary screen. Final approval still needs a PCC harmonic study and utility limits.</p>
+      </div>
+    </section>
+
+    <!-- Array geometry -->
+    <section class="card">
+      <header class="card-h" data-toggle>
+        <span class="ci">📐</span><h2>Array geometry</h2><span class="chev">▾</span>
+      </header>
+      <div class="card-b">
+        <div class="grid2">
+          <label class="chk"><input id="bifacial" type="checkbox" checked> Bifacial (model rear)</label>
+          <label>Ground albedo<input id="albedo" type="number" step="0.01" value="0.20"></label>
+        </div>
+        <div class="grid2">
+          <label>Ground-cover ratio<input id="gcr" type="number" step="0.01" value="0.40"></label>
+          <label><span id="height_label">Lower-edge clearance (m)</span><input id="height_m" type="number" step="0.1" value="1.5"></label>
+        </div>
+        <div class="grid2">
+          <label>Orientation
+            <select id="orientation">
+              <option value="portrait">Portrait</option>
+              <option value="landscape">Landscape</option>
+            </select></label>
+          <label>Modules / row (slope)<input id="modules_per_row" type="number" step="1" value="1"></label>
+        </div>
+        <div class="row"><label>Cell-temperature model
+          <select id="temp_model">
+            <option value="faiman">Faiman (IEC 61853)</option>
+            <option value="pvsyst">PVsyst (glass/glass)</option>
+            <option value="sapm_open">SAPM open-rack</option>
+            <option value="sapm_close">SAPM close-mount</option>
+          </select></label></div>
+        <div class="sub">Model fidelity &amp; mounting</div>
+        <div class="grid2">
+          <label>DC model
+            <select id="dc_model">
+              <option value="pvwatts">PVWatts (linear)</option>
+              <option value="detailed">Detailed (low-light)</option>
+            </select></label>
+          <label>Mounting
+            <select id="mounting">
+              <option value="fixed">Fixed tilt</option>
+              <option value="sat">Single-axis tracker</option>
+            </select></label>
+        </div>
+        <div class="grid2" id="tracker_params" style="display:none">
+          <label>Tracker max angle (°)<input id="max_angle" type="number" value="60" step="1"></label>
+          <label class="chk"><input id="backtrack" type="checkbox" checked> Backtracking</label>
+        </div>
+        <label class="chk"><input id="apply_horizon" type="checkbox"> Apply horizon / far-shading (PVGIS)</label>
+        <div class="sub">Current design for comparison</div>
+        <div class="grid2">
+          <label>Design tilt (°)<input id="design_tilt" type="number" min="0" max="90" step="0.5" value="10"></label>
+          <label>Design azimuth (°)<input id="design_azimuth" type="number" min="0" max="360" step="1" value="180"></label>
+        </div>
+        <div id="mini_layout" class="mini-layout"></div>
+      </div>
+    </section>
+
+    <!-- Weather / pattern data -->
+    <section class="card highlight">
+      <header class="card-h" data-toggle>
+        <span class="ci">🛰️</span><h2>Weather pattern data</h2><span class="chev">▾</span>
+      </header>
+      <div class="card-b">
+        <div class="row"><label>Data source
+          <select id="wx_source">
+            <option value="pvgis_tmy">PVGIS TMY — satellite (recommended)</option>
+            <option value="pvgis_year">PVGIS hourly — specific year</option>
+            <option value="clearsky">Clear-sky model (idealised)</option>
+            <option value="upload">Upload my own CSV…</option>
+          </select></label></div>
+        <div class="grid2">
+          <label id="wx_year_wrap" style="display:none">Year<input id="wx_year" type="number" step="1" value="2020"></label>
+          <label id="wx_upload_wrap" style="display:none">CSV file<input id="wx_file" type="file" accept=".csv"></label>
+        </div>
+        <button id="btn_inspect" class="btn-ghost">🔍 Inspect pattern data</button>
+        <div id="wx_inspect" class="wx-inspect"></div>
+        <p class="hint">CSV needs one complete regular year: timestamp, ghi, dni, dhi, temp_air [, wind_speed]. Naive timestamps use the site UTC offset above.</p>
+      </div>
+    </section>
+
+    <!-- Losses -->
+    <section class="card">
+      <header class="card-h collapsed" data-toggle>
+        <span class="ci">📉</span><h2>System loss stack</h2><span class="chev">▾</span>
+      </header>
+      <div class="card-b" style="display:none">
+        <div class="grid2">
+          <label>Soiling %<input class="loss" id="l_soiling" type="number" step="0.1" value="2"></label>
+          <label>Mismatch %<input class="loss" id="l_mismatch" type="number" step="0.1" value="2"></label>
+          <label>DC wiring %<input class="loss" id="l_wiring" type="number" step="0.1" value="2"></label>
+          <label>Connections %<input class="loss" id="l_connections" type="number" step="0.1" value="0.5"></label>
+          <label>LID %<input class="loss" id="l_lid" type="number" step="0.1" value="1.5"></label>
+          <label>Nameplate %<input class="loss" id="l_nameplate_rating" type="number" step="0.1" value="1"></label>
+          <label>Availability %<input class="loss" id="l_availability" type="number" step="0.1" value="3"></label>
+          <label>Near-shading %<input class="loss" id="l_shading" type="number" step="0.1" value="0"></label>
+        </div>
+        <p class="hint">Inter-row shading, temperature &amp; reflection are modelled physically — not in this stack.</p>
+      </div>
+    </section>
+
+    <!-- Analysis mode + sweep grid -->
+    <section class="card">
+      <header class="card-h" data-toggle>
+        <span class="ci">🎯</span><h2>Analysis mode &amp; sweep</h2><span class="chev">▾</span>
+      </header>
+      <div class="card-b">
+        <div class="row"><label>Analysis mode
+          <select id="analysis_mode">
+            <option value="optimize">Optimize — sweep tilt × azimuth for maximum yield</option>
+            <option value="manual">Evaluate my tilt &amp; azimuth (fixed orientation)</option>
+          </select></label></div>
+        <div id="manual_wrap" class="grid2" style="display:none">
+          <label>Panel tilt (°)<input id="manual_tilt" type="number" min="0" max="60" step="0.5" value="10"></label>
+          <label>Panel azimuth (°)<input id="manual_az" type="number" min="0" max="360" step="1" value="180"></label>
+        </div>
+        <p class="hint" id="manual_hint" style="display:none">Full PVsyst-style analysis and report will be produced at exactly this orientation — no sweep.</p>
+        <div id="sweep_wrap">
+        <div class="sub">Tilt (°)</div>
+        <div class="grid3">
+          <label>min<input id="tilt_min" type="number" min="1" step="1" value="1"></label>
+          <label>max<input id="tilt_max" type="number" step="1" value="45"></label>
+          <label>step<input id="tilt_step" type="number" step="0.5" value="5"></label>
+        </div>
+        <div class="sub">Azimuth (°, 90=E · 180=S · 270=W)</div>
+        <div class="grid3">
+          <label>min<input id="az_min" type="number" min="1" max="360" step="1" value="1"></label>
+          <label>max<input id="az_max" type="number" min="1" max="360" step="1" value="360"></label>
+          <label>step<input id="az_step" type="number" step="1" value="15"></label>
+        </div>
+        <p class="hint" id="grid_note"></p>
+        </div>
+      </div>
+    </section>
+    <p class="hint" style="padding:0 6px 20px"><a href="field.html" style="color:var(--blue)">→ PV Condition Monitor (MI3115 field tests)</a></p>
+  </aside>
+
+  <!-- ===================== MAIN (results) ===================== -->
+  <main class="main">
+    <div class="topbar">
+      <div id="run_status" class="run-status">Ready — set the plant rating &amp; location, then run.</div>
+      <div class="view-tabs">
+        <button id="tab_single" class="view-tab active">Single-plane</button>
+        <button id="tab_eastwest" class="view-tab">East-West Optimizer</button>
+        <button style="display:none" id="tab_atlas" class="view-tab">🇱🇰 Sri Lanka Atlas</button>
+      </div>
+      <button id="btn_report" class="btn-report" disabled>📄 Report (PDF / HTML)</button>
+      <button id="btn_run" class="btn-run">▶ Run analysis</button>
+    </div>
+    <div id="progress" class="progress" style="display:none">
+      <div class="progress-bar"><div id="progress-fill"></div></div>
+      <span id="progress-text">0%</span>
+    </div>
+
+    <!-- empty state -->
+    <div id="empty" class="empty">
+      <div class="empty-art">🗺️☀️</div>
+      <h2>Solar plant design &amp; yield simulation</h2>
+      <p>Real satellite weather · full hourly physics · every result explained step by step.
+         Hover any input for a plain-language explanation.</p>
+      <div class="qs-steps">
+        <div class="qs"><b>1 · Where</b><span>Pick the site on the map or from the Sri Lanka list, and confirm the UTC offset.</span></div>
+        <div class="qs"><b>2 · What</b><span>Enter Max DC (MW) and Total AC (MW), then choose the panel and inverter models.</span></div>
+        <div class="qs"><b>3 · Run</b><span>▶ Run analysis searches tilt &amp; direction using a coarse grid and local 1° steps — or switch to the East-West tab for two-plane designs and inverter-overload optimisation.</span></div>
+      </div>
+      <p style="margin-top:18px;font-size:11px;color:var(--ink3)">Results include yield, P50/P90, string &amp; transformer sizing, land area, plant layout and a print-ready professional report.</p>
+    </div>
+
+    <!-- East-West dual-plane optimizer -->
+    <div id="eastwest_tab" class="results ew-view" style="display:none">
+      <div class="panel ew-hero">
+        <div class="panel-h"><h3>East-West Dual-Plane Optimizer</h3>
+          <span class="sub2">two fixed planes, conserved DC capacity, shared or separate inverter clipping</span></div>
+        <div class="ew-intro">
+          <div>
+            <p class="hint">Use this when the plant is split across two opposing or independent plane orientations. A 10 MWp plant split 50/50 is modelled as 5 MWp + 5 MWp, not 20 MWp. Automatic optimization uses a minimum 1° physical tilt and refines selected candidates locally in 1° steps. Fractional search boundaries may also be tested; the search is not exhaustive.</p>
+            <div id="ew_validation" class="ew-validation"></div>
+          </div>
+          <div id="ew_diagram" class="ew-diagram"></div>
+        </div>
+      </div>
+
+      <div class="grid-2 ew-controls">
+        <div class="panel">
+          <div class="panel-h"><h3>Operating mode</h3><span class="sub2" id="ew_status">Ready</span></div>
+          <div class="grid2">
+            <label>Mode
+              <select id="ew_mode">
+                <option value="optimize">Automatic optimization</option>
+                <option value="manual">Manual dual-plane calculation</option>
+              </select></label>
+            <label>Arrangement
+              <select id="ew_arrangement">
+                <option value="symmetric">Symmetric East-West</option>
+                <option value="independent">Independent advanced</option>
+              </select></label>
+          </div>
+          <div class="grid2">
+            <label>Inverter topology
+              <select id="ew_inverter_arrangement">
+                <option value="shared">Shared inverter pool</option>
+                <option value="separate">Separate proportional inverter blocks</option>
+              </select></label>
+            <label class="chk ew-check"><input id="ew_optimize_split" type="checkbox"> Optimize DC split</label>
+          </div>
+          <div class="ew-actions">
+            <button id="ew_run" class="btn-run">Run East-West analysis</button>
+            <button id="ew_manual" class="btn-ghost">Calculate manual planes</button>
+            <button id="ew_opt_around" class="btn-ghost">Optimize around manual settings</button>
+          </div>
+        </div>
+
+        <div class="panel">
+          <div class="panel-h"><h3>Manual planes</h3><span class="sub2">shares must total 100%</span></div>
+          <div class="ew-plane-grid">
+            <div class="ew-plane-card">
+              <div class="sub3">Plane A / East side</div>
+              <div class="grid3">
+                <label>Tilt deg<input id="ew_a_tilt" type="number" step="0.5" value="10"></label>
+                <label>Azimuth deg<input id="ew_a_az" type="number" step="1" value="90"></label>
+                <label>DC share %<input id="ew_a_share" type="number" step="1" value="50"></label>
+              </div>
+            </div>
+            <div class="ew-plane-card">
+              <div class="sub3">Plane B / West side</div>
+              <div class="grid3">
+                <label>Tilt deg<input id="ew_b_tilt" type="number" step="0.5" value="10"></label>
+                <label>Azimuth deg<input id="ew_b_az" type="number" step="1" value="270"></label>
+                <label>DC share %<input id="ew_b_share" type="number" step="1" value="50"></label>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="grid-2 ew-controls">
+        <div class="panel">
+          <div class="panel-h"><h3>Symmetric search</h3><span class="sub2">west azimuth = east + 180 deg</span></div>
+          <div class="sub">Common tilt</div>
+          <div class="grid3">
+            <label>min<input id="ew_tilt_min" type="number" min="1" step="1" value="1"></label>
+            <label>max<input id="ew_tilt_max" type="number" step="1" value="45"></label>
+            <label>step<input id="ew_tilt_step" type="number" step="0.5" value="5"></label>
+          </div>
+          <div class="sub">East azimuth</div>
+          <div class="grid3">
+            <label>min<input id="ew_az_min" type="number" step="1" value="45"></label>
+            <label>max<input id="ew_az_max" type="number" step="1" value="135"></label>
+            <label>step<input id="ew_az_step" type="number" step="1" value="15"></label>
+          </div>
+          <div class="sub">DC split search (Plane A share)</div>
+          <div class="grid3">
+            <label>min %<input id="ew_split_min" type="number" step="1" value="30"></label>
+            <label>max %<input id="ew_split_max" type="number" step="1" value="70"></label>
+            <label>step %<input id="ew_split_step" type="number" step="1" value="5"></label>
+          </div>
+        </div>
+
+        <div class="panel">
+          <div class="panel-h"><h3>Independent advanced search</h3><span class="sub2">coarse-to-fine, exact rerank</span></div>
+          <div class="grid2">
+            <div>
+              <div class="sub">Plane A tilt / azimuth</div>
+              <div class="grid3">
+                <label>T min<input id="ew_a_tilt_min" type="number" min="1" value="1"></label>
+                <label>T max<input id="ew_a_tilt_max" type="number" value="45"></label>
+                <label>T step<input id="ew_a_tilt_step" type="number" value="5"></label>
+              </div>
+              <div class="grid3">
+                <label>Az min<input id="ew_a_az_min" type="number" value="45"></label>
+                <label>Az max<input id="ew_a_az_max" type="number" value="180"></label>
+                <label>Az step<input id="ew_a_az_step" type="number" value="10"></label>
+              </div>
+            </div>
+            <div>
+              <div class="sub">Plane B tilt / azimuth</div>
+              <div class="grid3">
+                <label>T min<input id="ew_b_tilt_min" type="number" min="1" value="1"></label>
+                <label>T max<input id="ew_b_tilt_max" type="number" value="45"></label>
+                <label>T step<input id="ew_b_tilt_step" type="number" value="5"></label>
+              </div>
+              <div class="grid3">
+                <label>Az min<input id="ew_b_az_min" type="number" value="180"></label>
+                <label>Az max<input id="ew_b_az_max" type="number" value="315"></label>
+                <label>Az step<input id="ew_b_az_step" type="number" value="10"></label>
+              </div>
+            </div>
+          </div>
+          <div class="grid2">
+            <label>Top plane candidates<input id="ew_top_plane_count" type="number" min="3" max="40" value="10"></label>
+            <label>Exact rerank candidates<input id="ew_exact_rerank" type="number" min="5" max="100" value="25"></label>
+          </div>
+        </div>
+      </div>
+
+      <div id="ew_results_wrap" style="display:none">
+        <div id="ew_kpis" class="kpi-strip"></div>
+
+        <div class="panel">
+          <div class="panel-h"><h3>East-West result summary</h3>
+            <div class="panel-tools">
+              <button id="ew_export_json" class="btn-mini">Export JSON</button>
+              <button id="ew_export_html" class="btn-mini">Export HTML report</button>
+            </div></div>
+          <div id="ew_summary_table" class="restable-wrap"></div>
+        </div>
+
+        <div class="grid-2">
+          <div class="panel"><div class="panel-h"><h3>Monthly energy split</h3></div><div id="ew_monthly" class="plot sm"></div></div>
+          <div class="panel"><div class="panel-h"><h3>East-West vs single-plane best</h3></div><div id="ew_compare" class="plot sm"></div><p class="hint" id="ew_compare_text"></p></div>
+        </div>
+
+        <div class="grid-2">
+          <div class="panel"><div class="panel-h"><h3>Representative day profile</h3>
+            <div class="panel-tools"><select id="ew_day_select"></select></div></div><div id="ew_day_profile" class="plot sm"></div></div>
+          <div class="panel"><div class="panel-h"><h3>Symmetric search heatmap</h3><span class="sub2">best split per tilt/azimuth cell</span></div><div id="ew_heatmap" class="plot sm"></div></div>
+        </div>
+
+        <div class="panel">
+          <div class="panel-h"><h3>Ranked East-West candidates</h3><span class="sub2">top candidates after exact rerank</span></div>
+          <div id="ew_ranked_table" class="restable-wrap"></div>
+        </div>
+
+        <!-- inverter overload (ILR) optimizer -->
+        <div class="panel" id="ew_overload_panel">
+          <div class="panel-h"><h3>Inverter overload (DC/AC) optimizer — maximum units per inverter</h3>
+            <span class="sub2" id="ew_ov_sub">fixed AC nameplate · swept installed DC</span>
+            <div class="panel-tools"><button id="ew_ov_run" class="btn-mini">▶ Optimize overload</button></div></div>
+          <div class="lt-controls">
+            <label>ILR from<input id="ew_ov_min" type="number" value="1.0" min="0.8" max="2" step="0.05"></label>
+            <label>to<input id="ew_ov_max" type="number" value="1.6" min="0.8" max="2" step="0.05"></label>
+            <label>step<input id="ew_ov_step" type="number" value="0.05" min="0.01" max="0.5" step="0.01"></label>
+            <label>Max clipping %<input id="ew_ov_clip" type="number" value="2.0" min="0.1" max="20" step="0.5"></label>
+          </div>
+          <div id="ew_ov_body"><p class="hint">Uses the planes above (run an analysis first, or set manual planes). Sweeps installed DC at fixed AC to find the largest inverter overload whose clipping stays within your limit and the inverter string capacity — for both the dual-plane and the best single-plane case.</p></div>
+        </div>
+
+        <div class="grid-2">
+          <div class="panel"><div class="panel-h"><h3>Calculation steps</h3><span class="sub2">technician-readable verification</span></div><div id="ew_calc_steps"></div></div>
+          <div class="panel"><div class="panel-h"><h3>Warnings &amp; methodology</h3><span class="sub2">engineering limits</span></div><div id="ew_warnings"></div><div id="ew_methodology"></div></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Sri Lanka solar atlas -->
+    <div id="atlas_tab" class="results" style="display:none">
+      <div class="panel">
+        <div class="panel-h"><h3>Sri Lanka solar atlas — best orientation for every location</h3>
+          <span class="sub2" id="atlas_progress">not built yet</span>
+          <div class="panel-tools">
+            <label class="seg" style="margin-right:8px">Grid
+              <select id="atlas_res">
+                <option value="0.25">0.25° (~28 km, quick ≈ 40 min)</option>
+                <option value="0.1" selected>0.1° (~11 km, ≈ 3 h)</option>
+                <option value="0.05">0.05° (~5.5 km = data limit, ≈ 12 h)</option>
+              </select></label>
+            <label class="seg" style="margin-right:8px">Colour by
+              <select id="atlas_metric">
+                <option value="sy1">Single-plane yield</option>
+                <option value="syd">East-West yield</option>
+                <option value="gain">E-W vs single %</option>
+                <option value="ghi">Solar resource (GHI)</option>
+              </select></label>
+            <button id="atlas_start" class="btn-mini">▶ Build / resume atlas</button>
+            <button id="atlas_stop" class="btn-mini" style="display:none">⏸ Pause build</button>
+          </div>
+        </div>
+        <div class="atlas-search">
+          <input id="atlas_search" type="text" placeholder="🔍 Search any place in Sri Lanka — town, village, landmark…">
+          <button id="atlas_search_btn" class="btn-mini">Search &amp; show yield</button>
+        </div>
+        <div id="atlas_map" class="atlas-map"></div>
+        <div class="map-legend" id="atlas_legend"></div>
+        <p class="hint" id="atlas_assumptions"></p>
+        <p class="hint">The build runs in the background and <b>resumes where it stopped</b> — every finished cell is saved permanently. Click anywhere on the island to see the best single-plane and East-West orientation with monthly generation for that spot.</p>
+      </div>
+      <div class="panel" id="atlas_detail" style="display:none">
+        <div class="panel-h"><h3>Location detail</h3><span class="sub2">nearest computed cell</span></div>
+        <div id="atlas_detail_body"></div>
+      </div>
+    </div>
+
+    <!-- results -->
+    <div id="results" class="results" style="display:none">
+      <div id="kpis" class="kpi-strip"></div>
+
+      <!-- results summary table -->
+      <div class="panel">
+        <div class="panel-h"><h3>Optimisation results</h3>
+          <span class="sub2" id="summary_sub"></span>
+          <div class="panel-tools"><button id="btn_copy_summary" class="btn-mini">⧉ Copy table</button></div>
+        </div>
+        <div id="summary_table" class="restable-wrap"></div>
+      </div>
+
+      <!-- how it was calculated -->
+      <div class="panel" id="main_calc_steps_panel">
+        <header class="card-h collapsed" data-toggle style="padding:0 0 4px">
+          <span class="ci">🧾</span><h3 style="font-size:13.5px;margin:0;flex:1">How this result was calculated — step by step</h3><span class="chev">▾</span>
+        </header>
+        <div id="main_calc_steps_body" class="calc-steps" style="display:none"></div>
+      </div>
+
+      <!-- long-term bankability -->
+      <div class="panel" id="longterm_panel">
+        <div class="panel-h"><h3>Long-term yield &amp; exceedance estimates (P50 / P90)</h3>
+          <span class="sub2" id="lt_sub">multi-year interannual variability + degradation</span>
+          <div class="panel-tools"><button id="btn_longterm" class="btn-mini">▶ Compute (multi-year)</button></div>
+        </div>
+        <div class="lt-controls">
+          <label>Years from<input id="lt_start" type="number" value="2005" min="1990" max="2030"></label>
+          <label>to<input id="lt_end" type="number" value="2020" min="1990" max="2030"></label>
+          <label>Model uncertainty %<input id="lt_unc" type="number" value="4" step="0.5"></label>
+          <label>1st-yr LID %<input id="lt_lid" type="number" value="1.0" step="0.1"></label>
+          <label>Degradation %/yr<input id="lt_degr" type="number" value="0.35" step="0.05"></label>
+          <label>Availability %<input id="lt_avail" type="number" value="99" step="0.5"></label>
+          <label>Lifetime yr<input id="lt_life" type="number" value="25" step="1"></label>
+        </div>
+        <div id="lt_body" class="lt-body"><p class="hint">Runs at least five historical PVGIS years at the selected configuration and combines interannual variability with the entered model uncertainty. Results are probabilistic estimates, not a bankable resource assessment. Takes ~20–40 s.</p></div>
+      </div>
+
+      <div class="panel orientation-panel">
+        <div class="panel-h"><h3>Best panel orientation on the selected site</h3>
+          <span class="sub2" id="orientation_sub"></span></div>
+        <div class="orientation-wrap">
+          <div id="orientation_map" class="orientation-map"></div>
+          <div id="azimuth_compass" class="azimuth-compass"></div>
+        </div>
+        <div class="map-legend">
+          <span id="legend_opt"><i class="legend-line optimum"></i><span id="legend_opt_label">Optimum facing / row bearing</span></span>
+          <span id="legend_design"><i class="legend-line design"></i>Current design</span>
+          <span>Schematic orientation overlay, not a surveyed block layout.</span>
+        </div>
+      </div>
+
+      <div id="tracker_banner" class="tracker-banner" style="display:none"></div>
+
+      <div class="grid-main" id="grid_main">
+        <div class="panel big" id="heatmap_panel">
+          <div class="panel-h"><h3>Annual specific yield — tilt × azimuth</h3>
+            <div class="panel-tools">
+              <label class="seg">Metric
+                <select id="metric">
+                  <option value="specific_yield">Specific yield (kWh/kWp)</option>
+                  <option value="energy_mwh">Annual energy (MWh)</option>
+                </select></label>
+            </div>
+          </div>
+          <div id="heatmap" class="plot"></div>
+          <p class="caption" id="heatmap_caption"></p>
+        </div>
+        <div class="panel">
+          <div class="panel-h"><h3>Optimum vs. your design</h3></div>
+          <div id="compare" class="compare"></div>
+          <div class="panel-h"><h3>Plant make-up</h3></div>
+          <div id="makeup" class="makeup"></div>
+        </div>
+      </div>
+
+      <!-- orientation explorer -->
+      <div class="panel" id="explorer_panel">
+        <div class="panel-h"><h3>Orientation explorer — test any tilt &amp; azimuth</h3>
+          <span class="sub2" id="ex_status">exact model evaluation per orientation</span></div>
+        <div class="explorer">
+          <div class="explorer-controls">
+            <label>Tilt <b id="ex_tilt_v">12°</b>
+              <input id="ex_tilt" type="range" min="0" max="60" step="1" value="12"></label>
+            <label>Azimuth <b id="ex_az_v">180° S</b>
+              <input id="ex_az" type="range" min="90" max="270" step="1" value="180"></label>
+            <label>Previous/Excel prediction (MWh, optional)
+              <input id="ex_ref" type="number" step="1" placeholder="e.g. 6441"></label>
+            <button id="btn_save_scenario" class="btn-ghost">💾 Save scenario (max 10)</button>
+          </div>
+          <div>
+            <div id="explorer_table" class="restable-wrap"></div>
+            <div class="sub3" style="margin-top:12px">Monthly generation — this orientation vs optimum</div>
+            <div id="ex_monthly" class="plot sm"></div>
+          </div>
+        </div>
+        <div class="panel-h" style="margin-top:16px"><h3>Saved scenarios vs optimum</h3>
+          <span class="sub2" id="scen_sub"></span>
+          <div class="panel-tools">
+            <button id="btn_scen_csv" class="btn-mini">⬇ CSV</button>
+            <button id="btn_scen_clear" class="btn-mini">✕ Clear all</button>
+          </div></div>
+        <div id="scenarios_table" class="restable-wrap"><p class="hint">Move the sliders, then click “Save scenario” — each saved orientation is kept here side-by-side with the app-calculated optimum (up to 10, kept after reload).</p></div>
+      </div>
+
+      <!-- array layout visual -->
+      <div class="panel">
+        <div class="panel-h"><h3>Array arrangement</h3>
+          <span class="sub2" id="layout_sub"></span></div>
+        <div class="layout-wrap">
+          <div id="array_svg" class="array-svg"></div>
+          <div id="module_svg" class="module-svg"></div>
+        </div>
+      </div>
+
+      <!-- electrical design -->
+      <div class="panel" id="electrical_panel">
+        <div class="panel-h"><h3>Electrical design — string sizing &amp; inverter / MPPT assignment</h3>
+          <span class="sub2" id="electrical_sub"></span></div>
+        <div id="electrical_body"></div>
+      </div>
+
+      <div class="panel" id="calc_panel">
+        <div class="panel-h"><h3>Verification calculation steps</h3>
+          <span class="sub2">technician-readable electrical and transformer checks</span></div>
+        <div id="calc_steps_body"></div>
+      </div>
+
+      <!-- plant layout + export -->
+      <div class="panel">
+        <div class="panel-h"><h3>Plant layout — block &amp; string distribution</h3>
+          <span class="sub2" id="layout_sub2"></span>
+          <div class="panel-tools" id="export_tools">
+            <button id="btn_csv" class="btn-mini">⬇ CSV</button>
+            <button id="btn_json" class="btn-mini">⬇ JSON</button>
+            <button id="btn_geojson" class="btn-mini">⬇ GeoJSON</button>
+          </div>
+        </div>
+        <div class="layout2-wrap">
+          <div id="layout_plan" class="layout-plan"></div>
+          <div id="layout_map" class="layout-map"></div>
+        </div>
+        <div class="map-legend" id="layout_legend"></div>
+      </div>
+
+      <!-- site area, transformers & boundary -->
+      <div class="panel" id="infra_panel">
+        <div class="panel-h"><h3>Site area &amp; balance of plant</h3>
+          <span class="sub2" id="infra_sub"></span></div>
+        <div id="infra_body"></div>
+        <div class="panel-h" style="margin-top:6px"><h3>Proposed site boundary (scaled map)</h3>
+          <div class="panel-tools">
+            <button id="bnd_draw" class="btn-mini">✏ Draw boundary</button>
+            <button id="bnd_undo" class="btn-mini" style="display:none">↶ Undo</button>
+            <button id="bnd_finish" class="btn-mini" style="display:none">✓ Finish</button>
+            <button id="bnd_clear" class="btn-mini">🗑 Clear</button>
+          </div>
+        </div>
+        <div id="boundary_map" class="layout-map"></div>
+        <div id="bnd_info" class="bnd-info"></div>
+      </div>
+
+      <div class="grid-2" id="xsec_row">
+        <div class="panel"><div class="panel-h"><h3>Yield vs. tilt</h3><span class="sub2" id="xsec_az"></span></div><div id="tilt_xsec" class="plot sm"></div></div>
+        <div class="panel"><div class="panel-h"><h3>Yield vs. azimuth</h3><span class="sub2" id="xsec_tilt"></span></div><div id="az_xsec" class="plot sm"></div></div>
+      </div>
+
+      <!-- 8760 carpet -->
+      <div class="panel">
+        <div class="panel-h"><h3>Hourly production over the analysis year</h3><span class="sub2">AC power, kW · civil local time</span></div>
+        <div id="carpet" class="plot md"></div>
+      </div>
+
+      <div class="grid-2">
+        <div class="panel"><div class="panel-h"><h3>Monthly generation @ optimum</h3></div><div id="monthly" class="plot sm"></div></div>
+        <div class="panel"><div class="panel-h"><h3>Monthly modeled PR &amp; specific yield</h3></div><div id="monthly_pr" class="plot sm"></div></div>
+      </div>
+
+      <div class="grid-2">
+        <div class="panel"><div class="panel-h"><h3>Monthly irradiation — GHI vs POA</h3><span class="sub2">transposition gain</span></div><div id="ghi_poa" class="plot sm"></div></div>
+        <div class="panel"><div class="panel-h"><h3>Energy loss waterfall</h3></div><div id="waterfall" class="plot sm"></div></div>
+      </div>
+
+      <div class="grid-2">
+        <div class="panel"><div class="panel-h"><h3>AC power duration curve</h3><span class="sub2">clipping vs AC limit</span></div><div id="duration" class="plot sm"></div></div>
+        <div class="panel"><div class="panel-h"><h3>Sun-path diagram</h3><span class="sub2" id="sun_sub"></span></div><div id="sunpath" class="plot sm"></div></div>
+      </div>
+
+      <div class="grid-2">
+        <div class="panel"><div class="panel-h"><h3>Average day power profile</h3></div><div id="profile" class="plot sm"></div></div>
+        <div class="panel"><div class="panel-h"><h3>Weather pattern — monthly GHI</h3><span class="sub2" id="wx_src_lbl"></span></div><div id="wx_chart" class="plot sm"></div></div>
+      </div>
+
+      <p class="footer-note">Engine: pvlib · Hay-Davies infinite-sheds · ASHRAE direct-beam IAM · Faiman/PVsyst cell temperature · PVWatts DC/inverter. This is a preliminary orientation and yield model, not a bankable study or an electrical, structural, geotechnical, grid-code, or surveyed layout design.</p>
+    </div>
+  </main>
+</div>
+<script src="js/charts.js?v=20260709b"></script>
+<script src="js/layout.js?v=20260709b"></script>
+<script src="js/electrical.js?v=20260709b"></script>
+<script src="js/infra.js?v=20260709b"></script>
+<script src="js/report.js?v=20260709b"></script>
+<script src="js/locations.js?v=20260709b"></script>
+<script src="js/app.js?v=20260709b"></script>
+<script src="js/eastwest.js?v=20260709b"></script>
+<script src="js/atlas.js?v=20260709b"></script>
+</body>
+</html>

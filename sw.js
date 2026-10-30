@@ -2,7 +2,7 @@
  * sw.js — Fresh app navigation with cached offline assets
  */
 
-const CACHE_NAME = 'solarpv-v52';
+const CACHE_NAME = 'solarpv-v53';
 const CACHE_PREFIX = 'solarpv-v';
 
 const LOCAL_ASSETS = [
@@ -76,7 +76,7 @@ const LOCAL_ASSETS = [
   './js/firebase-sync.js',
   './js/workspace-ui.js?v=4',
   './js/directives-ui.js?v=20261013-15',
-  './js/app.js?v=20261029-2',
+  './js/app.js?v=20261030-optimizer',
   './css/style.css',
   './css/workspace.css',
   './js/catalog-store.js',
@@ -131,13 +131,19 @@ self.addEventListener('fetch', event => {
   if (event.request.method !== 'GET') return;
   // Map providers require ordinary HTTP caching; never precache or retain tiles here.
   if (event.request.url) {
-    const host = new URL(event.request.url).hostname;
+    const requestUrl = new URL(event.request.url);
+    const host = requestUrl.hostname;
+    if (requestUrl.pathname.startsWith('/pvgis/') || requestUrl.pathname.includes('/optimizer/')) return;
     if (host === 'tile.openstreetmap.org' || host.endsWith('.arcgisonline.com') || host === 'static.arcgis.com') return;
   }
 
   // Reloads must fetch the published app shell so returning users see new releases.
   // Static/versioned assets retain cache-first behavior and navigation works offline.
   if (event.request.mode === 'navigate') {
+    if (event.request.url && self.registration?.scope) {
+      const url = new URL(event.request.url), scope = new URL(self.registration.scope);
+      if (url.origin !== scope.origin || (url.pathname !== scope.pathname && url.pathname !== new URL('index.html',scope).pathname)) return;
+    }
     event.respondWith((async () => {
       const cache = await caches.open(CACHE_NAME);
       try {

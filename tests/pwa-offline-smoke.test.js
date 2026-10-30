@@ -181,3 +181,10 @@ test('an unresponsive optional CDN cannot hold a new rule cache installation for
   assert.ok(sw.addAllCalls[0].some(url => url.startsWith('./js/directives-2026.js?v=')));
   assert.ok(sw.addAllRequests[0].every(request=>request.cache==='reload'));
 });
+
+test('optimizer and PVGIS requests bypass service-worker caching',()=>{
+  const sw=bootServiceWorker();
+  for(const url of ['https://example.com/solar-pv/optimizer/frontend/index.html','https://appassets.androidplatform.net/pvgis/tmy?outputformat=json']){
+    let intercepted=false;sw.handlers.fetch({request:{method:'GET',mode:'navigate',url},respondWith:()=>{intercepted=true;}});assert.equal(intercepted,false);
+  }
+});

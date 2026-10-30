@@ -75,6 +75,7 @@ const App = (() => {
     inspection: { title: 'Inspection Log',      render: (c) => Inspection.render(c) },
     moduleinventory: { title: 'Module Serial Scanner', render: (c) => ModuleInventory.render(c) },
     sitesurvey: { title: 'Ground Site Survey', render: (c) => SiteSurvey.render(c) },
+    optimizer: { title: 'Solar Yield Optimizer', render: (c) => { c.innerHTML='<div class="page"><div class="page-title">Solar Yield Optimizer</div><p>Hourly pvlib calculations run on this device. The engine may take time to start; internet is needed for PVGIS weather and maps.</p><iframe title="Solar Yield Optimizer" src="optimizer/frontend/index.html" style="width:100%;height:calc(100vh - 165px);min-height:650px;border:0;border-radius:12px;background:#0c1423"></iframe></div>'; } },
     pr:         { title: 'PR & IR Test',        render: (c) => PRCalc.render(c) },
     standards:   { title: 'Standards Reference',        render: (c) => Standards.render(c) },
     degradation: { title: 'Module Degradation',         render: (c) => Degradation.render(c) },
@@ -130,7 +131,7 @@ const App = (() => {
     },
   };
 
-  Object.values(PROJECT_TYPES).forEach(type=>{for(const page of ['moduleinventory','sitesurvey'])if(!type.pages.includes(page))type.pages.push(page);});
+  Object.values(PROJECT_TYPES).forEach(type=>{for(const page of ['moduleinventory','sitesurvey','optimizer'])if(!type.pages.includes(page))type.pages.push(page);});
   // Home screen tile definitions — grouped, with project-type visibility
   const HOME_TILES = [
     {
@@ -142,6 +143,7 @@ const App = (() => {
         { page: 'cableschedule', icon: '&#128200;', label: 'Cable Schedule',     desc: 'Panel schedule & export' },
         { page: 'hybrid',      icon: '&#128267;', label: 'Hybrid Setup',         desc: 'Battery & inverter check' },
         { page: 'utilityvalidator', icon: '&#128221;', label: 'Utility Validator', desc: 'CEB/LECO submission gate' },
+        { page: 'optimizer',   icon: '&#9728;',   label: 'Solar Yield Optimizer', desc: 'Hourly tilt, azimuth and East-West optimization' },
         { page: 'yield',       icon: '&#9728;',   label: 'Yield Estimator',      desc: 'Monthly kWh simulation + PVGIS API' },
         { page: 'financials',  icon: '&#128176;', label: 'Financial Analysis',   desc: 'ROI, payback, NPV, CEB tariffs' },
         { page: 'rooflayout',  icon: '&#127968;', label: 'Roof Layout',          desc: 'Auto panel layout + shadow overlay' },
@@ -858,6 +860,8 @@ const App = (() => {
           <button class="basic-home-tile" data-page="sitesurvey">
             <span class="basic-home-tile-icon">&#127759;</span><div><div class="basic-home-tile-label">Ground Site Survey</div><div class="basic-home-tile-desc">Map boundary, area and distances</div></div><span class="basic-home-tile-arrow">&#8250;</span>
           </button>
+
+          <button class="basic-home-tile" data-page="optimizer"><span class="basic-home-tile-icon">&#9728;</span><div><div class="basic-home-tile-label">Solar Yield Optimizer</div><div class="basic-home-tile-desc">Hourly tilt and East-West analysis</div></div><span class="basic-home-tile-arrow">&#8250;</span></button>
 
           <button class="basic-home-tile" data-page="basiccalc">
             <span class="basic-home-tile-icon">&#128200;</span>
@@ -2014,7 +2018,7 @@ const App = (() => {
   // -----------------------------------------------------------------------
 
   function _initSW() {
-    if ('serviceWorker' in navigator) {
+    if (typeof AndroidInventory === 'undefined' && 'serviceWorker' in navigator) {
       navigator.serviceWorker.register('./sw.js', { updateViaCache: 'none' }).catch(() => {});
     }
   }

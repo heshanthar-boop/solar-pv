@@ -12,7 +12,14 @@ import android.widget.FrameLayout;
 import android.widget.Toast;
 import java.io.IOException;
 import java.io.OutputStream;
+import java.io.InputStream;
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
+import java.net.HttpURLConnection;
+import java.net.URL;
 import java.util.Locale;
+import java.util.HashMap;
+import java.util.Map;
 
 /** Hosts only packaged app files at a secure virtual origin. External links open in the browser. */
 public class MainActivity extends Activity {
@@ -27,17 +34,25 @@ public class MainActivity extends Activity {
 
     public final class InventoryBridge {
         @JavascriptInterface public void saveWorkbook(String filename, String encoded) {
+            saveFile(filename, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", encoded);
+        }
+        @JavascriptInterface public void saveFile(String filename, String mime, String encoded) {
+            final String safeMime;
+            if ("application/pdf".equals(mime) || "application/json".equals(mime) || "text/html".equals(mime) || "text/csv".equals(mime) || "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet".equals(mime)) safeMime=mime;
+            else { runOnUiThread(new Runnable(){public void run(){Toast.makeText(MainActivity.this, "Unsupported export type.", Toast.LENGTH_LONG).show();}}); return; }
+            if (filename == null) return;
             if (encoded == null || encoded.length() > 28000000) { runOnUiThread(new Runnable(){public void run(){Toast.makeText(MainActivity.this, "Export is too large.", Toast.LENGTH_LONG).show();}}); return; }
             try {
                 final byte[] bytes=Base64.decode(encoded, Base64.DEFAULT);
                 final String safeFilename=filename;
                 runOnUiThread(new Runnable(){public void run(){
+                    if (pendingWorkbook != null) { Toast.makeText(MainActivity.this, "Finish the current save first.", Toast.LENGTH_LONG).show(); return; }
                     pendingWorkbook=bytes;
-                    Intent intent=new Intent(Intent.ACTION_CREATE_DOCUMENT).addCategory(Intent.CATEGORY_OPENABLE).setType("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+                    Intent intent=new Intent(Intent.ACTION_CREATE_DOCUMENT).addCategory(Intent.CATEGORY_OPENABLE).setType(safeMime);
                     intent.putExtra(Intent.EXTRA_TITLE, safeFilename.replaceAll("[^A-Za-z0-9._-]", "_"));
                     try { startActivityForResult(intent, SAVE_FILE); } catch(Exception e) { pendingWorkbook=null; Toast.makeText(MainActivity.this, "No app can save this file.", Toast.LENGTH_LONG).show(); }
                 }});
-            } catch(IllegalArgumentException e) { runOnUiThread(new Runnable(){public void run(){Toast.makeText(MainActivity.this, "Unable to prepare Excel file.", Toast.LENGTH_LONG).show();}}); }
+            } catch(IllegalArgumentException e) { runOnUiThread(new Runnable(){public void run(){Toast.makeText(MainActivity.this, "Unable to prepare file.", Toast.LENGTH_LONG).show();}}); }
         }
     }
 
@@ -68,6 +83,7 @@ public class MainActivity extends Activity {
                 Uri uri = request.getUrl();
                 if (!ORIGIN.equals(uri.getHost())) return null;
                 String path = uri.getPath();
+                if (path != null && path.startsWith("/pvgis/")) { if(request.isForMainFrame()) return notFound(); return pvgisProxy(uri, request.getMethod()); }
                 if (path == null || !path.startsWith("/assets/") || path.contains("..")) return notFound();
                 String name = path.substring(8);
                 try { return new WebResourceResponse(mime(name), textual(name) ? "UTF-8" : null, getAssets().open("web/" + name)); }
@@ -113,11 +129,37 @@ public class MainActivity extends Activity {
         if (state == null) view.loadUrl("https://" + ORIGIN + "/assets/index.html");
         else view.restoreState(state);
     }
+    /** GET-only proxy to the official PVGIS API. Allows on-device model access
+     * without exposing a general network proxy or disabling TLS/CORS. */
+    private static WebResourceResponse pvgisProxy(Uri uri, String method) {
+        String path=uri.getPath(), name=path.substring("/pvgis/".length());
+        if (!"GET".equals(method) || !(name.equals("tmy") || name.equals("seriescalc") || name.equals("printhorizon"))) return notFound();
+        String query=uri.getEncodedQuery();
+        if(query == null || query.length()>4096 || query.contains("\r") || query.contains("\n") || !"json".equals(uri.getQueryParameter("outputformat"))) return notFound();
+        HttpURLConnection connection=null;
+        try {
+            URL target=new URL("https://re.jrc.ec.europa.eu/api/v5_3/"+name+"?"+query);
+            connection=(HttpURLConnection)target.openConnection();
+            connection.setInstanceFollowRedirects(false); connection.setConnectTimeout(20000); connection.setReadTimeout(60000);
+            connection.setRequestProperty("Accept", "application/json, text/plain, */*");
+            int status=connection.getResponseCode();
+            InputStream input=status>=400?connection.getErrorStream():connection.getInputStream();
+            if(input==null) throw new IOException("No response body");
+            ByteArrayOutputStream out=new ByteArrayOutputStream();byte[] buffer=new byte[8192];int n,total=0;
+            try(InputStream source=input){while((n=source.read(buffer))!=-1){total+=n;if(total>20000000)throw new IOException("PVGIS response too large");out.write(buffer,0,n);}}
+            if(status<200 || status>599 || (status>=300 && status<400)) status=502;
+            String reason=status>=400?"PVGIS request failed":"OK";
+            Map<String,String> headers=new HashMap<>();headers.put("X-Content-Type-Options","nosniff");headers.put("Content-Security-Policy","default-src 'none'");
+            return new WebResourceResponse("application/json","UTF-8",status,reason,headers,new ByteArrayInputStream(out.toByteArray()));
+        } catch(Exception e) {
+            return new WebResourceResponse("text/plain","UTF-8",502,"PVGIS unavailable",null,new ByteArrayInputStream("PVGIS could not be reached".getBytes(java.nio.charset.StandardCharsets.UTF_8)));
+        } finally { if(connection!=null)connection.disconnect(); }
+    }
     private static WebResourceResponse notFound() { return new WebResourceResponse("text/plain", "UTF-8", 404, "Not Found", null, new java.io.ByteArrayInputStream(new byte[0])); }
     private static boolean textual(String path) { return path.endsWith(".html") || path.endsWith(".js") || path.endsWith(".css") || path.endsWith(".json") || path.endsWith(".svg"); }
     private static String mime(String path) {
         String p=path.toLowerCase(Locale.ROOT);
-        if(p.endsWith(".html"))return "text/html"; if(p.endsWith(".js"))return "application/javascript";
+        if(p.endsWith(".html"))return "text/html"; if(p.endsWith(".js")||p.endsWith(".mjs"))return "application/javascript"; if(p.endsWith(".wasm"))return "application/wasm";
         if(p.endsWith(".css"))return "text/css"; if(p.endsWith(".json"))return "application/json";
         if(p.endsWith(".svg"))return "image/svg+xml"; if(p.endsWith(".png"))return "image/png";
         if(p.endsWith(".jpg")||p.endsWith(".jpeg"))return "image/jpeg"; if(p.endsWith(".woff2"))return "font/woff2";
@@ -128,8 +170,8 @@ public class MainActivity extends Activity {
         if(request==PICK_FILE && fileCallback!=null){fileCallback.onReceiveValue(WebChromeClient.FileChooserParams.parseResult(result,data));fileCallback=null;}
         if(request==SAVE_FILE && pendingWorkbook!=null){
             if(result==RESULT_OK && data!=null && data.getData()!=null){
-                try(OutputStream stream=getContentResolver().openOutputStream(data.getData())){if(stream==null)throw new IOException("No output stream");stream.write(pendingWorkbook);Toast.makeText(this,"Excel file saved.",Toast.LENGTH_LONG).show();}
-                catch(IOException e){Toast.makeText(this,"Could not save the Excel file. Please try again.",Toast.LENGTH_LONG).show();}
+                try(OutputStream stream=getContentResolver().openOutputStream(data.getData())){if(stream==null)throw new IOException("No output stream");stream.write(pendingWorkbook);Toast.makeText(this,"File saved.",Toast.LENGTH_LONG).show();}
+                catch(IOException e){Toast.makeText(this,"Could not save the file. Please try again.",Toast.LENGTH_LONG).show();}
             }
             pendingWorkbook=null;
         }

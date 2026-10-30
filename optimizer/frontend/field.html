@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PV Condition Monitor - MI3115 / SolarWorld</title>
+<link rel="stylesheet" href="css/field-style.css?v=20260709b">
+<script src="vendor/plotly.min.js?v=20260709b"></script>
+<script src="mobile-bridge.js"></script><link rel="stylesheet" href="mobile.css"></head>
+<body>
+<div class="app-shell">
+  <aside class="control-rail">
+    <header class="brand">
+      <div class="brand-mark">
+        <span></span><span></span><span></span>
+      </div>
+      <div>
+        <h1>PV Condition Monitor</h1>
+        <p>Metrel MI3115 / SolarWorld SW XL 350 mono</p>
+      </div>
+    </header>
+
+    <section class="rail-section">
+      <h2>Test Data</h2>
+      <label>Site pack
+        <input id="file_input" type="file" accept=".zip,.pdf,.csv,.txt">
+      </label>
+      <button id="btn_analyze" class="primary">Analyze Upload</button>
+      <div id="upload_state" class="state-line">No field-test pack loaded.</div>
+    </section>
+
+    <section class="rail-section">
+      <h2>Screening Limits</h2>
+      <div class="input-grid">
+        <label>Watch below %
+          <input id="warning_pct" type="number" step="0.5" value="90">
+        </label>
+        <label>Critical below %
+          <input id="critical_pct" type="number" step="0.5" value="80">
+        </label>
+        <label>Voltage dev %
+          <input id="voltage_warning_pct" type="number" step="0.5" value="5">
+        </label>
+        <label>Current dev %
+          <input id="current_warning_pct" type="number" step="0.5" value="8">
+        </label>
+        <label>Min irradiance
+          <input id="irradiance_min_wm2" type="number" step="50" value="700">
+        </label>
+        <label>Min FF %
+          <input id="ff_warning_pct" type="number" step="0.5" value="70">
+        </label>
+      </div>
+    </section>
+
+    <section class="rail-section">
+      <h2>SolarWorld Warranty</h2>
+      <label>Warranty / commissioning start date
+        <input id="warranty_start_date" type="date" value="2016-08-30">
+      </label>
+      <div class="input-grid warranty-grid">
+        <label>First-year min %
+          <input id="warranty_first_year_min_pct" type="number" step="0.1" value="97">
+        </label>
+        <label>Annual loss %
+          <input id="warranty_annual_degradation_pct" type="number" step="0.1" value="0.7">
+        </label>
+        <label>Term years
+          <input id="warranty_term_years" type="number" step="1" value="25">
+        </label>
+      </div>
+      <div class="state-line">Default date follows the archived SolarWorld SW XL datasheet version date. Change it if installation/commissioning date differs.</div>
+    </section>
+
+    <section class="rail-section module-plate">
+      <h2>Module Profile</h2>
+      <div class="module-visual" aria-hidden="true">
+        <div class="cell-grid">
+          <i></i><i></i><i></i><i></i><i></i><i></i>
+          <i></i><i></i><i></i><i></i><i></i><i></i>
+          <i></i><i></i><i></i><i></i><i></i><i></i>
+        </div>
+        <svg viewBox="0 0 180 82" role="img" aria-label="Reference IV curve">
+          <path d="M16 14 H132 C150 14 160 25 162 42 C164 60 156 70 142 70 H16" />
+          <path d="M34 68 C60 28 100 14 152 14" class="pcurve" />
+        </svg>
+      </div>
+      <dl class="spec-list">
+        <div><dt>Pmax</dt><dd>350 W</dd></div>
+        <div><dt>Vmpp / Impp</dt><dd>38.4 V / 9.17 A</dd></div>
+        <div><dt>Voc / Isc</dt><dd>48.0 V / 9.82 A</dd></div>
+        <div><dt>Gamma</dt><dd>-0.430 %/C</dd></div>
+        <div><dt>NOCT</dt><dd>46 C</dd></div>
+      </dl>
+    </section>
+  </aside>
+
+  <main class="workspace">
+    <header class="topbar">
+      <div>
+        <p class="eyebrow">Field performance analysis</p>
+        <h2 id="page_title">SolarWorld PV module condition assessment</h2>
+      </div>
+      <div class="actions">
+        <button id="btn_pdf" class="secondary" disabled>PDF Report</button>
+        <button id="btn_json" class="secondary" disabled>Export JSON</button>
+        <button id="btn_csv" class="secondary" disabled>Export CSV</button>
+      </div>
+    </header>
+
+    <section id="empty_state" class="empty-state">
+      <div class="empty-visual">
+        <svg viewBox="0 0 560 240" role="img" aria-label="PV test workflow visual">
+          <defs>
+            <linearGradient id="g1" x1="0" x2="1">
+              <stop offset="0" stop-color="#125a4f"/>
+              <stop offset="1" stop-color="#1f7a8c"/>
+            </linearGradient>
+          </defs>
+          <rect x="36" y="42" width="230" height="138" rx="8" fill="url(#g1)"/>
+          <g fill="#d7fff5" opacity=".35">
+            <rect x="56" y="62" width="38" height="28"/><rect x="100" y="62" width="38" height="28"/>
+            <rect x="144" y="62" width="38" height="28"/><rect x="188" y="62" width="38" height="28"/>
+            <rect x="56" y="96" width="38" height="28"/><rect x="100" y="96" width="38" height="28"/>
+            <rect x="144" y="96" width="38" height="28"/><rect x="188" y="96" width="38" height="28"/>
+            <rect x="56" y="130" width="38" height="28"/><rect x="100" y="130" width="38" height="28"/>
+            <rect x="144" y="130" width="38" height="28"/><rect x="188" y="130" width="38" height="28"/>
+          </g>
+          <rect x="324" y="58" width="168" height="106" rx="10" fill="#ffffff" stroke="#b8c5d1"/>
+          <path d="M344 128 C374 80 414 76 468 76" fill="none" stroke="#125a4f" stroke-width="5"/>
+          <path d="M344 132 H468" stroke="#d97706" stroke-width="4"/>
+          <circle cx="376" cy="106" r="7" fill="#d97706"/>
+          <path d="M266 112 H314" stroke="#7c8b99" stroke-width="4"/>
+          <path d="M304 102 L316 112 L304 122" fill="none" stroke="#7c8b99" stroke-width="4"/>
+        </svg>
+      </div>
+      <h3>Load MI3115 field data to start condition analysis.</h3>
+      <p>The main workspace will show validation, corrected power index, string grouping, weakest assets, and the calculation basis.</p>
+    </section>
+
+    <section id="results" class="results" hidden>
+      <div id="kpi_grid" class="kpi-grid"></div>
+
+      <section class="panel validation-panel">
+        <div class="panel-head">
+          <div>
+            <h3>Upload Validation</h3>
+            <p id="validation_sub"></p>
+          </div>
+          <span id="validation_badge" class="status-badge">Pending</span>
+        </div>
+        <div class="validation-grid">
+          <div id="validation_table" class="table-wrap"></div>
+          <div id="validation_notes" class="notes-box"></div>
+        </div>
+      </section>
+
+      <section class="chart-grid">
+        <div class="panel">
+          <div class="panel-head"><h3>Corrected Power Index</h3><p>Corrected Pmpp / expected STC Pmpp</p></div>
+          <div id="power_chart" class="chart"></div>
+        </div>
+        <div class="panel">
+          <div class="panel-head"><h3>Condition Mix</h3><p>Record-level screening result</p></div>
+          <div id="condition_chart" class="chart"></div>
+        </div>
+      </section>
+
+      <section class="panel">
+        <div class="panel-head">
+          <div><h3>SolarWorld Warranty Degradation Check</h3><p>Measured corrected PI compared with manufacturer linear performance guarantee</p></div>
+        </div>
+        <div id="warranty_table" class="table-wrap"></div>
+      </section>
+
+      <section class="panel">
+        <div class="panel-head">
+          <div><h3>Final Module Verdict</h3><p>Repeated tests grouped by module; final PI uses best evidence median</p></div>
+        </div>
+        <div id="module_verdict_table" class="table-wrap"></div>
+      </section>
+
+      <section class="panel">
+        <div class="panel-head">
+          <div><h3>Final String Verdict</h3><p>String verdict combines repeated string evidence and weakest module verdict</p></div>
+        </div>
+        <div id="string_verdict_table" class="table-wrap"></div>
+      </section>
+
+      <section class="panel">
+        <div class="panel-head">
+          <div><h3>Record-Level String Condition</h3><p>Raw measurement grouping before final repeated-test verdict</p></div>
+        </div>
+        <div id="string_table" class="table-wrap"></div>
+      </section>
+
+      <section class="analysis-grid">
+        <div class="panel">
+          <div class="panel-head"><h3>Specialist Interpretation</h3><p>SolarWorld SW XL 350 mono</p></div>
+          <div id="specialist_notes" class="notes-box"></div>
+        </div>
+        <div class="panel">
+          <div class="panel-head"><h3>Calculation Basis</h3><p>Assumptions and formulas</p></div>
+          <div id="methodology" class="methodology"></div>
+        </div>
+      </section>
+
+      <section class="panel">
+        <div class="panel-head">
+          <div><h3>Measurement Records</h3><p id="record_subtitle"></p></div>
+        </div>
+        <div id="record_table" class="table-wrap record-table"></div>
+      </section>
+    </section>
+  </main>
+</div>
+
+<div id="toast" class="toast" hidden></div>
+<script src="js/field-app.js?v=20260709b"></script>
+</body>
+</html>

@@ -1,0 +1,19 @@
+(function(){
+  let worker,seq=0,pending=new Map();
+  const originalFetch=window.fetch.bind(window);
+  function clearUpload(){try{if(typeof UPLOAD_ID!=='undefined')UPLOAD_ID=null;}catch(_){}const file=document.querySelector('#wx_file');if(file)file.value='';}
+  function ensureWorker(){if(worker)return worker;worker=new Worker(new URL('../worker.js',document.baseURI));worker.onmessage=e=>{const {id,response,error}=e.data,job=pending.get(id);if(!job)return;pending.delete(id);if(error)job.reject(new Error(error));else{let body=response.body||'';if(response.base64){const raw=atob(response.base64);body=Uint8Array.from(raw,c=>c.charCodeAt(0));}job.resolve(new Response(body,{status:response.status,headers:{'Content-Type':response.mime}}));}update();};worker.onerror=e=>{for(const job of pending.values())job.reject(new Error(e.message||'Optimizer worker failed'));pending.clear();worker.terminate();worker=null;clearUpload();update();};return worker;}
+  function update(){const status=document.querySelector('#mobile-worker-status');if(status)status.textContent=pending.size?'Calculation running on this device. Large searches can take several minutes.':'Ready';}
+  async function convertForm(data){const out={};for(const [name,v] of data.entries()){if(v instanceof File){if(v.size>20000000)throw new Error('File exceeds the 20 MB phone limit.');const bytes=new Uint8Array(await v.arrayBuffer());let binary='';for(let i=0;i<bytes.length;i+=8192)binary+=String.fromCharCode(...bytes.subarray(i,i+8192));out[name]={name:v.name,content:btoa(binary)};}else out[name]=String(v);}return out;}
+  window.fetch=async function(input,init={}){const url=typeof input==='string'?input:input.url;if(!url.startsWith('/api/'))return originalFetch(input,init);const body=init.body;const form=body instanceof FormData?await convertForm(body):{},payload=typeof body==='string'?JSON.parse(body):{};const id=++seq;return new Promise((resolve,reject)=>{pending.set(id,{resolve,reject});try{ensureWorker().postMessage({id,path:url,payload,form});}catch(e){pending.delete(id);reject(new Error('Unable to start the optimizer engine: '+(e.message||e)));}update();});};
+  window.addEventListener('DOMContentLoaded',()=>{const alert=document.createElement('div');alert.className='mobile-engine-notice';alert.innerHTML='<strong>On-device scientific optimizer</strong><span id="mobile-worker-status">Starting engine…</span><small>Runs locally. PVGIS and map imagery require internet. Phone searches have memory limits. Horizon shading and background atlas are unavailable; long-term analysis is limited to five years. Live progress appears when the run completes. Results are preliminary.</small><button id="mobile-worker-cancel" type="button">Cancel calculation</button>';document.body.prepend(alert);document.querySelector('#mobile-worker-cancel').onclick=()=>{if(worker)worker.terminate();worker=null;clearUpload();for(const job of pending.values())job.reject(new Error('Calculation cancelled; any uploaded weather must be selected again.'));pending.clear();update();};});
+})();
+(function(){
+  if(typeof AndroidInventory==='undefined'||typeof AndroidInventory.saveFile!=='function')return;
+  const click=HTMLAnchorElement.prototype.click;
+  HTMLAnchorElement.prototype.click=function(){
+    if(!this.download||!this.href.startsWith('blob:'))return click.call(this);
+    const name=this.download,href=this.href;
+    fetch(href).then(r=>r.blob()).then(blob=>{const ext=name.split('.').pop().toLowerCase();const mime={pdf:'application/pdf',html:'text/html',json:'application/json',csv:'text/csv'}[ext];if(!mime)throw Error('This export type is not supported on Android.');const reader=new FileReader();reader.onload=()=>AndroidInventory.saveFile(name,mime,String(reader.result).split(',')[1]);reader.onerror=()=>alert('Could not prepare the file.');reader.readAsDataURL(blob);}).catch(e=>alert(e.message));
+  };
+})();
