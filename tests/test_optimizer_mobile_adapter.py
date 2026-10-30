@@ -23,6 +23,14 @@ class MobileAdapterTests(unittest.TestCase):
         body=json.loads(result['body']);self.assertEqual(result['status'],200)
         self.assertIsNone(body['warranty_start_date']);self.assertEqual(body['warranty_term_years'],25)
         self.assertNotIn('<',body['name'])
+    def test_real_field_upload_and_pdf(self):
+        csv=b'site,module,pmpp_n,pmpp,irr,tcell\nA,1,350,320,1000,25\n'
+        form={'file':{'name':'test.csv','content':base64.b64encode(csv).decode()}}
+        result=self.call('/api/fieldtest/analyze',form=form)
+        self.assertEqual(result['status'],200,result['body'])
+        report=self.call('/api/fieldtest/report.pdf',payload=json.loads(result['body']))
+        self.assertEqual(report['status'],200)
+        self.assertTrue(base64.b64decode(report['base64']).startswith(b'%PDF-'))
     def test_archive_entry_limit(self):
         out=io.BytesIO()
         with zipfile.ZipFile(out,'w') as z:

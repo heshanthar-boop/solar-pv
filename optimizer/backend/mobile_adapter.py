@@ -10,7 +10,7 @@ import json
 import math
 import re
 import zipfile
-from fastapi import HTTPException, UploadFile
+from fastapi import HTTPException
 from pydantic import ValidationError
 from backend import app, models, engine, eastwest
 
@@ -47,6 +47,15 @@ def _limit_dual(req):
             raise ValueError(f'This phone build allows at most 300 symmetric coarse candidates (requested {n}). Increase the steps or narrow the ranges.')
 
 
+class _LocalUpload:
+    def __init__(self, data, filename):
+        self._data=data
+        self.filename=filename
+    async def read(self):
+        # Starlette's UploadFile may offload to an OS thread; Pyodide has no threads.
+        return self._data
+
+
 def _file(form):
     f=form.get('file')
     if not f or not isinstance(f,dict):
@@ -60,7 +69,7 @@ def _file(form):
             entries=z.infolist()
             if len(entries)>100 or any(i.file_size>20_000_000 for i in entries) or sum(i.file_size for i in entries)>40_000_000:
                 raise ValueError('ZIP exceeds the phone limit: 100 files, 20 MB per file, 40 MB total uncompressed.')
-    return UploadFile(file=io.BytesIO(data), filename=filename)
+    return _LocalUpload(data, filename)
 
 
 async def dispatch(path, payload, form):
