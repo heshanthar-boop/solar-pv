@@ -75,6 +75,7 @@ const App = (() => {
     inspection: { title: 'Inspection Log',      render: (c) => Inspection.render(c) },
     moduleinventory: { title: 'Module Serial Scanner', render: (c) => ModuleInventory.render(c) },
     sitesurvey: { title: 'Ground Site Survey', render: (c) => SiteSurvey.render(c) },
+    fieldclassroom: { title: 'Field Engineering Classroom', render: (c) => FieldClassroom.render(c) },
     optimizer: { title: 'Solar Yield Optimizer', render: (c) => { c.innerHTML='<div class="page"><div class="page-title">Solar Yield Optimizer</div><p>Hourly pvlib calculations run on this device. The engine may take time to start; internet is needed for PVGIS weather and maps.</p><iframe title="Solar Yield Optimizer" src="optimizer/frontend/index.html" style="width:100%;height:calc(100vh - 165px);min-height:650px;border:0;border-radius:12px;background:#0c1423"></iframe></div>'; } },
     pr:         { title: 'PR & IR Test',        render: (c) => PRCalc.render(c) },
     standards:   { title: 'Standards Reference',        render: (c) => Standards.render(c) },
@@ -131,7 +132,7 @@ const App = (() => {
     },
   };
 
-  Object.values(PROJECT_TYPES).forEach(type=>{for(const page of ['moduleinventory','sitesurvey','optimizer'])if(!type.pages.includes(page))type.pages.push(page);});
+  Object.values(PROJECT_TYPES).forEach(type=>{for(const page of ['moduleinventory','sitesurvey','optimizer','fieldclassroom'])if(!type.pages.includes(page))type.pages.push(page);});
   // Home screen tile definitions — grouped, with project-type visibility
   const HOME_TILES = [
     {
@@ -155,6 +156,7 @@ const App = (() => {
     {
       group: 'Field Testing',
       tiles: [
+        { page: 'fieldclassroom', icon: '&#128218;', label: 'Field Engineering Classroom', desc: 'Animated installation and protection lessons' },
         { page: 'moduleinventory', icon: '&#128247;', label: 'Module Serial Scanner', desc: 'Scan modules by site, MPPT and string' },
         { page: 'sitesurvey', icon: '&#127759;', label: 'Ground Site Survey', desc: 'Map GPS boundary, area and distances' },
         { page: 'checklist',   icon: '&#9989;',   label: 'Commissioning',        desc: 'Pre-energisation checklist' },
@@ -863,6 +865,7 @@ const App = (() => {
 
           <button class="basic-home-tile" data-page="optimizer"><span class="basic-home-tile-icon">&#9728;</span><div><div class="basic-home-tile-label">Solar Yield Optimizer</div><div class="basic-home-tile-desc">Hourly tilt and East-West analysis</div></div><span class="basic-home-tile-arrow">&#8250;</span></button>
 
+          <button class="basic-home-tile" data-page="fieldclassroom"><span class="basic-home-tile-icon">&#128218;</span><div><div class="basic-home-tile-label">Field Engineering Classroom</div><div class="basic-home-tile-desc">Animated field and protection lessons</div></div><span class="basic-home-tile-arrow">&#8250;</span></button>
           <button class="basic-home-tile" data-page="basiccalc">
             <span class="basic-home-tile-icon">&#128200;</span>
             <div>
